@@ -229,6 +229,73 @@ accepted.
 - win32u exercises **no forwarders and no ordinal-only exports**, so those code paths in `PeImage` rest
   on synthetic images alone. That is a real coverage gap, recorded rather than papered over.
 
+### Join fusion and key precomputation: measured
+
+Question raised: when several heuristics key on the same column, is it better to touch that data once
+and derive everything from it, rather than re-scanning and re-hashing it per heuristic? Measured with a
+standalone microbenchmark (`tools/join_bench.cpp`, 50,000 rows per side, 60% shared keys, best of 3).
+
+**Fusing three heuristics that share one join key into a single index build plus one probe pass:**
+
+| Key length | 3x separate | 1x fused | Speedup |
+|---|---|---|---|
+| 36 B | 40.72 ms | 12.60 ms | **3.23x** |
+| 256 B | 129.66 ms | 38.78 ms | **3.34x** |
+| 1024 B | 346.21 ms | 103.96 ms | **3.33x** |
+| 4096 B | 1123.94 ms | 363.10 ms | **3.10x** |
+
+Near-linear and flat across two orders of magnitude of key size, because index construction plus probe
+*is* essentially the whole cost, and fusion does it once instead of three times.
+
+**Precomputing a 64-bit hash per row and joining on integers instead of strings** (string equality kept
+as a confirmation step on candidates only):
+
+| Key length | String join | Precompute pass | Int join | Int total | Speedup |
+|---|---|---|---|---|---|
+| 36 B | 17.74 ms | 1.72 ms | 3.71 ms | 5.43 ms | 3.27x |
+| 256 B | 45.33 ms | 21.10 ms | 5.56 ms | 26.66 ms | 1.70x |
+| 1024 B | 116.01 ms | 79.53 ms | 7.70 ms | 87.23 ms | 1.33x |
+| 4096 B | 393.24 ms | 305.10 ms | 20.87 ms | 325.97 ms | 1.21x |
+
+Precomputation alone looks weak at long keys because the hashing pass costs the same bytes either way.
+That reading is wrong in isolation: **the precompute is paid once per column and amortised across every
+heuristic that keys on it.** At 4096 B with three heuristics sharing a column, one precompute (305 ms)
+plus three integer joins (3 x 20.87 ms) totals ~367 ms against 1180 ms for three string joins — and it
+composes with fusion rather than competing with it.
+
+**Fusion is the larger and cheaper win.** It needs no extra threads, no extra memory, and no new
+hashing, and it returns ~3.2x where heuristic-level threading returned 2.2x at 32 threads and 6.9%
+efficiency. Redundant work removed beats redundant work parallelised.
+
+Concrete fusion target in the current code: `Same RVA and hash`, `Same order and hash` and `Bytes hash`
+all key on `functions.bytes_hash`. Today they build three separate hash indexes over the same column
+and probe three times. They should build one index and evaluate three predicates per candidate.
+
+### The synthetic benchmark is unrepresentative, and this is why it matters
+
+`src/Synth.cpp` generates text columns of roughly 36 bytes (`"asm-" + 32 hex chars`). Real Diaphora
+exports store the *entire cleaned assembly listing* of a function in `clean_assembly` — for a
+50-instruction function that is on the order of 1-4 KB. The measured table above is the reason this
+distortion is not cosmetic:
+
+- At 36 B, three separate joins cost 40.72 ms. At 4096 B they cost 1123.94 ms — **27x more**.
+- The 84.72 ms "sum of heuristics" reported earlier for 47,500 functions therefore badly understates
+  real cost, and understates it *most* for exactly the text-keyed heuristics that dominate on real
+  binaries.
+- The threading conclusion is also skewed: with trivially cheap keys there is little work to
+  distribute, so the measured 2.2x ceiling partly reflects an underloaded benchmark rather than a pure
+  architectural limit.
+
+**Action:** regenerate the synthetic corpus with realistic text-column lengths before drawing any
+further performance conclusions, and re-run the thread-scaling sweep afterwards. Numbers in the
+"Findings on threading" section should be treated as valid for the ordering of heuristics but not for
+absolute cost or for the parallel-efficiency ceiling.
+
+Caveat on the microbenchmark itself: it uses `unordered_multimap<std::string, uint32_t>` with owned
+strings, whereas the project keys on `std::string_view` into a string arena and should have better
+locality. Absolute times here are pessimistic relative to the real code; the *ratios*, which are what
+these conclusions rest on, are driven by hashing and map operations that both versions pay.
+
 ### Disassembler selection: Zydis vs Capstone
 
 The native PE loader needs a disassembler, and the choice between Zydis and Capstone is open. How
