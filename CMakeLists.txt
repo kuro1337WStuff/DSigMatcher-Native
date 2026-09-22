@@ -19,10 +19,13 @@ find_package(Threads REQUIRED)
 add_library(dsigmatcher_core STATIC
   src/ExportDatabase.cpp
   src/Heuristics.cpp
-  src/MatchStore.cpp)
+  src/MatchStore.cpp
+  src/Provenance.cpp
+  src/Sha256.cpp)
 
 target_include_directories(dsigmatcher_core PUBLIC include)
 target_link_libraries(dsigmatcher_core PUBLIC SQLite::SQLite3 Threads::Threads)
+target_compile_definitions(dsigmatcher_core PUBLIC DSIG_VERSION="${PROJECT_VERSION}")
 
 if(MSVC)
   target_compile_options(dsigmatcher_core PRIVATE /W4 /permissive- /utf-8 /Zc:__cplusplus)

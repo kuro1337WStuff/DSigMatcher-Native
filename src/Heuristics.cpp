@@ -1,12 +1,14 @@
 #include "dsigmatcher/Heuristics.h"
 
 #include <algorithm>
+#include <chrono>
 #include <string_view>
 #include <thread>
 #include <unordered_map>
 #include <vector>
 
 #include "dsigmatcher/MatchStore.h"
+#include "dsigmatcher/Naming.h"
 
 namespace DSig {
 
@@ -14,24 +16,8 @@ namespace {
 
 constexpr float AmbiguousRatio = 0.5f;
 
-bool HasPrefix(std::string_view Text, std::string_view Prefix) {
-  return Text.size() >= Prefix.size() && Text.compare(0, Prefix.size(), Prefix) == 0;
-}
-
-bool IsAutoNamed(std::string_view Name) {
-  return HasPrefix(Name, "sub_");
-}
-
-bool IsNullSub(std::string_view Name) {
-  return HasPrefix(Name, "nullsub");
-}
-
 bool NameCompatible(const FunctionTable& A, uint32_t I, const FunctionTable& B, uint32_t J) {
-  const std::string_view Left = A.Text(A.Name[I]);
-  const std::string_view Right = B.Text(B.Name[J]);
-  const bool LeftAuto = IsAutoNamed(Left);
-  const bool RightAuto = IsAutoNamed(Right);
-  return (Left == Right && !LeftAuto) || LeftAuto || RightAuto;
+  return DSig::NameCompatible(A.Text(A.Name[I]), B.Text(B.Name[J]));
 }
 
 bool PassesSizeGate(const FunctionTable& A, uint32_t I, const FunctionTable& B, uint32_t J,
@@ -235,6 +221,24 @@ constexpr size_t DefinitionCount = sizeof(Definitions) / sizeof(Definitions[0]);
 
 }
 
+size_t HeuristicCount() { return DefinitionCount; }
+
+const char* HeuristicName(size_t Index) {
+  return Index < DefinitionCount ? Definitions[Index].Name : "";
+}
+
+bool HeuristicRequiresSameProcessor(size_t Index) {
+  return Index < DefinitionCount && Definitions[Index].RequiresSameProcessor;
+}
+
+void RunHeuristic(size_t Index, const FunctionTable& Reference, const FunctionTable& Target,
+                  const DiffOptions& Options, std::vector<Match>& Sink) {
+  if (Index >= DefinitionCount) {
+    return;
+  }
+  Definitions[Index].Runner(Reference, Target, Options, Sink, static_cast<uint16_t>(Index));
+}
+
 const char* CategoryName(MatchCategory Category) {
   switch (Category) {
   case MatchCategory::Best:
@@ -249,6 +253,8 @@ const char* CategoryName(MatchCategory Category) {
 
 DiffResult RunExactHeuristics(const FunctionTable& OldTable, const FunctionTable& NewTable,
                               const DiffOptions& Options) {
+  const auto WallStart = std::chrono::steady_clock::now();
+
   DiffResult Result;
   Result.Stats.resize(DefinitionCount);
 
@@ -261,6 +267,7 @@ DiffResult RunExactHeuristics(const FunctionTable& OldTable, const FunctionTable
       std::max(1u, std::min(Requested, static_cast<unsigned>(DefinitionCount)));
 
   std::vector<std::vector<Match>> Sinks(DefinitionCount);
+  std::vector<double> Timings(DefinitionCount, 0.0);
   std::vector<std::thread> Workers;
   Workers.reserve(DefinitionCount);
 
@@ -283,8 +290,11 @@ DiffResult RunExactHeuristics(const FunctionTable& OldTable, const FunctionTable
       Stats.Ran = true;
       ++InFlight;
       Workers.emplace_back([&, Slot]() {
+        const auto Start = std::chrono::steady_clock::now();
         Definitions[Slot].Runner(OldTable, NewTable, Options, Sinks[Slot],
                                  static_cast<uint16_t>(Slot));
+        const auto End = std::chrono::steady_clock::now();
+        Timings[Slot] = std::chrono::duration<double, std::milli>(End - Start).count();
       });
     }
 
@@ -304,11 +314,14 @@ DiffResult RunExactHeuristics(const FunctionTable& OldTable, const FunctionTable
   MatchStore Store;
   for (size_t Slot = 0; Slot < DefinitionCount; ++Slot) {
     Result.Stats[Slot].RawMatches = Sinks[Slot].size();
+    Result.Stats[Slot].ElapsedMs = Timings[Slot];
     Result.RawMatches += Sinks[Slot].size();
     Store.AddAll(Sinks[Slot]);
   }
 
   Result.Resolved = Store.Resolve();
+  Result.WallMs =
+      std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - WallStart).count();
   return Result;
 }
 
