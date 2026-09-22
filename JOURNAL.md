@@ -221,6 +221,89 @@ found*, so the correct Zydis URL is still to be confirmed. `zyantific/zycore-c` 
 resolves at `master` = `c1fa01cea7fd457dcec468104d477c8b0ca675f7`, and `capstone-engine/capstone`
 resolves at `next` = `2b25a5bf77806b6507c3e54f477b69b2f3ac788b`.
 
+### Disassembler decision: Zydis v4.1.1
+
+Adopted **Zydis**, pinned to tag `v4.1.1` (`a2278f1d254e492f6a6b39f6cb5d1f5d515659dc`), fetched via
+`FetchContent` + `add_subdirectory`. Correct repository is `https://github.com/zyantific/zydis.git` —
+the `zydis-disassembler` name does not resolve, and GitHub answers renames with a 301 rather than a
+404, so that name is simply not the repo.
+
+License: MIT for both Zydis and Zycore-C. No copyleft, so the project's still-unchosen license is
+unconstrained. Capstone would have been BSD-3 plus LLVM/NCSA with a REUSE layout that GitHub cannot
+auto-detect — not a blocker, but more attribution surface for no benefit here.
+
+The decision rests on API shape rather than throughput, because throughput data is five years stale.
+Zydis returns decoded operands unconditionally and performs no dynamic allocation. Capstone leaves
+`cs_insn.detail` NULL unless `CS_OPT_DETAIL` is enabled — the header states this explicitly and
+`CS_OPT_OFF` is the default — so displacement immediates are unreachable without paying per-instruction
+detail work plus a heap allocation. Since displacements are precisely what the struct-getter heuristic
+needs, that asymmetry decides it. Zydis also returns granular failure codes
+(`NO_MORE_DATA` vs `DECODING_ERROR` vs `INSTRUCTION_TOO_LONG`), where Capstone's iterator returns a
+bare boolean; telling a truncated function tail from a genuine decode failure matters when walking
+real binaries.
+
+Traps avoided, both worth recording:
+
+- **Capstone's default branch is an alpha presented as stable.** Branch `next` is 6.0.0-Alpha11 and the
+  GitHub API reports `prerelease: false`. The maintained stable line is 5.0.9 on branch `v5`. Branch
+  `master` is stale at 5.0.0 with `cmake_minimum_required(VERSION 2.8.12)`, which hard-fails on
+  CMake >= 4.0 — and the local CMake is **4.2.3-msvc3**, verified, so that failure would have been
+  real, not theoretical.
+- **Zydis's amalgamation is a trap.** `assets/amalgamate.py` produces a single 17.5 MB / 123,022-line
+  `Zydis.c`. One translation unit that large destroys compile parallelism under MSVC. The multi-file
+  CMake build is both faster to compile and cleaner.
+- **Zycore is a git submodule**, and Zydis's `locate_zycore()` shells out to
+  `git submodule update --init --recursive` at *configure* time when `.git` is present — which breaks
+  under shallow fetches. Bypassed by fetching Zycore explicitly at pin
+  `75a36c45ae1ad382b0f4e0ede0af84c11ee69928` and setting `ZYAN_ZYCORE_PATH` before Zydis is made
+  available. Note this pin is *not* Zycore `master` HEAD.
+- `project()` had to gain the C language (`LANGUAGES C CXX`); both candidates are C libraries.
+- `ZYDIS_MINIMAL_MODE` must stay OFF — `ZydisDecoderDecodeFull` is unavailable in minimal mode.
+  `ZYDIS_FEATURE_ENCODER` is OFF since nothing here encodes.
+
+### Three research claims that were wrong, caught only by compiling
+
+The library research was delegated to a subagent and was strong on licenses, version traps and build
+integration. Three API details were nevertheless wrong, and none would have surfaced without a compile:
+
+| Claim | Reality in v4.1.1 | How caught |
+|---|---|---|
+| Zydis exports the alias target `Zydis::Zydis` | No `ALIAS` is declared; `add_subdirectory` consumers must link plain `Zydis`. The namespaced target exists only in the installed package export. | `CMake Error: Zydis::Zydis` at generate time |
+| `mem.disp` is `{ ZyanI64 value; ZyanU8 offset; ZyanU8 size; }` | It is `{ ZyanBool has_displacement; ZyanI64 value; }` — no offset, no size | `error C2039: 'size': is not a member of ZydisDecodedOperandMemDisp_` |
+| `ZydisMnemonicGetString` returns `const ZyanStaticString*` | Returns `const char*`. The wrapped variant returning `ZydisShortString*` is a separate function, `...GetStringWrapped`. | `error C4430: missing type specifier` |
+
+The alias error is the instructive one: the same report correctly warned that Capstone has *no* in-tree
+`capstone::capstone` alias, then did not apply that scrutiny to Zydis. Asymmetric verification.
+
+Lesson recorded: **a research report is a lead, not ground truth.** Its URLs, SHAs and license claims
+were checked independently and were all exactly right — `v4.1.1` = `a2278f1d...`, `master` =
+`a95bb710...`, Capstone `v5` resolves. But API surface claims must be read out of the fetched headers
+or compiled, not trusted. Both were done here before relying on them.
+
+### Disassembler verification
+
+`dsigmatcher_disasm_tests` — **67 checks, 0 failed.** Covers backend identity, `ret` decode, memory
+displacement extraction, relative call immediates, truncated input (`no-more-data`), invalid 64-bit
+encoding (`decoding-error` — `0x06`, `push es`, is undefined in long mode), null/empty buffers, and
+linear-walk offset accumulation with full byte coverage.
+
+The most important case is the struct-getter family, which is the whole reason displacement access was
+a selection criterion:
+
+```
+four getters: same mnemonic, same length, displacements 0x48 0x50 0x58 0x0
+```
+
+Four `mov rax, [rcx+disp8]` encodings — identical mnemonic, identical 4-byte length, distinguishable
+only by the displacement. This is the concrete answer to the observation that a trivial offset getter's
+bytecode is determined almost entirely by its offset, so byte-hash matching on such functions is weak
+evidence and the offset itself plus caller context is what actually identifies them. The primitive is
+now available natively.
+
+**Still owed:** the Zydis-versus-Capstone throughput A/B on the win32u `.text` section. The
+architectural case is settled, but the speed claim rests on a 2021 benchmark on an i5-6600K and should
+be re-measured rather than inherited. Blocked on the PE loader, which is what locates `.text`.
+
 ### Not yet done
 
 - 38 remaining heuristics (`Partial`, `Unreliable` categories)
