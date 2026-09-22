@@ -541,6 +541,83 @@ now available natively.
 architectural case is settled, but the speed claim rests on a 2021 benchmark on an i5-6600K and should
 be re-measured rather than inherited. Blocked on the PE loader, which is what locates `.text`.
 
+### Thread pool integration, and two measurement corrections
+
+Agent-delivered `ThreadPool` plus a rewritten `MatchStore::Resolve` were integrated into the cascade,
+replacing the wave scheduler (spawn N `std::thread`s, full barrier, repeat). The pool is persistent for
+the duration of a diff and is injected into `MatchStore` via `SetPool`, so one pool serves both
+heuristic execution and resolution.
+
+Whole-cascade benchmark, 47,500 functions per side, 316,304 raw candidates, best of 3:
+
+| | Before | After |
+|---|---|---|
+| Resolve, forced 1 thread | 14.90 ms | **4.65 ms** |
+| Resolve, pooled | n/a | 3.18 ms |
+| Cascade wall, 1 thread | 83.70 ms | 86.24 ms |
+| Cascade wall, best | 38.11 ms (32T) | **26.77 ms (16T)** |
+| Peak speedup | 2.20x | **3.22x** |
+| Efficiency at 8 threads | 27.1% | 37.5% |
+| Precision / recall | 0.9426 / 0.9426 | 0.9426 / 0.9426 |
+
+**Best-case wall time improved 1.42x; peak speedup improved from 2.20x to 3.22x.** Accuracy is
+bit-identical, and resolved counts match exactly at 1, 3, 8 and 32 threads (18,000 of 18,000 on the
+20,000-function corpus), so the determinism guarantee held through the rewrite.
+
+The largest single gain was **not** threading. Deduplicating before sorting — duplicates share
+`(Index1, Index2)`, so each group's winner is computable without a global sort — cuts the sort input
+from 316,304 to 69,992 and takes Resolve from 14.90 ms to 4.65 ms **at one thread**. That is a 3.2x
+algorithmic win available without any parallelism at all.
+
+Two corrections, both to my own reasoning or tooling:
+
+1. **I told the agent the sort was the larger cost.** Measured decomposition of the original: copy
+   0.57 + `stable_sort` 4.70 + max/assign 0.12 + **greedy loop 7.32 ms**. The greedy loop dominated,
+   driven by `unordered_map` per-node allocation (~70k nodes) plus `reserve(2N)` zeroing a 632k-bucket
+   array. The brief was wrong and the agent said so with numbers.
+2. **My benchmark's "resolve (serial, unavoidable)" row was not serial.** It called `Resolve()` with no
+   pool and no thread count, which resolves to `hardware_concurrency()` and constructs a 32-thread pool
+   per call. The label was false and the row was measuring parallel resolution with thread-creation
+   overhead. Fixed to report `Resolve(1)` and pooled resolution as two separately labelled rows.
+
+**An integration regression I introduced and then found.** Wiring `SetPool` unconditionally made the
+1-thread cascade *slower* than the old code: 83.70 ms became 105.63 ms, even though both
+sum-of-heuristics and Resolve had individually got faster. Cause: with a pool injected,
+`Resolve` takes the partitioned path whenever `Total >= PartitionGrain * WorkerCount`, and at
+`WorkerCount == 1` that threshold is trivially met — so a single-threaded run paid for chunking,
+multiple passes and per-chunk bookkeeping with no parallelism to show for it. Guarding the injection
+with `if (Requested > 1)` restored 86.24 ms, confirming the diagnosis (~19 ms of pure overhead).
+
+The general lesson is the same one the synthetic-corpus distortion produced: **a component that is
+faster in isolation can be slower when wired in, and only the integrated measurement reveals it.**
+Agent 2 could not run the whole cascade (its files were not in CMake), so it explicitly declined to
+claim a cascade figure. That was the right call; the regression would otherwise have shipped.
+
+**Portability landmine recorded by the agent.** A nested-parallelism bug (the calling thread also
+drains the queue, so `InWorker_` was unset for it) caused batch-state corruption and a use-after-free
+with exit `0xC0000409`. It did **not** deadlock because **MSVC's `std::mutex` is recursive** (backed by
+`CRITICAL_SECTION`); the same bug on libstdc++ or libc++ would have hung instead of corrupting. Code
+that accidentally relies on recursive mutex behaviour is silently non-portable. Fixed with an RAII
+`WorkerScope` around the caller's drain, and covered by a nested-submission test.
+
+**Residual, honestly stated:**
+
+- The survivor sort (~0.91 ms) and greedy pass (~0.23 ms) remain serial — roughly 1.14 ms of the
+  2.71 ms best case, a ~44% serial fraction at 16 threads. The agent declined to parallelise the
+  greedy pass because first-fit maximal matching in a fixed order couples each decision to all
+  previous ones, and it could not construct a provable exact decomposition. Reporting that rather
+  than shipping a subtle nondeterminism was correct.
+- Scaling is still capped by having only **8 heuristics**. Peak speedup 3.22x on 32 threads is
+  consistent with that ceiling plus the serial resolve fraction. Adding the 38 remaining Diaphora
+  heuristics raises the ceiling to 46 and this must be re-measured.
+- 32 threads is never optimal — 16 and 24 beat it. Thread counts should be tuned, not maxed.
+- Timing noise is significant: background load swung the serial baseline 15.4-21.5 ms between
+  processes during the agent's work. Two post-integration runs gave 3.75x and 3.22x peak speedup.
+  Treat these as approximate and re-measure before relying on small differences.
+- `Raw` is nearly sorted in practice (3 ascending runs out of 316,314, since each heuristic emits in
+  ascending `Index1`), which `stable_sort` exploits: 5.66 ms as-is versus 25.40 ms shuffled.
+  Correctness does not depend on this, only speed, and the shuffled case still improves 4.59x.
+
 ### Not yet done
 
 - 38 remaining heuristics (`Partial`, `Unreliable` categories)

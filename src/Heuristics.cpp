@@ -9,6 +9,7 @@
 
 #include "dsigmatcher/MatchStore.h"
 #include "dsigmatcher/Naming.h"
+#include "dsigmatcher/ThreadPool.h"
 
 namespace DSig {
 
@@ -263,66 +264,41 @@ DiffResult RunExactHeuristics(const FunctionTable& OldTable, const FunctionTable
     const unsigned Detected = std::thread::hardware_concurrency();
     Requested = Detected > 0 ? Detected : 1u;
   }
-  const unsigned WorkerCount =
-      std::max(1u, std::min(Requested, static_cast<unsigned>(DefinitionCount)));
 
-  std::vector<std::vector<Match>> Sinks(DefinitionCount);
-  std::vector<double> Timings(DefinitionCount, 0.0);
-  std::vector<std::thread> Workers;
-  Workers.reserve(DefinitionCount);
+  std::vector<size_t> Runnable;
+  Runnable.reserve(DefinitionCount);
+  for (size_t Slot = 0; Slot < DefinitionCount; ++Slot) {
+    HeuristicStats& Stats = Result.Stats[Slot];
+    Stats.Name = Definitions[Slot].Name;
+    Stats.Category = MatchCategory::Best;
 
-  size_t NextLaunch = 0;
-  size_t InFlight = 0;
-
-  while (NextLaunch < DefinitionCount || InFlight > 0) {
-    while (InFlight < WorkerCount && NextLaunch < DefinitionCount) {
-      const size_t Slot = NextLaunch++;
-      HeuristicStats& Stats = Result.Stats[Slot];
-      Stats.Name = Definitions[Slot].Name;
-      Stats.Category = MatchCategory::Best;
-
-      if (Definitions[Slot].RequiresSameProcessor && !Options.SameProcessor) {
-        Stats.Ran = false;
-        Stats.SkipReason = "processor specific";
-        continue;
-      }
-
-      Stats.Ran = true;
-
-      if (WorkerCount == 1) {
-        const auto Start = std::chrono::steady_clock::now();
-        Definitions[Slot].Runner(OldTable, NewTable, Options, Sinks[Slot],
-                                 static_cast<uint16_t>(Slot));
-        Timings[Slot] =
-            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - Start)
-                .count();
-        continue;
-      }
-
-      ++InFlight;
-      Workers.emplace_back([&, Slot]() {
-        const auto Start = std::chrono::steady_clock::now();
-        Definitions[Slot].Runner(OldTable, NewTable, Options, Sinks[Slot],
-                                 static_cast<uint16_t>(Slot));
-        const auto End = std::chrono::steady_clock::now();
-        Timings[Slot] = std::chrono::duration<double, std::milli>(End - Start).count();
-      });
-    }
-
-    if (InFlight == 0) {
+    if (Definitions[Slot].RequiresSameProcessor && !Options.SameProcessor) {
+      Stats.Ran = false;
+      Stats.SkipReason = "processor specific";
       continue;
     }
 
-    for (auto& Worker : Workers) {
-      if (Worker.joinable()) {
-        Worker.join();
-      }
-    }
-    Workers.clear();
-    InFlight = 0;
+    Stats.Ran = true;
+    Runnable.push_back(Slot);
   }
 
+  std::vector<std::vector<Match>> Sinks(DefinitionCount);
+  std::vector<double> Timings(DefinitionCount, 0.0);
+
+  ThreadPool Pool(Requested);
+  Pool.ParallelFor(Runnable.size(), [&](size_t Item) {
+    const size_t Slot = Runnable[Item];
+    const auto Start = std::chrono::steady_clock::now();
+    Definitions[Slot].Runner(OldTable, NewTable, Options, Sinks[Slot],
+                             static_cast<uint16_t>(Slot));
+    Timings[Slot] =
+        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - Start).count();
+  });
+
   MatchStore Store;
+  if (Requested > 1) {
+    Store.SetPool(&Pool);
+  }
   for (size_t Slot = 0; Slot < DefinitionCount; ++Slot) {
     Result.Stats[Slot].RawMatches = Sinks[Slot].size();
     Result.Stats[Slot].ElapsedMs = Timings[Slot];
@@ -330,7 +306,7 @@ DiffResult RunExactHeuristics(const FunctionTable& OldTable, const FunctionTable
     Store.AddAll(Sinks[Slot]);
   }
 
-  Result.Resolved = Store.Resolve();
+  Result.Resolved = Store.Resolve(Requested);
   Result.WallMs =
       std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - WallStart).count();
   return Result;

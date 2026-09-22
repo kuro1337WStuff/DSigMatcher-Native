@@ -7,6 +7,8 @@
 
 namespace DSig {
 
+class ThreadPool;
+
 class MatchStore {
 public:
   void Add(const Match& Candidate);
@@ -15,10 +17,13 @@ public:
   size_t RawCount() const { return Raw_.size(); }
   const std::vector<Match>& Raw() const { return Raw_; }
 
-  std::vector<Match> Resolve() const;
+  void SetPool(ThreadPool* Pool) { Pool_ = Pool; }
+
+  std::vector<Match> Resolve(unsigned ThreadCount = 0) const;
 
 private:
   std::vector<Match> Raw_;
+  ThreadPool* Pool_ = nullptr;
 };
 
 }
