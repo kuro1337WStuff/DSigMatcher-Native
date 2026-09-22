@@ -187,6 +187,40 @@ addresses never move flatters exactly the heuristics that matter least in practi
 The churn is explained by the 8 insertions (new syscalls at RVA `3b50`, `3b90`, `9110`, `aaf0`)
 shifting everything after them — ordinary patch behaviour.
 
+### Disassembler selection: Zydis vs Capstone
+
+The native PE loader needs a disassembler, and the choice between Zydis and Capstone is open. How
+that question was handled is worth recording because the first two approaches were both wrong.
+
+**A second model opinion was requested and refused.** Claude Code (`claude -p`) was asked a narrowly
+technical question about x86-64 decode throughput, structured operand access, and displacement
+immediates, with explicit instruction to answer "no reliable data" rather than estimate. It returned:
+
+```
+API Error: Opus 4.8's safeguards flagged this message ... Details: [cyber]
+```
+
+The question was not reworded to get past the classifier. Rephrasing a request specifically to evade a
+safety filter is circumvention, and it would have meant misrepresenting what this project is in order
+to extract an answer. The refusal stands and is recorded here rather than worked around.
+
+**The refusal cost nothing, because the question was mis-posed.** "Which disassembler is faster" is
+empirical, not advisory. Any answer — vendor benchmark, third-party blog, or model recall — is weaker
+evidence than timing both libraries on the actual workload with the actual corpus. Both are free, the
+corpus already exists on disk, and the tool to measure them is a few hundred lines.
+
+Decision: **measure, do not ask.** The evaluation will decode the `win32u.dll` corpus with each
+library and report instructions/second plus the cost of the two things this project specifically needs
+beyond raw decode: structured operand access, and memory-operand displacement immediates (the `0x48`
+in `mov rax, [rcx+48h]`, which is how trivial struct getters are identified). Formatting cost is
+measured separately, since normalized signature text is generated in-house and a vendor formatter may
+be skippable.
+
+Blocked on one unknown: `https://github.com/zyantific/zydis-disassembler.git` returns *Repository not
+found*, so the correct Zydis URL is still to be confirmed. `zyantific/zycore-c` (Zydis's dependency)
+resolves at `master` = `c1fa01cea7fd457dcec468104d477c8b0ca675f7`, and `capstone-engine/capstone`
+resolves at `next` = `2b25a5bf77806b6507c3e54f477b69b2f3ac788b`.
+
 ### Not yet done
 
 - 38 remaining heuristics (`Partial`, `Unreliable` categories)
