@@ -1,10 +1,10 @@
-# SigMatcher
+# DSigMatcher-Native
 
 **A native C++ binary diffing engine — Diaphora parity, recoded from scratch for speed.**
 
-SigMatcher does the job [Diaphora](https://github.com/joxeankoret/diaphora) does: take two versions of a binary, determine which function in the new build corresponds to which function in the old build, and then **move names and symbols across** so that a stripped, recompiled, or freshly patched target inherits the annotations that already exist in the reference build.
+DSigMatcher-Native does the job [Diaphora](https://github.com/joxeankoret/diaphora) does: take two versions of a binary, determine which function in the new build corresponds to which function in the old build, and then **move names and symbols across** so that a stripped, recompiled, or freshly patched target inherits the annotations that already exist in the reference build.
 
-What differs is the implementation. Diaphora is Python driving a SQLite database that an IDA plugin exported. SigMatcher is a single native C++ executable — no interpreter, no serialization round-trip, no GIL — with a matching pipeline engineered so the dominant cost scales with the size of the input instead of the square of the function-pair count.
+What differs is the implementation. Diaphora is Python driving a SQLite database that an IDA plugin exported. DSigMatcher-Native is a single native C++ executable — no interpreter, no serialization round-trip, no GIL — with a matching pipeline engineered so the dominant cost scales with the size of the input instead of the square of the function-pair count.
 
 The target is simple: same inputs, same matches, same ported symbols, in a fraction of the wall-clock time.
 
@@ -14,11 +14,11 @@ The target is simple: same inputs, same matches, same ported symbols, in a fract
 
 Function-level binary diffing is the load-bearing step in patch analysis. You have a build with symbols and a build without them, or two builds where only one has been reversed, and you need to transfer what you know from one to the other. The naive formulation is a maximum-weight bipartite matching over `n × m` function pairs, which is `O(n·m)` candidate generation before you have even scored anything — and on a large binary that is hundreds of thousands of pairs.
 
-Diaphora solves this with a staged heuristic cascade and it works well. SigMatcher keeps the staged cascade, because the staging is the genuinely good idea, and attacks the constant factors and the asymptotics underneath it:
+Diaphora solves this with a staged heuristic cascade and it works well. DSigMatcher-Native keeps the staged cascade, because the staging is the genuinely good idea, and attacks the constant factors and the asymptotics underneath it:
 
 - **Candidate generation is index-driven, not pair-driven.** Functions are bucketed by signature, and only functions that land in a related bucket are ever compared. The `O(n·m)` term never materializes.
 - **Every similarity measure is bounded.** Fuzzy comparisons use banded dynamic programming with an early-abort on the distance threshold, so a comparison costs `O(d·s)` for threshold `d` rather than `O(s²)`.
-- **The whole pipeline is parallel.** Ingest, hashing, candidate generation and verification are all embarrassingly parallel across functions and buckets. SigMatcher uses every hardware thread it is given.
+- **The whole pipeline is parallel.** Ingest, hashing, candidate generation and verification are all embarrassingly parallel across functions and buckets. DSigMatcher-Native uses every hardware thread it is given.
 - **Allocation is kept out of the hot path.** Arena-backed storage, structure-of-arrays record layout, and zero-copy views over the mapped input.
 
 ---
@@ -33,7 +33,7 @@ Parity is defined against Diaphora's observable behaviour, not its internals.
 | Staged matching cascade (exact → structural → fuzzy → relaxed) | Yes | Same tiering philosophy, rederived implementation. |
 | Call-graph-aware match propagation | Yes | A confirmed match constrains and seeds its neighbours. |
 | Name / symbol / prototype porting from reference to target | Yes | The primary output artifact. |
-| Export of results for application in IDA Pro / Ghidra | Yes | SigMatcher computes; the disassembler applies. |
+| Export of results for application in IDA Pro / Ghidra | Yes | DSigMatcher-Native computes; the disassembler applies. |
 | Consuming Diaphora's existing SQLite exports | Yes | Direct compatibility path, so existing workflows keep working. |
 | Native PE / ELF / Mach-O loader and built-in disassembler | Roadmap | Removes the IDA dependency entirely. Tracked separately from the parity goal. |
 | ML-assisted matching | Roadmap | Diaphora 3 ships an ML engine; a native equivalent is a later milestone. |
@@ -68,7 +68,7 @@ For everything still unmatched, generate candidates with multi-probe locality-se
 Score each candidate pair properly — bounded-band edit distance on the instruction sequence, basic-block count and shape comparison, cyclomatic complexity delta, callee-overlap. Early-abort the moment the running cost exceeds the acceptance threshold.
 
 **Stage 7 — Assignment and conflict resolution.**
-Fuzzy stages can propose several targets for one function. SigMatcher resolves this to a strict one-to-one assignment using Hopcroft–Karp on the bipartite candidate graph, `O(E·√V)`, restricted to edges above the confidence floor. Below the floor, matches are emitted as *partial / best-effort* rather than silently forced.
+Fuzzy stages can propose several targets for one function. DSigMatcher-Native resolves this to a strict one-to-one assignment using Hopcroft–Karp on the bipartite candidate graph, `O(E·√V)`, restricted to edges above the confidence floor. Below the floor, matches are emitted as *partial / best-effort* rather than silently forced.
 
 ---
 
@@ -97,7 +97,7 @@ The headline is stage 5: **`O(n·m)` is removed from the pipeline entirely.** Ve
 - **Parallel-for** over function records in stages 0–3. Each thread accumulates into thread-local hash shards; shards are merged once at the barrier. No contention on the hot path, no shared mutable index.
 - **Sharded candidate queues** feeding stage 6, so verification workers pull without a global lock.
 - **Per-bucket parallelism** in stages 5 and 6 — buckets are independent by construction.
-- **Deterministic output.** Parallelism must not change results. Every intermediate is tagged with a stable sort key and reductions are order-independent, so the emitted match set is byte-identical whether SigMatcher runs on 4 threads or 128. A single-threaded mode exists specifically to make this auditable.
+- **Deterministic output.** Parallelism must not change results. Every intermediate is tagged with a stable sort key and reductions are order-independent, so the emitted match set is byte-identical whether DSigMatcher-Native runs on 4 threads or 128. A single-threaded mode exists specifically to make this auditable.
 
 ## Memory model
 
@@ -114,4 +114,4 @@ The headline is stage 5: **`O(n·m)` is removed from the pipeline entirely.** Ve
 
 ## Prior art
 
-SigMatcher is a clean-room reimplementation of the binary diffing approach pioneered by **Diaphora**, copyright Jose Miguel Escribano and contributors, distributed under the GPLv3. Diaphora established that a staged heuristic cascade with call-graph propagation is the right shape for this problem; this project rederives that shape in native code with different data structures, different scoring and a different execution model. No Diaphora source is incorporated. Licensing for SigMatcher has not yet been chosen.
+DSigMatcher-Native is a clean-room reimplementation of the binary diffing approach pioneered by **Diaphora**, copyright Jose Miguel Escribano and contributors, distributed under the GPLv3. Diaphora established that a staged heuristic cascade with call-graph propagation is the right shape for this problem; this project rederives that shape in native code with different data structures, different scoring and a different execution model. No Diaphora source is incorporated. Licensing for DSigMatcher-Native has not yet been chosen.
