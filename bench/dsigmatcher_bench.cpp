@@ -9,6 +9,7 @@
 #include "dsigmatcher/Heuristics.h"
 #include "dsigmatcher/MatchStore.h"
 #include "dsigmatcher/Synth.h"
+#include "dsigmatcher/ThreadPool.h"
 #include "dsigmatcher/Types.h"
 
 namespace {
@@ -165,14 +166,27 @@ int main(int Argc, char** Argv) {
   for (const std::vector<Match>& Matches : PerHeuristicMatches) {
     Store.AddAll(Matches);
   }
+
+  ThreadPool SharedPool(0);
+
   double ResolveBest = 1e18;
   std::vector<Match> ResolvedSerial;
   for (int Attempt = 0; Attempt < Repetitions; ++Attempt) {
     const auto Start = Clock::now();
-    ResolvedSerial = Store.Resolve();
+    ResolvedSerial = Store.Resolve(1);
     ResolveBest = std::min(ResolveBest, MillisecondsSince(Start));
   }
-  std::printf("%-30s %12.2f %12zu\n", "resolve (serial, unavoidable)", ResolveBest,
+  std::printf("%-30s %12.2f %12zu\n", "resolve (forced 1 thread)", ResolveBest,
+              ResolvedSerial.size());
+
+  double ResolvePooledBest = 1e18;
+  Store.SetPool(&SharedPool);
+  for (int Attempt = 0; Attempt < Repetitions; ++Attempt) {
+    const auto Start = Clock::now();
+    const std::vector<Match> Ignored = Store.Resolve(0);
+    ResolvePooledBest = std::min(ResolvePooledBest, MillisecondsSince(Start));
+  }
+  std::printf("%-30s %12.2f %12zu\n", "resolve (pooled, all threads)", ResolvePooledBest,
               ResolvedSerial.size());
   std::printf("\n");
 
@@ -224,7 +238,7 @@ int main(int Argc, char** Argv) {
 
   std::printf("\n");
   std::printf("notes:\n");
-  std::printf("  resolve is single threaded by construction; it sets the floor on total wall time.\n");
+  std::printf("  resolve at 1 thread isolates the algorithmic gain from the parallel gain.\n");
   std::printf("  sum of heuristics %.2f ms vs serial wall %.2f ms shows scheduler overhead.\n",
               SerialSum, SerialWall);
 

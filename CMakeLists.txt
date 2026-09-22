@@ -56,7 +56,8 @@ add_library(dsigmatcher_core STATIC
   src/PeImage.cpp
   src/Provenance.cpp
   src/Sha256.cpp
-  src/Synth.cpp)
+  src/Synth.cpp
+  src/ThreadPool.cpp)
 
 target_include_directories(dsigmatcher_core PUBLIC include)
 target_link_libraries(dsigmatcher_core PUBLIC SQLite::SQLite3 Threads::Threads Zydis)
@@ -87,3 +88,8 @@ add_executable(dsigmatcher_pe_tests tests/peimage_tests.cpp)
 target_link_libraries(dsigmatcher_pe_tests PRIVATE dsigmatcher_core)
 dsig_apply_warnings(dsigmatcher_pe_tests)
 add_test(NAME peimage COMMAND dsigmatcher_pe_tests)
+
+add_executable(dsigmatcher_resolve_tests tests/resolve_tests.cpp)
+target_link_libraries(dsigmatcher_resolve_tests PRIVATE dsigmatcher_core)
+dsig_apply_warnings(dsigmatcher_resolve_tests)
+add_test(NAME resolve COMMAND dsigmatcher_resolve_tests)
