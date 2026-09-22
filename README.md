@@ -110,8 +110,55 @@ The headline is stage 5: **`O(n·m)` is removed from the pipeline entirely.** Ve
 
 ## Status
 
-**Design and scaffolding.** The pipeline, complexity budget and concurrency model above are the committed design. Implementation is in progress — there is no build yet, and no benchmark numbers are quoted anywhere in this README because none exist yet. Numbers will be published against Diaphora on a fixed corpus once the exact-signature and call-graph stages are complete enough to produce a full match set.
+**Working vertical slice — exact-match tier only.**
+
+What is implemented and verified:
+
+- Ingest of Diaphora SQLite exports into structure-of-arrays records over a string arena, with column detection so older or partial exports still load.
+- The `Best`-category exact heuristics, reimplemented as native hash-indexed joins rather than SQL: *Same RVA and hash*, *Same order and hash*, *Function Hash*, *Bytes hash*, *Same address and mnemonics*, *Same cleaned assembly*, *Same cleaned microcode*, *Same cleaned pseudo-code*. Predicates, size gates and `sub_`/`nullsub` name handling follow Diaphora's definitions.
+- Deterministic resolution of raw candidate pairs into a strict one-to-one match set, highest ratio first.
+- Output of a `matches` table plus a `symbols_to_port` table — the name/symbol move-over artifact.
+- Heuristic-level parallelism, matching Diaphora's execution model.
+
+What is **not** implemented yet: the `Partial` and `Unreliable` categories (38 further heuristics), constant and call-graph matching, call-graph match propagation, fuzzy/LSH candidate generation, bounded edit-distance verification, maximum-cardinality assignment, and the native PE/ELF loader.
+
+No benchmark against Diaphora has been run, and no timings are quoted anywhere in this README. Correctness is currently established against a synthetic fixture with known correspondences (`tests/make_fixture.py`), not against real binaries. Numbers will be published once the cascade is complete enough to produce a full match set on a real corpus.
+
+Note also that the pipeline described above is the *target* design. The current implementation follows Diaphora's heuristic-cascade structure for parity; the LSH and maximum-cardinality-assignment stages are additions intended to replace parts of that cascade, and are not built yet.
+
+## Build
+
+Requires a C++20 compiler, CMake 3.20+, Ninja, and the SQLite development headers and library. Verified with MSVC 19.51 (VS 2026) on Windows x64.
+
+```
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=<prefix containing include/sqlite3.h and lib/sqlite3.lib>
+cmake --build build
+```
+
+On Windows with Visual Studio, run `vcvars64.bat` first; CMake and Ninja ship with the IDE.
+
+## Usage
+
+```
+build/dsigmatcher <reference.sqlite> <target.sqlite> [options]
+
+  -o, --output <path>          write results to a SQLite database
+  -t, --threads <n>            worker threads (default: hardware concurrency)
+      --ignore-small-functions apply the instructions > 5 size gate
+      --assume-same-cpu        run processor specific heuristics unconditionally
+```
+
+`reference` is the database carrying the symbols you want; `target` is the one that receives them. With `-o`, the output database contains `matches` (every resolved pair with ratio and category) and `symbols_to_port` (only the rows where the reference name is a real symbol and differs from the target's current name).
+
+## Tests
+
+`tests/make_fixture.py <outdir>` generates a matched pair of Diaphora-schema databases with known correspondences — six exact-hash pairs, three that survive only a recompile, two detectable through pseudocode alone, and one orphan per side that must not match.
+
 
 ## Prior art
 
-DSigMatcher-Native is a clean-room reimplementation of the binary diffing approach pioneered by **Diaphora**, copyright Jose Miguel Escribano and contributors, distributed under the GPLv3. Diaphora established that a staged heuristic cascade with call-graph propagation is the right shape for this problem; this project rederives that shape in native code with different data structures, different scoring and a different execution model. No Diaphora source is incorporated. Licensing for DSigMatcher-Native has not yet been chosen.
+DSigMatcher-Native is a clean-room reimplementation of the binary diffing approach pioneered by **Diaphora**, copyright Jose Miguel Escribano and contributors, distributed under the **GNU Affero General Public License v3.0**. Diaphora established that a staged heuristic cascade with call-graph propagation is the right shape for this problem; this project rederives that shape in native code with different data structures, different scoring and a different execution model.
+
+No Diaphora source code is incorporated, copied, or translated. What is reused is the *observable interface*: the SQLite schema that Diaphora's exporters emit, and the taxonomy of matching heuristics it applies. Consuming a documented file format and reimplementing an algorithmic approach independently does not create a derivative work, so Diaphora's AGPLv3 does not propagate to this project. Licensing for DSigMatcher-Native has not yet been chosen.
+
+The bundled SQLite amalgamation, retrieved at configure time, is in the public domain.
