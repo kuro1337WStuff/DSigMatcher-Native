@@ -53,6 +53,7 @@ add_library(dsigmatcher_core STATIC
   src/ExportDatabase.cpp
   src/Heuristics.cpp
   src/MatchStore.cpp
+  src/PeImage.cpp
   src/Provenance.cpp
   src/Sha256.cpp
   src/Synth.cpp)
@@ -81,3 +82,8 @@ add_executable(dsigmatcher_disasm_tests tests/disassembler_tests.cpp)
 target_link_libraries(dsigmatcher_disasm_tests PRIVATE dsigmatcher_core)
 dsig_apply_warnings(dsigmatcher_disasm_tests)
 add_test(NAME disassembler COMMAND dsigmatcher_disasm_tests)
+
+add_executable(dsigmatcher_pe_tests tests/peimage_tests.cpp)
+target_link_libraries(dsigmatcher_pe_tests PRIVATE dsigmatcher_core)
+dsig_apply_warnings(dsigmatcher_pe_tests)
+add_test(NAME peimage COMMAND dsigmatcher_pe_tests)

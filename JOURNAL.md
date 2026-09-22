@@ -384,6 +384,46 @@ hand-rolled version already reaches 51.20 GB/s — at the memory wall — the ex
 it has not been tested, and adopting XXH3 would also remove the dispatch code from this project's
 maintenance surface.
 
+### Audit: PeImage cross-checked against pefile
+
+`PeImage` was written by a subagent that also wrote its own 302-check test suite. Self-authored tests
+passing is weak evidence, so the parser was audited against `pefile` — an independent implementation
+neither the agent nor this session wrote. `tools/dump_pe.cpp` emits the native parser's full view;
+`tools/audit_pe_dump.py` compares it field by field.
+
+**Result: 0 mismatches on both corpus binaries.**
+
+| Compared | `10.0.26100.9168` | `10.0.26100.9444` |
+|---|---|---|
+| Header fields (machine, sections, entry point, image base, alignments, sizes, checksum, characteristics, subsystem, DLL characteristics) | all agree | all agree |
+| Section count and every section field (name, VA, VSize, raw ptr, raw size, characteristics) | 6, all agree | 6, all agree |
+| Export count | 1548 = 1548 | 1552 = 1552 |
+| Export set as `(ordinal, rva, name)` triples | identical | identical |
+| Distinct export names | 1548 | 1552 |
+| Forwarders | 0 = 0 | 0 = 0 |
+| Export directory (ordinal base, function count, name count) | all agree | all agree |
+| RVA to offset round-trip, every export | 0 failures | 0 failures |
+| CodeView age, PDB name | agree | agree |
+
+Two findings about the audit itself:
+
+- **`pefile` cannot validate a full CodeView GUID.** In the installed version (2024.8.26),
+  `CvInfoPDB70.Signature_Data4` is exposed as a single byte, not the 8-byte field — it returned
+  `0xEB` where the true Data4 is `EBBCA13F4EC0C4B1`. This also explains an earlier failure in
+  `tools/prepare_corpus.py`: `bytes(int)` does not convert an integer to its bytes, it allocates a
+  zero-filled buffer of that length, which is why the first attempt produced a GUID with hundreds of
+  trailing zeros and a 404 from the symbol server. The audit therefore compares only the 9 GUID bytes
+  pefile can actually produce, and validates the full GUID against a stronger oracle.
+- **The stronger oracle is the symbol server.** The native GUID `3B99E6AC1E885968EBBCA13F4EC0C4B1`
+  with age 1 is the exact key that downloaded the correct 274,432-byte `win32u.pdb`, which `dbghelp`
+  then loaded reporting `SymPdb` and `pdb_unmatched=False`. A GUID that resolves the right PDB on
+  Microsoft's server and satisfies dbghelp's match check cannot be wrong. Same for
+  `6295787D0B7E537E98F77F31F4426D1C1`.
+
+**Coverage gap, unchanged and still real:** win32u has zero forwarders and zero ordinal-only exports,
+so both paths rest on synthetic images only. No real PE32 (32-bit) binary and no real `NB10`
+(pre-RSDS) debug record has been parsed. Those are the places a latent bug would hide.
+
 ### Disassembler selection: Zydis vs Capstone
 
 The native PE loader needs a disassembler, and the choice between Zydis and Capstone is open. How
