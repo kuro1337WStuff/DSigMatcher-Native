@@ -25,3 +25,6 @@ CMakeUserPresets.json
 
 __pycache__/
 *.pyc
+
+corpus/
+*.tsv
