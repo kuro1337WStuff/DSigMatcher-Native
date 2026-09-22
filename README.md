@@ -119,11 +119,11 @@ What is implemented and verified:
 - Deterministic resolution of raw candidate pairs into a strict one-to-one match set, highest ratio first.
 - Output of a `matches` table plus a `symbols_to_port` table — the name/symbol move-over artifact.
 - Chainable `port`: writes a labelled copy of the target that is itself a valid Diaphora export, so symbols roll forward release after release without returning to IDA. Each hop is recorded with both binaries' md5, both files' SHA-256, and a per-name cumulative confidence that decays multiplicatively.
-- Heuristic-level parallelism, matching Diaphora's execution model.
+- Heuristic-level parallelism, matching Diaphora's execution model. Measured scaling is poor — roughly 2.2× at 32 threads — and is bounded by the heuristic count and by the single-threaded resolve pass. See `JOURNAL.md`.
 
 What is **not** implemented yet: the `Partial` and `Unreliable` categories (38 further heuristics), constant and call-graph matching, call-graph match propagation, fuzzy/LSH candidate generation, bounded edit-distance verification, maximum-cardinality assignment, and the native PE/ELF loader.
 
-No benchmark against Diaphora has been run, and no timings are quoted anywhere in this README. Correctness is currently established against a synthetic fixture with known correspondences (`tests/make_fixture.py`), not against real binaries. Numbers will be published once the cascade is complete enough to produce a full match set on a real corpus.
+No benchmark against Diaphora has been run, and no timings are quoted here as parity evidence. Correctness is established by a native test suite (`dsigmatcher_tests`, 82 assertions) against synthetic corpora with known ground truth, not against real binaries. Real-corpus numbers will be published once the cascade is complete enough to produce a full match set.
 
 Note also that the pipeline described above is the *target* design. The current implementation follows Diaphora's heuristic-cascade structure for parity; the LSH and maximum-cardinality-assignment stages are additions intended to replace parts of that cascade, and are not built yet.
 
@@ -179,9 +179,34 @@ By default a real symbol already present in the target is **preserved**, not ove
 
 ## Tests
 
-`tests/make_fixture.py <outdir>` generates a matched pair of Diaphora-schema databases with known correspondences — six exact-hash pairs, three that survive only a recompile, two detectable through pseudocode alone, and one orphan per side that must not match.
+`dsigmatcher_tests` is a self-contained native suite — no external test framework, no Python. It builds Diaphora-schema SQLite databases in temp files and exercises the library end to end:
 
-`tests/make_chain.py <outdir> <versions>` generates a multi-version release chain for exercising `port`: eight byte-stable functions, four that recompile each release but keep a unique cleaned-assembly signature, two that are genuinely ambiguous (identical cleaned assembly *and* microcode, so they can only match at 0.5), one true orphan per version that must never match, and one function hand-labelled in v1 so the preserve-existing path is covered. Two hops through that chain are expected to leave the ambiguous pair at a cumulative 0.25 and everything else at 1.0.
+```
+cmake --build build
+ctest --test-dir build --output-on-failure
+```
+
+82 assertions across 7 suites: SHA-256 against NIST vectors (including the 1,000,000-byte case and chunked-versus-whole equivalence), string-arena behaviour, the `sub_`/`nullsub`/portability predicates, `MatchStore` dedup and strict 1:1 resolution, ingest round-trip with field fidelity, matcher accuracy against synthetic ground truth, and a two-hop provenance chain.
+
+The synthetic generator (`src/Synth.cpp`) carries per-function ground truth, so accuracy is measured as precision and recall rather than as a match count. It deliberately emits **different bytes per side** for recompiled and ambiguous functions and **shuffles target row order**, so greedy 1:1 resolution cannot succeed by index alignment. One assertion exists purely to keep that honest: `CHECK(Precision < 0.999)` fails the build if the fixture ever starts leaking the answer again. An earlier version of the generator did exactly that and reported a meaningless `precision 1.0000`.
+
+The two-hop chain test verifies that a name matched at 0.5 twice is recorded at 0.25, that stable names hold at 1.0, and that `--max-hops` and `--min-ratio` both prune as documented.
+
+## Benchmark
+
+`dsigmatcher_bench` measures per-heuristic cost and whole-cascade scaling so that parallelism is applied on evidence rather than by default:
+
+```
+build/dsigmatcher_bench -n 50000 -r 3 -t 1,2,4,8,16,24,32
+```
+
+It reports each heuristic's serial cost and raw match count, the serial `Resolve` floor, accuracy against ground truth, and wall time / speedup / efficiency at every requested thread count, taking the best of `-r` repetitions.
+
+On a 32-thread machine at 47,500 functions per side, heuristic-level parallelism peaks near **2.2×** and is bounded both by the heuristic count and by the serial `Resolve` pass. Parallelising everything is measurably *not* the fastest option here; `JOURNAL.md` has the numbers and the analysis.
+
+## Journal
+
+`JOURNAL.md` is the working log: what was built, what was tested, what broke, what the measurements showed, and which findings contradicted the design intent. Read it before trusting any number in this README.
 
 
 ## Prior art
@@ -190,4 +215,4 @@ DSigMatcher-Native is a clean-room reimplementation of the binary diffing approa
 
 No Diaphora source code is incorporated, copied, or translated. What is reused is the *observable interface*: the SQLite schema that Diaphora's exporters emit, and the taxonomy of matching heuristics it applies. Consuming a documented file format and reimplementing an algorithmic approach independently does not create a derivative work, so Diaphora's AGPLv3 does not propagate to this project. Licensing for DSigMatcher-Native has not yet been chosen.
 
-The bundled SQLite amalgamation, retrieved at configure time, is in the public domain.
+SQLite is located with CMake's `find_package(SQLite3)` and linked as `SQLite::SQLite3`; nothing is vendored. SQLite itself is public domain.

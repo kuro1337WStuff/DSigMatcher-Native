@@ -288,6 +288,17 @@ DiffResult RunExactHeuristics(const FunctionTable& OldTable, const FunctionTable
       }
 
       Stats.Ran = true;
+
+      if (WorkerCount == 1) {
+        const auto Start = std::chrono::steady_clock::now();
+        Definitions[Slot].Runner(OldTable, NewTable, Options, Sinks[Slot],
+                                 static_cast<uint16_t>(Slot));
+        Timings[Slot] =
+            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - Start)
+                .count();
+        continue;
+      }
+
       ++InFlight;
       Workers.emplace_back([&, Slot]() {
         const auto Start = std::chrono::steady_clock::now();
