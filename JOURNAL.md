@@ -296,6 +296,94 @@ strings, whereas the project keys on `std::string_view` into a string arena and 
 locality. Absolute times here are pessimistic relative to the real code; the *ratios*, which are what
 these conclusions rest on, are driven by hashing and map operations that both versions pay.
 
+### SIMD hashing: measured, and it invalidates the precompute conclusion above
+
+Host CPU probed directly (`tools/cpu_features.cpp`, CPUID + `XCR0`): **AMD Ryzen 9 9950X, Zen 5,
+16C/32T.** AVX-512 F/BW/VL/DQ/CD/VBMI/VBMI2/VNNI/VPOPCNTDQ all present, OS enables ZMM state, BMI1/2
+and POPCNT present, AVX512_BF16 absent. AMD carries no AVX-512 frequency penalty of the kind Intel's
+license-based downclocking imposed, so 512-bit code is usable without a throughput cliff.
+
+Probe bug, recorded so the output is not trusted blindly: cache reporting parsed CPUID leaf 4, which
+is Intel-only (AMD uses `0x8000001D` for cache topology and `0x80000005` for L1), and applied Intel's
+`+1` line-size convention. It printed "L1 data line size: 1 bytes", which is nonsense. The L2 figure
+(1024 KB per core) and the true 64-byte line size are correct; the L1 line is not.
+
+Hash throughput measured over 195.3 MiB (50,000 x 4096 B), best of 3 (`tools/hash_bench.cpp`):
+
+| Variant | ms | GB/s | vs FNV-1a |
+|---|---|---|---|
+| FNV-1a scalar byte | 148.07 | 1.29 | 1.00x |
+| scalar 64-bit multiply | 27.51 | 6.93 | 5.38x |
+| AVX2 rotate (32 B/iter) | 6.85 | 27.83 | 21.61x |
+| **AVX-512 rotate (64 B/iter)** | **3.73** | **51.20** | **39.75x** |
+| AVX-512 mullo (64 B/iter) | 3.95 | 48.25 | 37.46x |
+
+Findings:
+
+- **AVX-512 is 1.83x faster than AVX2 here** (3.73 vs 6.85 ms). Zen 5's native 512-bit datapath
+  delivers real throughput, not merely ISA compatibility — unlike Zen 4, where 512-bit ops are
+  double-pumped over 256-bit units.
+- **Rotate-xor beats 64-bit `mullo`** even though AVX512DQ provides native `mullo` (3.73 vs 3.95 ms).
+  The multiply is not free on Zen 5, so the cheaper mixer wins.
+- At 51.20 GB/s the loop is at or beyond typical single-thread DRAM bandwidth, so this is close to the
+  memory wall. Further SIMD gains are bounded; the remaining lever is *touching the data fewer times*,
+  which is what fusion does. SIMD and fusion are complementary, not alternatives.
+
+**This invalidates the precompute conclusion in the previous section.** That section reported
+precomputation as weak at long keys (305 ms for 4096 B, giving only 1.21x). The 305 ms was measured
+with byte-at-a-time FNV-1a at 1.29 GB/s. The same pass with AVX-512 costs **3.73 ms — about 80x
+cheaper**. Recomputing the 4096 B row honestly:
+
+| Approach | Cost |
+|---|---|
+| 3 separate string joins (MSVC `std::hash<std::string>` is FNV-1a) | 1123.94 ms |
+| Precompute both sides with AVX-512 (2 x 3.73) + 3 integer joins (3 x 20.87) | ~70 ms |
+| | **~16x** |
+
+Precomputing integer keys is not a marginal optimisation. It is the single largest win identified so
+far, and it was invisible earlier only because the hashing primitive chosen for the measurement was
+deliberately naive. The lesson generalises: **a benchmark that uses a placeholder implementation of a
+hot primitive measures the placeholder, not the design.**
+
+**The synthetic corpus hides this too.** At 36-byte keys (what `src/Synth.cpp` generates):
+
+| Variant | ms | GB/s | vs FNV-1a |
+|---|---|---|---|
+| FNV-1a scalar byte | 0.63 | 2.64 | 1.00x |
+| scalar 64-bit multiply | 0.14 | 11.91 | 4.51x |
+| AVX2 rotate | 0.11 | 14.90 | 5.64x |
+| AVX-512 rotate | 0.12 | 14.04 | 5.31x |
+| AVX-512 mullo | 0.42 | 4.00 | **1.51x** |
+
+At 36 bytes AVX-512 gains nothing over AVX2 (a 36-byte key does not fill a 64-byte vector, so the tail
+path dominates) and `mullo` is actively **worse than scalar** — loading the 512-bit constants costs
+more than the work saved. So the fixture is doubly unrepresentative: it understates absolute cost by
+~27x and it makes SIMD look pointless.
+
+### Dispatch design implied by these numbers
+
+Compile-time `/arch:AVX512` is not acceptable: the binary would not run on Intel consumer parts from
+Alder Lake onward, which have no AVX-512, and this tool is intended to be handed around as an exe.
+Selection must be at runtime, on two axes:
+
+1. **Feature dispatch**, resolved once at startup from CPUID plus an `XCR0` check that the OS actually
+   enables ZMM state — CPU support without OS support faults. Order: AVX-512 rotate, AVX2 rotate,
+   scalar 64-bit multiply.
+2. **Length dispatch**, because vector setup loses below a threshold. Measured crossover is somewhere
+   between 36 B (SIMD useless, `mullo` harmful) and 4096 B (SIMD 39.75x). Short keys such as
+   `bytes_hash` (32 hex characters) and `kgh_hash` should stay on the scalar path; long keys such as
+   `clean_assembly`, `clean_pseudo` and `clean_microcode` should take the vector path. The threshold
+   needs measuring rather than guessing, and it is not yet pinned down.
+
+On MSVC, which has no per-function `target` attribute, feature dispatch means separate translation
+units compiled with different `/arch` flags behind a function-pointer resolved at init.
+
+**Still unmeasured:** the exact short-key crossover, and whether a vetted third-party hash (XXH3,
+BSD-2, which already ships SSE2/AVX2/AVX-512 paths) beats a hand-rolled rotate-xor. Given the
+hand-rolled version already reaches 51.20 GB/s — at the memory wall — the expected gain is small, but
+it has not been tested, and adopting XXH3 would also remove the dispatch code from this project's
+maintenance surface.
+
 ### Disassembler selection: Zydis vs Capstone
 
 The native PE loader needs a disassembler, and the choice between Zydis and Capstone is open. How
