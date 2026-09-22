@@ -22,3 +22,6 @@ CMakeUserPresets.json
 .vs/
 .vscode/
 .idea/
+
+__pycache__/
+*.pyc
