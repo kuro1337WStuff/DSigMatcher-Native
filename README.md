@@ -118,6 +118,7 @@ What is implemented and verified:
 - The `Best`-category exact heuristics, reimplemented as native hash-indexed joins rather than SQL: *Same RVA and hash*, *Same order and hash*, *Function Hash*, *Bytes hash*, *Same address and mnemonics*, *Same cleaned assembly*, *Same cleaned microcode*, *Same cleaned pseudo-code*. Predicates, size gates and `sub_`/`nullsub` name handling follow Diaphora's definitions.
 - Deterministic resolution of raw candidate pairs into a strict one-to-one match set, highest ratio first.
 - Output of a `matches` table plus a `symbols_to_port` table — the name/symbol move-over artifact.
+- Chainable `port`: writes a labelled copy of the target that is itself a valid Diaphora export, so symbols roll forward release after release without returning to IDA. Each hop is recorded with both binaries' md5, both files' SHA-256, and a per-name cumulative confidence that decays multiplicatively.
 - Heuristic-level parallelism, matching Diaphora's execution model.
 
 What is **not** implemented yet: the `Partial` and `Unreliable` categories (38 further heuristics), constant and call-graph matching, call-graph match propagation, fuzzy/LSH candidate generation, bounded edit-distance verification, maximum-cardinality assignment, and the native PE/ELF loader.
@@ -140,19 +141,47 @@ On Windows with Visual Studio, run `vcvars64.bat` first; CMake and Ninja ship wi
 ## Usage
 
 ```
-build/dsigmatcher <reference.sqlite> <target.sqlite> [options]
+dsigmatcher diff <reference.sqlite> <target.sqlite> [options]
+dsigmatcher port <reference.sqlite> <target.sqlite> -o <output.sqlite> [options]
+dsigmatcher info <database.sqlite>
 
-  -o, --output <path>          write results to a SQLite database
+diff options:
+  -o, --output <path>          write match results to a SQLite database
   -t, --threads <n>            worker threads (default: hardware concurrency)
       --ignore-small-functions apply the instructions > 5 size gate
       --assume-same-cpu        run processor specific heuristics unconditionally
+
+port options (in addition to the above):
+  -o, --output <path>          required; labelled copy of the target database
+      --min-ratio <r>          drop names whose cumulative confidence falls below r
+      --max-hops <n>           drop names that have travelled through more than n diffs
+      --overwrite-existing     replace real names already present in the target
 ```
 
-`reference` is the database carrying the symbols you want; `target` is the one that receives them. With `-o`, the output database contains `matches` (every resolved pair with ratio and category) and `symbols_to_port` (only the rows where the reference name is a real symbol and differs from the target's current name).
+`reference` is the database carrying the symbols you want; `target` is the one that receives them. `diff` writes `matches` (every resolved pair with ratio and category) and `symbols_to_port` (only rows where the reference name is a real symbol and differs from the target's current name). `info` prints a database's identity, provenance chain and name-confidence histogram.
+
+## Rolling symbols forward across releases
+
+`port` is the chainable operation. Its output is **itself a valid Diaphora-schema database** — a byte copy of the target with names updated and provenance tables added — so the output of one release becomes the reference for the next, without going back through IDA:
+
+```
+dsigmatcher port v1_labelled.sqlite v2.sqlite -o v2_labelled.sqlite
+dsigmatcher port v2_labelled.sqlite v3.sqlite -o v3_labelled.sqlite
+```
+
+You label once in IDA, export, and then roll the symbols forward indefinitely as new builds ship.
+
+Each hop is recorded in `dsig_provenance` with both binaries' `program.md5sum` (Diaphora's `GetInputFileMD5()`, i.e. the version identity), the SHA-256 of both database files, the timestamp, the tool version, and the full match and skip counts. The `lineage` column accumulates the md5 chain, so any labelled database can state exactly which releases its names travelled through. Hop *N+1* records the SHA-256 of hop *N*'s output as its `source_file_sha256`, which makes the chain tamper-evident without the self-reference of storing a file's own hash inside itself.
+
+Per-name provenance lives in `dsig_name_origin`: the address and name in the *original* hand-labelled database, how many hops the name has travelled, and a `cumulative_ratio` that multiplies the confidence of every hop it survived. A name matched at 0.5 twice is recorded at 0.25, not 0.5 — so `--min-ratio` and `--max-hops` can prune stale labels before they propagate further.
+
+By default a real symbol already present in the target is **preserved**, not overwritten; hand-labelling always beats inference. Use `--overwrite-existing` to force it.
 
 ## Tests
 
 `tests/make_fixture.py <outdir>` generates a matched pair of Diaphora-schema databases with known correspondences — six exact-hash pairs, three that survive only a recompile, two detectable through pseudocode alone, and one orphan per side that must not match.
+
+`tests/make_chain.py <outdir> <versions>` generates a multi-version release chain for exercising `port`: eight byte-stable functions, four that recompile each release but keep a unique cleaned-assembly signature, two that are genuinely ambiguous (identical cleaned assembly *and* microcode, so they can only match at 0.5), one true orphan per version that must never match, and one function hand-labelled in v1 so the preserve-existing path is covered. Two hops through that chain are expected to leave the ambiguous pair at a cumulative 0.25 and everything else at 1.0.
 
 
 ## Prior art
