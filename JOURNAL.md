@@ -187,6 +187,48 @@ addresses never move flatters exactly the heuristics that matter least in practi
 The churn is explained by the 8 insertions (new syscalls at RVA `3b50`, `3b90`, `9110`, `aaf0`)
 shifting everything after them — ordinary patch behaviour.
 
+### Correction: PDB symbols are not export symbols
+
+The real-corpus section above states that win32u carries an `Nt*`/`Zw*` alias pair at nearly every
+address. That is **true of the PDB and false of the PE export table**, and conflating the two produced
+a wrong requirement that a subagent had to catch.
+
+Measured both ways on build `10.0.26100.9168`:
+
+| Source | Names | Distinct RVAs | `Nt*` | `Zw*` | Forwarders | Unnamed |
+|---|---|---|---|---|---|---|
+| PDB via `SymEnumSymbols` | 3077 (all distinct) | 1538 | 1541 | **1497** | n/a | n/a |
+| PE export table | 1548 | 1506 | 1540 | **0** | 0 | 0 |
+
+The 2.0007 name-to-address ratio in the PDB is genuine and is caused by the `Zw*` aliases. The export
+table's ratio is 1.0279. win32u exports the `Nt*` names only; the `Zw*` aliases exist in the compiled
+symbol stream and were never exported. A raw byte scan of the DLL finds no `ZwUser` string, which is
+consistent — PDB symbol names do not have to appear in the image.
+
+**What went wrong.** That PDB-derived ratio was written into a subagent brief as a property of the
+export table, with an instruction to assert a `[1.8, 2.2]` band on names-per-address. The agent
+measured 1.03, did *not* assume its parser was broken, cross-checked against `pefile` (independent
+implementation, identical numbers) and a raw byte scan, and replaced the fuzzy band with exact
+assertions on verified counts. That was the correct response to a bad premise, and it is the second
+time in this session that writing a test against an assumed number rather than a measured one caused
+trouble — the first was the synthetic generator reporting `precision 1.0000`.
+
+**Where the agent also over-reached.** It concluded that "the Nt/Zw aliasing is an `ntdll.dll`
+property, not `win32u.dll`". That is wrong: win32u's PDB contains 1497 `Zw*` symbols. The aliasing is
+real for this binary; it is simply absent from the export table. Correcting a false premise does not
+make the replacement explanation true, and the replacement was independently checked here rather than
+accepted.
+
+**Consequences for the project:**
+
+- Ground truth must come from the **PDB**, not the export table. It is strictly better on both axes:
+  more names (3077 vs 1548) and more coverage, since it includes internal functions that were never
+  exported (1538 distinct RVAs vs 1506).
+- The export table is still useful as a cheap function-entry hint when no PDB exists, but it is not a
+  labelling source and must not be used to score matches.
+- win32u exercises **no forwarders and no ordinal-only exports**, so those code paths in `PeImage` rest
+  on synthetic images alone. That is a real coverage gap, recorded rather than papered over.
+
 ### Disassembler selection: Zydis vs Capstone
 
 The native PE loader needs a disassembler, and the choice between Zydis and Capstone is open. How
