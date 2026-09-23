@@ -52,6 +52,7 @@ add_library(dsigmatcher_core STATIC
   src/DisassemblerZydis.cpp
   src/ExportDatabase.cpp
   src/Heuristics.cpp
+  src/KghHash.cpp
   src/MatchStore.cpp
   src/Md5.cpp
   src/PeImage.cpp
