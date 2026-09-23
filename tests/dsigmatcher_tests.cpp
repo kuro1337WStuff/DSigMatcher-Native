@@ -81,6 +81,7 @@ bool CreateExport(const std::string& Path, const std::vector<TestFunction>& Rows
     }
     return false;
   }
+  Checkpoint("ce: database opened");
 
   char* ErrorMessage = nullptr;
 
@@ -102,6 +103,7 @@ bool CreateExport(const std::string& Path, const std::vector<TestFunction>& Rows
     sqlite3_close(Handle);
     return false;
   }
+  Checkpoint("ce: schema created");
 
   sqlite3_stmt* ProgramStatement = nullptr;
   if (sqlite3_prepare_v2(Handle,
@@ -119,6 +121,7 @@ bool CreateExport(const std::string& Path, const std::vector<TestFunction>& Rows
     sqlite3_close(Handle);
     return false;
   }
+  Checkpoint("ce: program row inserted");
 
   sqlite3_stmt* Insert = nullptr;
   sqlite3_prepare_v2(
@@ -161,6 +164,7 @@ bool CreateExport(const std::string& Path, const std::vector<TestFunction>& Rows
     sqlite3_reset(Insert);
   }
 
+  Checkpoint("ce: function rows inserted");
   sqlite3_finalize(Insert);
   sqlite3_close(Handle);
   return true;
@@ -760,6 +764,7 @@ void TestIngestRoundTrip() {
     Row.PseudocodeLines = 9;
     Rows.push_back(Row);
   }
+  Checkpoint("rows built");
 
   CHECK(CreateExport(Path, Rows, "metapc"));
   Checkpoint("export database created");
