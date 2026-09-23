@@ -5,7 +5,11 @@
 Checks the pieces that run before IDA starts: the PE RSDS reader and the MSF 7.00 PDB identity reader
 on synthetic files, the sidecar name, the environment cleaning, and the driver's argument and tool
 checks with their exit codes (tool discovery is pointed at empty or fake directories, so the user's
-real IDA configuration is never read). Prints "<n> checks, <f> failed" and exits non-zero on failure.
+real IDA configuration is never read). Then whole driver + worker runs against stand-in idalib and
+Diaphora modules written at run time (lane F1): a directory with Diaphora's file names that is not
+Diaphora is "Diaphora not usable" (exit 12), and publishing never deletes the previous output's
+sidecars before the atomic replace has succeeded. Prints "<n> checks, <f> failed" and exits non-zero
+on failure.
 
     python -B tools/export/selftest_dsig_export.py
 """
@@ -198,12 +202,204 @@ def TestDriverChecks(Dir):
     os.environ.pop("IDAUSR", None)
 
 
+# Stand-ins for the idalib Python modules the worker imports (RunWorker, FunctionNameStats,
+# PdbEvidence): enough for a whole driver + worker run without IDA. They are put first on the
+# worker's PYTHONPATH, so a real idapro wheel in this Python is never loaded.
+FAKE_IDALIB = {
+    "idapro.py": "def get_library_version():\n    return (9, 9, 0)\n"
+                 "def enable_console_messages(Enable):\n    pass\n"
+                 "def open_database(Path, Auto, Args=None):\n    return 0\n"
+                 "def close_database(Save=False):\n    pass\n",
+    "idaapi.py": "class _Cvar:\n    batch = False\ncvar = _Cvar()\n"
+                 "def get_kernel_version():\n    return '9.9'\n",
+    "ida_auto.py": "def auto_wait():\n    return True\ndef auto_is_ok():\n    return True\n",
+    "ida_hexrays.py": "def init_hexrays_plugin():\n    return True\ndef get_hexrays_version():\n    return '9.9.0.1'\n",
+    "ida_funcs.py": "FUNC_LIB = 4\nFUNC_THUNK = 128\ndef get_func(Ea):\n    return None\n",
+    "ida_name.py": "def get_name(Ea):\n    return 'sub_%X' % Ea\n",
+    "idautils.py": "def Functions():\n    return iter([0x1000, 0x2000])\n",
+    "ida_netnode.py": "BADNODE = -1\nclass netnode:\n    def __init__(self, *Args):\n        pass\n"
+                      "    def index(self):\n        return BADNODE\n",
+}
+
+# A stand-in with Diaphora's exporter interface (diaphora_ida.CIDABinDiff.do_export, _diff_or_export,
+# diaphora.VERSION_VALUE) that writes a tiny database with the tables the driver's checks read.
+FAKE_DIAPHORA = {
+    "diaphora.py": 'VERSION_VALUE = "9.9"\n',
+    "diaphora_config.py": "EXPORTING_USE_DECOMPILER = True\n",
+    "diaphora_ida.py": '''import sqlite3
+import diaphora
+
+SCHEMA = """
+create table functions (id integer primary key, name text, pseudocode text, microcode text);
+create table basic_blocks (id integer primary key, asm_type text);
+create table bb_instructions (id integer primary key);
+create table bb_relations (id integer primary key);
+create table callgraph (id integer primary key, type text);
+create table constants (id integer primary key);
+create table function_bblocks (id integer primary key);
+create table instructions (id integer primary key, asm_type text);
+create table program (id integer primary key, callgraph_primes text);
+create table program_data (id integer primary key);
+create table compilation_units (id integer primary key, name text);
+create table version (value text);
+insert into functions (name, pseudocode, microcode) values ('main', 'int main() {}', 'm'), ('sub_1000', 'x', 'y');
+insert into program (callgraph_primes) values ('6');
+insert into version values ('9.9');
+"""
+
+
+class CIDABinDiff:
+    def __init__(self, Out):
+        self.Out = Out
+        self.use_decompiler = True
+        self.decompiler_available = True
+        self.export_microcode = True
+        self.ida_subs = True
+        self.exclude_library_thunk = True
+        self.function_summaries_only = False
+        self.min_ea = 0
+        self.max_ea = 0xFFFFFFFF
+        self.project_script = None
+
+    def do_export(self, crashed_before=False):
+        Con = sqlite3.connect(self.Out)
+        Con.executescript(SCHEMA)
+        Con.commit()
+        Con.close()
+
+
+def _diff_or_export(use_ui, **options):
+    Bd = CIDABinDiff(options["file_out"])
+    Bd.do_export()
+    return Bd
+''',
+}
+
+
+def WriteFiles(Dir, Files):
+    os.makedirs(Dir, exist_ok=True)
+    for Name, Text in Files.items():
+        with open(os.path.join(Dir, Name), "w", encoding="utf-8", newline="\n") as Handle:
+            Handle.write(Text)
+
+
+def ReadBytes(Path):
+    with open(Path, "rb") as Handle:
+        return Handle.read()
+
+
+def TestFakeIdaRuns(Dir):
+    """Whole driver + worker runs against stand-in idalib modules (lane F1)."""
+    print("[driver + worker with stand-in idalib and Diaphora]")
+    for Key in ("DSIG_IDADIR", "IDADIR", "DSIG_DIAPHORA_DIR", "DSIG_EXPORT_ALLOW_NO_DECOMPILER"):
+        os.environ.pop(Key, None)
+    Saved = {Key: os.environ.get(Key) for Key in ("IDAUSR", "PYTHONPATH")}
+    EmptyUser = os.path.join(Dir, "fake idausr")
+    os.makedirs(EmptyUser)
+    os.environ["IDAUSR"] = EmptyUser
+    Idalib = os.path.join(Dir, "fake idalib")
+    WriteFiles(Idalib, FAKE_IDALIB)
+    os.environ["PYTHONPATH"] = Idalib  # inherited by the worker through CleanEnv()
+    FakeIda = os.path.join(Dir, "fake ida")
+    os.makedirs(FakeIda)
+    with open(os.path.join(FakeIda, dsig_export.IdaLibraryName()), "wb") as Handle:
+        Handle.write(b"x")
+    Working = os.path.join(Dir, "fake diaphora")
+    WriteFiles(Working, FAKE_DIAPHORA)
+    # The right file names, but not Diaphora: every module imports, none has the exporter.
+    NotDiaphora = os.path.join(Dir, "not diaphora")
+    WriteFiles(NotDiaphora, {"diaphora.py": "", "diaphora_ida.py": "", "diaphora_config.py": ""})
+    Broken = os.path.join(Dir, "broken diaphora")
+    WriteFiles(Broken, {"diaphora.py": "", "diaphora_ida.py": "this is not python\n", "diaphora_config.py": ""})
+    Pe = os.path.join(Dir, "fake.dll")
+    SyntheticPe(Pe)
+    Out = os.path.join(Dir, "fake out.sqlite")
+    Tools = ["--ida-dir", FakeIda, "--temp-dir", Dir]
+    try:
+        # (a) not Diaphora: the "Diaphora not usable" class (12, CLI exit 4), not an export failure (16)
+        Code = RunMain(["binary", Pe, "-o", Out, "--diaphora-dir", NotDiaphora] + Tools)
+        Check(Code == dsig_export.EXIT_DIAPHORA, "a directory with Diaphora's file names that is not Diaphora: "
+              "exit %s, want %d" % (Code, dsig_export.EXIT_DIAPHORA))
+        Code = RunMain(["binary", Pe, "-o", Out, "--diaphora-dir", Broken] + Tools)
+        Check(Code == dsig_export.EXIT_DIAPHORA, "a Diaphora that does not import: exit %s" % Code)
+        Check(not os.path.exists(Out), "nothing was written")
+
+        # a successful run replaces a previous output and clears that output's stale sidecars
+        Stale = {Out: b"previous output", Out + "-wal": b"old wal", Out + "-shm": b"old shm",
+                 Out + "-journal": b"old journal", Out + "-crash": b""}
+        for Path, Data in Stale.items():
+            with open(Path, "wb") as Handle:
+                Handle.write(Data)
+        Code = RunMain(["binary", Pe, "-o", Out, "--diaphora-dir", Working] + Tools)
+        Check(Code == dsig_export.EXIT_OK, "a run with the stand-ins succeeds: exit %s" % Code)
+        Check(ReadBytes(Out)[:15] == b"SQLite format 3", "the output is the new database")
+        Check(all(not os.path.exists(Out + Suffix) for Suffix in ("-wal", "-shm", "-journal", "-crash")),
+              "the previous output's sidecars are gone")
+        Check(os.path.isfile(dsig_export.DefaultSidecar(Out)), "the .export.json sidecar was written")
+        Leftovers = [Name for Name in os.listdir(Dir) if ".dsig-tmp-" in Name or ".dsig-old-" in Name]
+        Check(not Leftovers, "no staging or moved-aside files are left: %s" % Leftovers)
+
+        # (b) the replace fails: the previous output and ALL its sidecars stay exactly as they were
+        Previous = {Out: ReadBytes(Out), Out + "-wal": b"committed frames of the previous output",
+                    Out + "-shm": b"shm of the previous output", Out + "-journal": b"journal of the previous output"}
+        for Path, Data in Previous.items():
+            with open(Path, "wb") as Handle:
+                Handle.write(Data)
+        RealReplace = os.replace
+        Target = os.path.normcase(os.path.abspath(Out))
+
+        def FailingReplace(Source, Destination, *Args, **Kwargs):
+            if os.path.normcase(os.path.abspath(Destination)) == Target:
+                raise PermissionError(13, "simulated: the output is in use", Destination)
+            return RealReplace(Source, Destination, *Args, **Kwargs)
+
+        os.replace = FailingReplace
+        try:
+            Code = RunMain(["binary", Pe, "-o", Out, "--diaphora-dir", Working] + Tools)
+        finally:
+            os.replace = RealReplace
+        Check(Code == dsig_export.EXIT_OUTPUT, "a failed replace is an output error: exit %s" % Code)
+        for Path, Data in Previous.items():
+            Check(os.path.isfile(Path) and ReadBytes(Path) == Data,
+                  "after a failed replace %s is unchanged" % os.path.basename(Path))
+        Leftovers = [Name for Name in os.listdir(Dir) if ".dsig-tmp-" in Name or ".dsig-old-" in Name]
+        Check(not Leftovers, "no staging or moved-aside files are left after the failure: %s" % Leftovers)
+    finally:
+        for Key, Value in Saved.items():
+            if Value is None:
+                os.environ.pop(Key, None)
+            else:
+                os.environ[Key] = Value
+
+
+def TestImportDiaphora(Dir):
+    print("[ImportDiaphora: the exporter interface]")
+    NotDiaphora = os.path.join(Dir, "import not diaphora")
+    WriteFiles(NotDiaphora, {"diaphora.py": "", "diaphora_ida.py": "class CIDABinDiff:\n    pass\n",
+                             "diaphora_config.py": ""})
+    Names = ("diaphora", "diaphora_ida", "diaphora_config")
+    try:
+        dsig_export.ImportDiaphora(NotDiaphora)
+        Check(False, "a module without the exporter interface must be refused")
+    except dsig_export.ExportError as Exc:
+        Check(Exc.Code == dsig_export.EXIT_DIAPHORA and "Diaphora not usable" in Exc.Message
+              and "CIDABinDiff.do_export" in Exc.Message and "_diff_or_export" in Exc.Message,
+              "refusal names what is missing: %s" % Exc.Message)
+    finally:
+        for Name in Names:
+            sys.modules.pop(Name, None)
+        while NotDiaphora in sys.path:
+            sys.path.remove(NotDiaphora)
+
+
 def Main():
     Dir = tempfile.mkdtemp(prefix="dsig-export-selftest-")
     try:
         TestIdentityReaders(Dir)
         TestSmallPieces()
         TestDriverChecks(Dir)
+        TestImportDiaphora(Dir)
+        TestFakeIdaRuns(os.path.join(Dir, "runs"))
     finally:
         shutil.rmtree(Dir, ignore_errors=True)
     print("\n%d checks, %d failed" % (CHECKS[0], CHECKS[1]))

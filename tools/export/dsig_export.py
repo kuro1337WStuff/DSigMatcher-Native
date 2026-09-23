@@ -529,6 +529,53 @@ def RemoveIfFile(Path):
         os.remove(Path)
 
 
+# Files that belong to the database at an output path: SQLite's -wal, -shm and -journal
+# (https://www.sqlite.org/tempfiles.html; a stale -wal or a hot -journal would be replayed into the NEW
+# file on its next open) and Diaphora's -crash marker (diaphora_ida.py:1292, :3672).
+OUTPUT_SIDECARS = ("-wal", "-shm", "-journal", "-crash")
+
+
+def PublishOutput(Source, Output):
+    """Replaces Output with a copy of Source atomically, without losing the previous output on failure.
+
+    The copy is staged beside the destination and moved over it with os.replace. The previous output's
+    sidecars must not outlive the replace, but they are only renamed aside until the replace has
+    succeeded and are renamed back when it fails, so a failed publish leaves the previous output and
+    its -wal (which may hold committed transactions) exactly as they were (lane F1: they used to be
+    deleted before the replace was even attempted)."""
+    Staging = "%s.dsig-tmp-%d" % (Output, os.getpid())
+    try:
+        shutil.copyfile(Source, Staging)
+    except OSError as Exc:
+        RemoveIfFile(Staging)
+        raise ExportError(EXIT_OUTPUT, "cannot write the output %s: %s" % (Output, Exc))
+    Aside = []
+    try:
+        for Suffix in OUTPUT_SIDECARS:
+            Path = Output + Suffix
+            if os.path.isfile(Path):
+                Moved = "%s.dsig-old-%d" % (Path, os.getpid())
+                os.replace(Path, Moved)
+                Aside.append((Path, Moved))
+        os.replace(Staging, Output)
+    except OSError as Exc:
+        Kept = []
+        for Path, Moved in reversed(Aside):
+            try:
+                os.replace(Moved, Path)
+            except OSError:
+                Kept.append(Moved)
+        RemoveIfFile(Staging)
+        Where = (" (the previous output's sidecars could not be moved back and are kept as %s)" % ", ".join(Kept)
+                 if Kept else "; the previous output was left as it was")
+        raise ExportError(EXIT_OUTPUT, "cannot write the output %s: %s%s" % (Output, Exc, Where))
+    for _Path, Moved in Aside:
+        try:
+            os.remove(Moved)
+        except OSError as Exc:
+            Log("warning: could not remove %s: %s" % (Moved, Exc))
+
+
 def CopyLicences(IdaUsr):
     """IDA looks for its *.hexlic licence in the install directory and in IDAUSR. The isolated IDAUSR
     would hide a licence kept in the user's directory, so licence files (and only those) are copied."""
@@ -761,15 +808,7 @@ def Drive(Args):
             raise ExportError(EXIT_EXPORT, "Diaphora wrote no database")
 
         # ---- publish: copy beside the destination, then an atomic replace
-        for Stale in (Output + "-wal", Output + "-shm", Output + "-crash"):
-            RemoveIfFile(Stale)
-        Staging = "%s.dsig-tmp-%d" % (Output, os.getpid())
-        try:
-            shutil.copyfile(ExportPath, Staging)
-            os.replace(Staging, Output)
-        except OSError as Exc:
-            RemoveIfFile(Staging)
-            raise ExportError(EXIT_OUTPUT, "cannot write the output %s: %s" % (Output, Exc))
+        PublishOutput(ExportPath, Output)
 
         Stats = Result.get("export_stats") or {}
         Record = {
@@ -860,6 +899,37 @@ def ShimDiaphoraUi(DiaphoraIda):
         setattr(DiaphoraIda, Name, NoOp)
     DiaphoraIda.warning = Warn
     DiaphoraIda.ask_yn = lambda *_Args, **_Kwargs: 1
+
+
+def ImportDiaphora(Directory):
+    """(diaphora_config, diaphora_ida) imported from the checkout, after checking the interface the export
+    uses: diaphora_ida.CIDABinDiff (diaphora_ida.py:1075) with do_export (:1191), _diff_or_export (:3635),
+    and diaphora_ida.diaphora.VERSION_VALUE (diaphora_ida.py:82 `import diaphora`, diaphora.py:100).
+
+    A directory whose files carry Diaphora's names but that is not Diaphora is "Diaphora not usable"
+    (EXIT_DIAPHORA, which the C++ bridge reports with exit 4), not an export failure: the attribute
+    accesses below used to happen outside the import check and surfaced as EXIT_EXPORT (lane F1)."""
+    sys.path.insert(0, Directory)
+    try:
+        import diaphora_config
+        import diaphora_ida
+    except Exception as Exc:
+        raise ExportError(EXIT_DIAPHORA, "Diaphora could not be imported from %s: %s: %s"
+                          % (Directory, type(Exc).__name__, Exc))
+    Missing = []
+    BinDiff = getattr(diaphora_ida, "CIDABinDiff", None)
+    if not isinstance(BinDiff, type):
+        Missing.append("diaphora_ida.CIDABinDiff")
+    elif not callable(getattr(BinDiff, "do_export", None)):
+        Missing.append("diaphora_ida.CIDABinDiff.do_export")
+    if not callable(getattr(diaphora_ida, "_diff_or_export", None)):
+        Missing.append("diaphora_ida._diff_or_export")
+    if not isinstance(getattr(getattr(diaphora_ida, "diaphora", None), "VERSION_VALUE", None), str):
+        Missing.append("diaphora_ida.diaphora.VERSION_VALUE")
+    if Missing:
+        raise ExportError(EXIT_DIAPHORA, "Diaphora not usable: %s imports, but it is not Diaphora's exporter "
+                          "(no %s)" % (Directory, ", ".join(Missing)))
+    return diaphora_config, diaphora_ida
 
 
 def FunctionNameStats():
@@ -989,13 +1059,7 @@ def RunWorker(SpecPath):
                                   "has them (pass --allow-no-decompiler to export anyway)")
             Result["warnings"].append("exported WITHOUT Hex-Rays: no pseudo-code or microcode")
 
-        sys.path.insert(0, Spec["diaphora_dir"])
-        try:
-            import diaphora_config
-            import diaphora_ida
-        except Exception as Exc:
-            raise ExportError(EXIT_DIAPHORA, "Diaphora could not be imported from %s: %s: %s"
-                              % (Spec["diaphora_dir"], type(Exc).__name__, Exc))
+        diaphora_config, diaphora_ida = ImportDiaphora(Spec["diaphora_dir"])
         ShimDiaphoraUi(diaphora_ida)
 
         # Diaphora's export() catches an exception from do_export(), logs it and still writes a partial
