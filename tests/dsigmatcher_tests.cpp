@@ -8,6 +8,7 @@
 
 #include "dsigmatcher/ExportDatabase.h"
 #include "dsigmatcher/Heuristics.h"
+#include "dsigmatcher/KghHash.h"
 #include "dsigmatcher/MatchStore.h"
 #include "dsigmatcher/Md5.h"
 #include "dsigmatcher/Naming.h"
@@ -319,6 +320,143 @@ void TestMd5() {
 
   std::printf("  padding boundary : %zu chunked-vs-single comparisons across 11 lengths\n",
               BoundaryChecks);
+}
+
+void TestBigUIntBasics() {
+  Suite("BigUInt arithmetic");
+
+  CHECK_EQ(BigUInt(0).ToDecimalString(), std::string("0"));
+  CHECK_EQ(BigUInt(1).ToDecimalString(), std::string("1"));
+  CHECK_EQ(BigUInt(999999999u).ToDecimalString(), std::string("999999999"));
+  CHECK_EQ(BigUInt(1000000000u).ToDecimalString(), std::string("1000000000"));
+
+  CHECK_EQ(BigUInt::Power(2, 10).ToDecimalString(), std::string("1024"));
+  CHECK_EQ(BigUInt::Power(2, 64).ToDecimalString(), std::string("18446744073709551616"));
+  CHECK_EQ(BigUInt::Power(10, 18).ToDecimalString(), std::string("1000000000000000000"));
+  CHECK_EQ(BigUInt::Power(7, 0).ToDecimalString(), std::string("1"));
+
+  BigUInt Carry(999999999u);
+  Carry.MultiplySmall(999999999u);
+  CHECK_EQ(Carry.ToDecimalString(), std::string("999999998000000001"));
+
+  BigUInt Squared = BigUInt::Power(123456789u, 2);
+  CHECK_EQ(Squared.ToDecimalString(), std::string("15241578750190521"));
+
+  BigUInt Product(1);
+  for (int Index = 0; Index < 50; ++Index) {
+    Product.MultiplySmall(47);
+  }
+  CHECK_EQ(Product.ToDecimalString(), BigUInt::Power(47, 50).ToDecimalString());
+
+  BigUInt Zero(0);
+  BigUInt Other(12345);
+  Zero.MultiplyBig(Other);
+  CHECK_EQ(Zero.ToDecimalString(), std::string("0"));
+
+  BigUInt ByZero(12345);
+  ByZero.MultiplyBig(BigUInt(0));
+  CHECK_EQ(ByZero.ToDecimalString(), std::string("0"));
+}
+
+void TestKghAgainstPythonOracle() {
+  Suite("KGH decimal rendering vs Python bignum oracle");
+
+  struct OracleVector {
+    const char* Label;
+    uint64_t Exponents[KghPrimeCount];
+    size_t Digits;
+    const char* Digest;
+  };
+
+  const OracleVector Vectors[] = {
+    {"all zero", {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 1,
+     "c4ca4238a0b923820dcc509a6f75849b"},
+    {"single entry block", {1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0}, 4,
+     "2cbca44843a864533ec05b321ae1f9d1"},
+    {"typical five block function", {1, 1, 5, 6, 6, 1, 3, 2, 3, 4, 0, 0, 0}, 35,
+     "106761923034e794eb67fec9def33503"},
+    {"library thunk noret", {1, 1, 2, 2, 2, 0, 1, 0, 1, 2, 1, 1, 1}, 17,
+     "9d7d12bbb51dfa501d2e4566b5ec9ba8"},
+    {"hundred blocks", {1, 1, 100, 120, 120, 5, 40, 30, 40, 60, 0, 0, 0}, 556,
+     "36a3a6bf61600fff565a86ca81bc1c0b"},
+    {"thousand blocks", {1, 1, 1000, 1200, 1200, 50, 400, 300, 400, 600, 0, 0, 0}, 5549,
+     "d0e1630b9f50b66ef6adbdc2d3e60a18"},
+    {"large exponent on 2", {100000, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}, 30103,
+     "caff1a3811c1e6e757ff28137e0fc206"},
+    {"all primes moderate", {7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7}, 109,
+     "3dab1698f2f73fcce5a33c4d1b7a0f68"},
+  };
+
+  for (const OracleVector& Vector : Vectors) {
+    KghAccumulator Accumulator;
+    for (int Index = 0; Index < KghPrimeCount; ++Index) {
+      Accumulator.MultiplyPower(static_cast<KghPrimeIndex>(Index), Vector.Exponents[Index]);
+    }
+
+    const std::string Decimal = Accumulator.ToDecimalString();
+    const bool SizeOk = Decimal.size() == Vector.Digits;
+    const std::string Digest = Md5::OfString(Decimal);
+    const bool DigestOk = Digest == Vector.Digest;
+
+    if (!SizeOk || !DigestOk) {
+      std::printf("  FAIL %-28s digits %zu (expected %zu) md5 %s (expected %s)\n", Vector.Label,
+                  Decimal.size(), Vector.Digits, Digest.c_str(), Vector.Digest);
+    }
+    CHECK(SizeOk);
+    CHECK(DigestOk);
+  }
+
+  KghAccumulator StressCase;
+  StressCase.MultiplyPower(KghFeatureFuncThunk, 100000);
+  const std::string StressDecimal = StressCase.ToDecimalString();
+  CHECK_EQ(StressDecimal.size(), static_cast<size_t>(167210));
+  CHECK_EQ(Md5::OfString(StressDecimal), std::string("d36cec0bfb94d5fa76d821fd709c4398"));
+  std::printf("  stress 47^100000       : %zu digits, digest verified\n", StressDecimal.size());
+}
+
+void TestKghAccumulatorSemantics() {
+  Suite("KGH accumulation mirrors Diaphora's feature rules");
+
+  KghAccumulator Single;
+  Single.AddBlock(0, 0);
+  CHECK_EQ(Single.Exponent(KghNodeEntry), static_cast<uint64_t>(1));
+  CHECK_EQ(Single.Exponent(KghNodeExit), static_cast<uint64_t>(1));
+  CHECK_EQ(Single.Exponent(KghNodeNormal), static_cast<uint64_t>(1));
+  CHECK_EQ(Single.Exponent(KghEdgeInConditional), static_cast<uint64_t>(0));
+  CHECK_EQ(Single.Exponent(KghEdgeOutConditional), static_cast<uint64_t>(0));
+  CHECK_EQ(Single.ToDecimalString(), std::string("30"));
+
+  KghAccumulator Middle;
+  Middle.AddBlock(2, 3);
+  CHECK_EQ(Middle.Exponent(KghNodeEntry), static_cast<uint64_t>(0));
+  CHECK_EQ(Middle.Exponent(KghNodeExit), static_cast<uint64_t>(0));
+  CHECK_EQ(Middle.Exponent(KghNodeNormal), static_cast<uint64_t>(1));
+  CHECK_EQ(Middle.Exponent(KghEdgeOutConditional), static_cast<uint64_t>(2));
+  CHECK_EQ(Middle.Exponent(KghEdgeInConditional), static_cast<uint64_t>(3));
+  CHECK_EQ(Middle.ToDecimalString(), std::string("207515"));
+
+  KghAccumulator Flags;
+  Flags.AddFunctionFlags(true, false, true);
+  CHECK_EQ(Flags.Exponent(KghFeatureFuncNoRet), static_cast<uint64_t>(1));
+  CHECK_EQ(Flags.Exponent(KghFeatureFuncLib), static_cast<uint64_t>(0));
+  CHECK_EQ(Flags.Exponent(KghFeatureFuncThunk), static_cast<uint64_t>(1));
+  CHECK_EQ(Flags.ToDecimalString(), std::string("1927"));
+
+  KghAccumulator Components;
+  Components.AddLoopComponents(3);
+  Components.AddStronglyConnectedCount(7);
+  CHECK_EQ(Components.Exponent(KghFeatureLoop), static_cast<uint64_t>(3));
+  CHECK_EQ(Components.Exponent(KghFeatureStronglyConnected), static_cast<uint64_t>(7));
+
+  KghAccumulator InstructionFeatures;
+  for (int Index = 0; Index < 4; ++Index) {
+    InstructionFeatures.Multiply(KghFeatureCall);
+  }
+  InstructionFeatures.Multiply(KghFeatureDataRefs);
+  InstructionFeatures.MultiplyPower(KghFeatureCallRef, 6);
+  CHECK_EQ(InstructionFeatures.Exponent(KghFeatureCall), static_cast<uint64_t>(4));
+  CHECK_EQ(InstructionFeatures.Exponent(KghFeatureDataRefs), static_cast<uint64_t>(1));
+  CHECK_EQ(InstructionFeatures.Exponent(KghFeatureCallRef), static_cast<uint64_t>(6));
 }
 
 void TestStringPool() {
@@ -686,6 +824,9 @@ void TestProvenanceChain() {
 int main() {
   TestSha256();
   TestMd5();
+  TestBigUIntBasics();
+  TestKghAgainstPythonOracle();
+  TestKghAccumulatorSemantics();
   TestStringPool();
   TestNaming();
   TestMatchStore();
