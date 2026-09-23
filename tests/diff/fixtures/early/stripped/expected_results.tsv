@@ -1,0 +1,21 @@
+type	line	address	name	address2	name2	ratio	nodes1	nodes2	description
+best	00000	180001000	DllMain	180001000	DllMain	1.0000000	4	4	100% equal
+best	00001	180001200	Worker_2	180001200	sub_180001200	1.0000000	4	4	Same binary with symbols stripped
+best	00002	180001300	Worker_3	180001300	sub_180001300	1.0000000	4	4	Same binary with symbols stripped
+best	00003	180001400	Worker_4	180001400	sub_180001400	1.0000000	4	4	Same binary with symbols stripped
+best	00004	180001500	Worker_5	180001500	sub_180001500	1.0000000	4	4	Same binary with symbols stripped
+best	00005	180001600	Worker_6	180001600	sub_180001600	1.0000000	4	4	Same binary with symbols stripped
+best	00006	180001800	Worker_8	180001800	sub_180001800	1.0000000	4	4	Same binary with symbols stripped
+best	00007	180001900	Worker_9	180001900	sub_180001900	1.0000000	4	4	Same binary with symbols stripped
+best	00008	180001a00	Worker_10	180001a00	sub_180001A00	1.0000000	4	4	Same binary with symbols stripped
+best	00009	180001b00	Worker_11	180001b00	sub_180001B00	1.0000000	4	4	Same binary with symbols stripped
+best	00010	180001c00	Worker_12	180001c00	sub_180001C00	1.0000000	4	4	Same binary with symbols stripped
+best	00011	180001d00	Worker_13	180001d00	sub_180001D00	1.0000000	4	4	Same binary with symbols stripped
+best	00012	180001e00	Worker_14	180001e00	sub_180001E00	1.0000000	4	4	Same binary with symbols stripped
+best	00013	180001f00	Worker_15	180001f00	sub_180001F00	1.0000000	4	4	Same binary with symbols stripped
+best	00014	180002000	Worker_16	180002000	sub_180002000	1.0000000	4	4	Same binary with symbols stripped
+best	00015	180002100	Worker_17	180002100	sub_180002100	1.0000000	4	4	Same binary with symbols stripped
+best	00016	180002200	Worker_18	180002200	sub_180002200	1.0000000	4	4	Same binary with symbols stripped
+best	00017	180002300	Worker_19	180002300	sub_180002300	1.0000000	4	4	Same binary with symbols stripped
+best	00018	180002400	helper_20	180003400	helper_20	1.0000000	3	3	Perfect match, same name
+partial	00000	180001700	Worker_7	180001700	sub_180001700	0.9009592	4	5	Same binary with symbols stripped

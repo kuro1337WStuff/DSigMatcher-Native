@@ -1,0 +1,19 @@
+type	line	address	name	address2	name2	ratio	nodes1	nodes2	description
+best	00000	0040a400	nullsub	0040e400	nullsub	1.0000000	4	4	Perfect match, same name
+best	00001	0040a500	j_nullsub_1	0040e500	j_nullsub_1	1.0000000	4	4	Perfect match, same name
+best	00002	0040a800	tiny	0040e800	tiny	1.0000000	4	4	Perfect match, same name
+best	00003	0040a700	prettyname	0040e700	prettyname	1.0000000	4	4	Equal assembly
+best	00004	0040ac00	sub_40AC00	0040ec00	sub_40EC00	1.0000000	4	4	Equal assembly
+best	00005	0040ad00	sub_40AD00	0040ed00	sub_40ED00	1.0000000	4	4	Equal assembly
+best	00006	0040ae00	sub_40AE00	0040ee00	sub_40EE00	1.0000000	4	4	Equal assembly
+best	00007	0040af00	sub_40AF00	0040ef00	sub_40EF00	1.0000000	4	4	Equal assembly
+best	00008	0040b000	sub_40B000	0040f000	sub_40F000	1.0000000	4	4	Equal assembly
+best	00009	0040b100	sub_40B100	0040f100	sub_40F100	1.0000000	4	4	Equal assembly
+best	00010	0040b200	sub_40B200	0040f200	sub_40F200	1.0000000	4	4	Equal assembly
+best	00011	0040b300	sub_40B300	0040f300	sub_40F300	1.0000000	4	4	Equal assembly
+best	00012	0040b400	sub_40B400	0040f400	sub_40F400	1.0000000	4	4	Equal assembly
+best	00013	0040b500	sub_40B500	0040f500	sub_40F500	1.0000000	4	4	Equal assembly
+best	00014	0040a100	nullsubX	0040e100	nullsubX	1.0000000	4	4	Bytes hash
+best	00015	0040a200	NULLSUB_2	0040e200	NULLSUB_2	1.0000000	4	4	Bytes hash
+partial	00000	0040a900	dupname	0040e900	dupname	0.9907778	4	4	Perfect match, same name
+partial	00001	0040ab00	lowA	0040eb00	lowB	0.5030000	1	1	Mnemonics and names

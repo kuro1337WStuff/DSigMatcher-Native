@@ -1,0 +1,21 @@
+type	line	address	name	address2	name2	ratio	nodes1	nodes2	description
+best	00000	180001100	func_1	180002100	func_1	1.0000000	4	4	Perfect match, same name
+best	00001	180001400	func_4	180002400	func_4	1.0000000	4	4	Perfect match, same name
+best	00002	180001500	func_5	180002500	func_5	1.0000000	4	4	Perfect match, same name
+best	00003	180001600	func_6	180002600	func_6	1.0000000	4	4	Perfect match, same name
+best	00004	180001700	func_7	180002700	func_7	1.0000000	4	4	Perfect match, same name
+best	00005	180001800	func_8	180002800	func_8	1.0000000	4	4	Perfect match, same name
+best	00006	180001900	func_9	180002900	func_9	1.0000000	4	4	Perfect match, same name
+best	00007	180001a00	func_10	180002a00	func_10	1.0000000	4	4	Perfect match, same name
+best	00008	180001b00	func_11	180002b00	func_11	1.0000000	4	4	Perfect match, same name
+best	00009	180001c00	func_12	180002c00	func_12	1.0000000	4	4	Perfect match, same name
+best	00010	180001d00	func_13	180002d00	func_13	1.0000000	4	4	Perfect match, same name
+best	00011	180001e00	func_14	180002e00	func_14	1.0000000	4	4	Perfect match, same name
+best	00012	180001f00	func_15	180002f00	func_15	1.0000000	4	4	Perfect match, same name
+best	00013	180002000	func_16	180003000	func_16	1.0000000	4	4	Perfect match, same name
+best	00014	180002100	func_17	180003100	func_17	1.0000000	4	4	Perfect match, same name
+best	00015	180002200	func_18	180003200	func_18	1.0000000	4	4	Perfect match, same name
+best	00016	180002300	func_19	180003300	func_19	1.0000000	4	4	Perfect match, same name
+partial	00000	180001300	func_3	180002300	func_3	0.9907778	4	4	Perfect match, same name
+partial	00001	180004000	sub_180004000	180006000	renamed_fn	0.9848182	5	5	Renamed or anonymous function match in patch diffing session
+partial	00002	180001200	func_2	180002200	func_2	0.9723939	4	4	Perfect match, same name

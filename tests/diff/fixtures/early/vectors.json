@@ -1,0 +1,8079 @@
+{
+ "generator": "tests/diff/fixtures/early/gen_early.py",
+ "diaphora": "3.4.2-4-g621ec26",
+ "python": "3.13.12",
+ "sqlite_version": "3.51.1",
+ "pythonhashseed": "0",
+ "vectors": [
+  {
+   "name": "version_missing",
+   "base": "stripped",
+   "main_sql": "",
+   "diff_sql": "DROP TABLE version;",
+   "exit_code": 0,
+   "output_written": true,
+   "exception": null,
+   "mode": "N",
+   "log": [
+    "Error: no such table: diff.version",
+    "The selected file does not look like a valid Diaphora exported database!"
+   ],
+   "native_log_omitted": false,
+   "native_unsupported": false,
+   "results": [],
+   "unmatched": [],
+   "early_points": {}
+  },
+  {
+   "name": "version_empty",
+   "base": "stripped",
+   "main_sql": "",
+   "diff_sql": "DELETE FROM version;",
+   "exit_code": 0,
+   "output_written": true,
+   "exception": null,
+   "mode": "N",
+   "log": [
+    "Invalid database!"
+   ],
+   "native_log_omitted": false,
+   "native_unsupported": false,
+   "results": [],
+   "unmatched": [],
+   "early_points": {}
+  },
+  {
+   "name": "version_other",
+   "base": "stripped",
+   "main_sql": "",
+   "diff_sql": "UPDATE version SET value = '3.3';",
+   "exit_code": 0,
+   "output_written": true,
+   "exception": null,
+   "mode": "S",
+   "log": [
+    "WARNING: The database is from a different version (current 3.4, database 3.3)!",
+    "Call graphs are absolutely different",
+    "Symbols stripped detected: A total of 20 matches out of 20, 100.0% percent have the same address",
+    "Final results: Best 19, Partial 1, Unreliable 0, Multimatches 0"
+   ],
+   "native_log_omitted": false,
+   "native_unsupported": false,
+   "results": [
+    [
+     "best",
+     "00000",
+     "180001000",
+     "DllMain",
+     "180001000",
+     "DllMain",
+     "1.0000000",
+     "4",
+     "4",
+     "100% equal"
+    ],
+    [
+     "best",
+     "00001",
+     "180001200",
+     "Worker_2",
+     "180001200",
+     "sub_180001200",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00002",
+     "180001300",
+     "Worker_3",
+     "180001300",
+     "sub_180001300",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00003",
+     "180001400",
+     "Worker_4",
+     "180001400",
+     "sub_180001400",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00004",
+     "180001500",
+     "Worker_5",
+     "180001500",
+     "sub_180001500",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00005",
+     "180001600",
+     "Worker_6",
+     "180001600",
+     "sub_180001600",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00006",
+     "180001800",
+     "Worker_8",
+     "180001800",
+     "sub_180001800",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00007",
+     "180001900",
+     "Worker_9",
+     "180001900",
+     "sub_180001900",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00008",
+     "180001a00",
+     "Worker_10",
+     "180001a00",
+     "sub_180001A00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00009",
+     "180001b00",
+     "Worker_11",
+     "180001b00",
+     "sub_180001B00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00010",
+     "180001c00",
+     "Worker_12",
+     "180001c00",
+     "sub_180001C00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00011",
+     "180001d00",
+     "Worker_13",
+     "180001d00",
+     "sub_180001D00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00012",
+     "180001e00",
+     "Worker_14",
+     "180001e00",
+     "sub_180001E00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00013",
+     "180001f00",
+     "Worker_15",
+     "180001f00",
+     "sub_180001F00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00014",
+     "180002000",
+     "Worker_16",
+     "180002000",
+     "sub_180002000",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00015",
+     "180002100",
+     "Worker_17",
+     "180002100",
+     "sub_180002100",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00016",
+     "180002200",
+     "Worker_18",
+     "180002200",
+     "sub_180002200",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00017",
+     "180002300",
+     "Worker_19",
+     "180002300",
+     "sub_180002300",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00018",
+     "180002400",
+     "helper_20",
+     "180003400",
+     "helper_20",
+     "1.0000000",
+     "3",
+     "3",
+     "Perfect match, same name"
+    ],
+    [
+     "partial",
+     "00000",
+     "180001700",
+     "Worker_7",
+     "180001700",
+     "sub_180001700",
+     "0.9009592",
+     "4",
+     "5",
+     "Same binary with symbols stripped"
+    ]
+   ],
+   "unmatched": [
+    [
+     "primary",
+     "00000",
+     "180002400",
+     "sub_180002400"
+    ],
+    [
+     "primary",
+     "00001",
+     "180004000",
+     "sub_180004000"
+    ]
+   ]
+  },
+  {
+   "name": "version_blob",
+   "base": "stripped",
+   "main_sql": "",
+   "diff_sql": "UPDATE version SET value = X'332E34';",
+   "exit_code": 0,
+   "output_written": true,
+   "exception": null,
+   "mode": "S",
+   "log": [
+    "WARNING: The database is from a different version (current 3.4, database b'3.4')!",
+    "Call graphs are absolutely different",
+    "Symbols stripped detected: A total of 20 matches out of 20, 100.0% percent have the same address",
+    "Final results: Best 19, Partial 1, Unreliable 0, Multimatches 0"
+   ],
+   "native_log_omitted": false,
+   "native_unsupported": false,
+   "results": [
+    [
+     "best",
+     "00000",
+     "180001000",
+     "DllMain",
+     "180001000",
+     "DllMain",
+     "1.0000000",
+     "4",
+     "4",
+     "100% equal"
+    ],
+    [
+     "best",
+     "00001",
+     "180001200",
+     "Worker_2",
+     "180001200",
+     "sub_180001200",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00002",
+     "180001300",
+     "Worker_3",
+     "180001300",
+     "sub_180001300",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00003",
+     "180001400",
+     "Worker_4",
+     "180001400",
+     "sub_180001400",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00004",
+     "180001500",
+     "Worker_5",
+     "180001500",
+     "sub_180001500",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00005",
+     "180001600",
+     "Worker_6",
+     "180001600",
+     "sub_180001600",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00006",
+     "180001800",
+     "Worker_8",
+     "180001800",
+     "sub_180001800",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00007",
+     "180001900",
+     "Worker_9",
+     "180001900",
+     "sub_180001900",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00008",
+     "180001a00",
+     "Worker_10",
+     "180001a00",
+     "sub_180001A00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00009",
+     "180001b00",
+     "Worker_11",
+     "180001b00",
+     "sub_180001B00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00010",
+     "180001c00",
+     "Worker_12",
+     "180001c00",
+     "sub_180001C00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00011",
+     "180001d00",
+     "Worker_13",
+     "180001d00",
+     "sub_180001D00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00012",
+     "180001e00",
+     "Worker_14",
+     "180001e00",
+     "sub_180001E00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00013",
+     "180001f00",
+     "Worker_15",
+     "180001f00",
+     "sub_180001F00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00014",
+     "180002000",
+     "Worker_16",
+     "180002000",
+     "sub_180002000",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00015",
+     "180002100",
+     "Worker_17",
+     "180002100",
+     "sub_180002100",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00016",
+     "180002200",
+     "Worker_18",
+     "180002200",
+     "sub_180002200",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00017",
+     "180002300",
+     "Worker_19",
+     "180002300",
+     "sub_180002300",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00018",
+     "180002400",
+     "helper_20",
+     "180003400",
+     "helper_20",
+     "1.0000000",
+     "3",
+     "3",
+     "Perfect match, same name"
+    ],
+    [
+     "partial",
+     "00000",
+     "180001700",
+     "Worker_7",
+     "180001700",
+     "sub_180001700",
+     "0.9009592",
+     "4",
+     "5",
+     "Same binary with symbols stripped"
+    ]
+   ],
+   "unmatched": [
+    [
+     "primary",
+     "00000",
+     "180002400",
+     "sub_180002400"
+    ],
+    [
+     "primary",
+     "00001",
+     "180004000",
+     "sub_180004000"
+    ]
+   ]
+  },
+  {
+   "name": "main_empty",
+   "base": "stripped",
+   "main_sql": "DELETE FROM functions;",
+   "diff_sql": "",
+   "exit_code": 1,
+   "output_written": false,
+   "exception": {
+    "type": "ZeroDivisionError",
+    "message": "division by zero",
+    "frame": {
+     "file": "diaphora.py",
+     "line": 2562,
+     "function": "search_just_stripped_binaries"
+    }
+   },
+   "mode": "N",
+   "log": [
+    "The databases seems to be 100% equal",
+    "Call graphs are absolutely different"
+   ],
+   "native_log_omitted": false,
+   "native_unsupported": false
+  },
+  {
+   "name": "program_extra_row",
+   "base": "stripped",
+   "main_sql": "INSERT INTO program (callgraph_primes, callgraph_all_primes, processor, md5sum) VALUES ('6', '{\"6\": 1}', 'metapc', 'x');",
+   "diff_sql": "",
+   "exit_code": 1,
+   "output_written": false,
+   "exception": {
+    "type": "Exception",
+    "message": "Not enough rows in databases! Size is 3",
+    "frame": {
+     "file": "diaphora.py",
+     "line": 1322,
+     "function": "get_callgraph_difference"
+    }
+   },
+   "mode": "N",
+   "log": [],
+   "native_log_omitted": false,
+   "native_unsupported": false
+  },
+  {
+   "name": "program_missing_row",
+   "base": "stripped",
+   "main_sql": "DELETE FROM program;",
+   "diff_sql": "",
+   "exit_code": 1,
+   "output_written": false,
+   "exception": {
+    "type": "Exception",
+    "message": "Not enough rows in databases! Size is 1",
+    "frame": {
+     "file": "diaphora.py",
+     "line": 1322,
+     "function": "get_callgraph_difference"
+    }
+   },
+   "mode": "N",
+   "log": [],
+   "native_log_omitted": false,
+   "native_unsupported": false
+  },
+  {
+   "name": "cg_null_primes",
+   "base": "stripped",
+   "main_sql": "UPDATE program SET callgraph_primes = NULL;",
+   "diff_sql": "",
+   "exit_code": 1,
+   "output_written": false,
+   "exception": {
+    "type": "TypeError",
+    "message": "conversion from NoneType to Decimal is not supported",
+    "frame": {
+     "file": "diaphora.py",
+     "line": 1300,
+     "function": "get_callgraph_difference"
+    }
+   },
+   "mode": "N",
+   "log": [],
+   "native_log_omitted": false,
+   "native_unsupported": false
+  },
+  {
+   "name": "cg_blob_primes",
+   "base": "stripped",
+   "main_sql": "UPDATE program SET callgraph_primes = X'36';",
+   "diff_sql": "",
+   "exit_code": 1,
+   "output_written": false,
+   "exception": {
+    "type": "TypeError",
+    "message": "conversion from bytes to Decimal is not supported",
+    "frame": {
+     "file": "diaphora.py",
+     "line": 1300,
+     "function": "get_callgraph_difference"
+    }
+   },
+   "mode": "N",
+   "log": [],
+   "native_log_omitted": false,
+   "native_unsupported": false
+  },
+  {
+   "name": "cg_bad_primes",
+   "base": "stripped",
+   "main_sql": "UPDATE program SET callgraph_primes = 'abc';",
+   "diff_sql": "",
+   "exit_code": 1,
+   "output_written": false,
+   "exception": {
+    "type": "InvalidOperation",
+    "message": "[<class 'decimal.ConversionSyntax'>]",
+    "frame": {
+     "file": "diaphora.py",
+     "line": 1300,
+     "function": "get_callgraph_difference"
+    }
+   },
+   "mode": "N",
+   "log": [],
+   "native_log_omitted": false,
+   "native_unsupported": false
+  },
+  {
+   "name": "cg_bad_json",
+   "base": "stripped",
+   "main_sql": "UPDATE program SET callgraph_all_primes = '{bad';",
+   "diff_sql": "",
+   "exit_code": 1,
+   "output_written": false,
+   "exception": {
+    "type": "JSONDecodeError",
+    "message": "Expecting property name enclosed in double quotes: line 1 column 2 (char 1)",
+    "frame": {
+     "file": "diaphora.py",
+     "line": 1301,
+     "function": "get_callgraph_difference"
+    }
+   },
+   "mode": "N",
+   "log": [],
+   "native_log_omitted": false,
+   "native_unsupported": false
+  },
+  {
+   "name": "cg_null_json",
+   "base": "stripped",
+   "main_sql": "",
+   "diff_sql": "UPDATE program SET callgraph_all_primes = NULL;",
+   "exit_code": 1,
+   "output_written": false,
+   "exception": {
+    "type": "TypeError",
+    "message": "the JSON object must be str, bytes or bytearray, not NoneType",
+    "frame": {
+     "file": "diaphora.py",
+     "line": 1303,
+     "function": "get_callgraph_difference"
+    }
+   },
+   "mode": "N",
+   "log": [],
+   "native_log_omitted": false,
+   "native_unsupported": false
+  },
+  {
+   "name": "cg_equal_nondict",
+   "base": "stripped",
+   "main_sql": "UPDATE program SET callgraph_primes = '7', callgraph_all_primes = '[1, 2]';",
+   "diff_sql": "UPDATE program SET callgraph_primes = '7', callgraph_all_primes = '\"text\"';",
+   "exit_code": 0,
+   "output_written": true,
+   "exception": null,
+   "mode": "S",
+   "log": [
+    "Call graph signature for both databases is equal, the programs seem to be 100% equal structurally",
+    "Call graphs are 100% equal",
+    "Symbols stripped detected: A total of 20 matches out of 20, 100.0% percent have the same address",
+    "Final results: Best 19, Partial 1, Unreliable 0, Multimatches 0"
+   ],
+   "native_log_omitted": false,
+   "native_unsupported": false,
+   "results": [
+    [
+     "best",
+     "00000",
+     "180001000",
+     "DllMain",
+     "180001000",
+     "DllMain",
+     "1.0000000",
+     "4",
+     "4",
+     "100% equal"
+    ],
+    [
+     "best",
+     "00001",
+     "180001200",
+     "Worker_2",
+     "180001200",
+     "sub_180001200",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00002",
+     "180001300",
+     "Worker_3",
+     "180001300",
+     "sub_180001300",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00003",
+     "180001400",
+     "Worker_4",
+     "180001400",
+     "sub_180001400",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00004",
+     "180001500",
+     "Worker_5",
+     "180001500",
+     "sub_180001500",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00005",
+     "180001600",
+     "Worker_6",
+     "180001600",
+     "sub_180001600",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00006",
+     "180001800",
+     "Worker_8",
+     "180001800",
+     "sub_180001800",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00007",
+     "180001900",
+     "Worker_9",
+     "180001900",
+     "sub_180001900",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00008",
+     "180001a00",
+     "Worker_10",
+     "180001a00",
+     "sub_180001A00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00009",
+     "180001b00",
+     "Worker_11",
+     "180001b00",
+     "sub_180001B00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00010",
+     "180001c00",
+     "Worker_12",
+     "180001c00",
+     "sub_180001C00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00011",
+     "180001d00",
+     "Worker_13",
+     "180001d00",
+     "sub_180001D00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00012",
+     "180001e00",
+     "Worker_14",
+     "180001e00",
+     "sub_180001E00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00013",
+     "180001f00",
+     "Worker_15",
+     "180001f00",
+     "sub_180001F00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00014",
+     "180002000",
+     "Worker_16",
+     "180002000",
+     "sub_180002000",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00015",
+     "180002100",
+     "Worker_17",
+     "180002100",
+     "sub_180002100",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00016",
+     "180002200",
+     "Worker_18",
+     "180002200",
+     "sub_180002200",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00017",
+     "180002300",
+     "Worker_19",
+     "180002300",
+     "sub_180002300",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00018",
+     "180002400",
+     "helper_20",
+     "180003400",
+     "helper_20",
+     "1.0000000",
+     "3",
+     "3",
+     "Perfect match, same name"
+    ],
+    [
+     "partial",
+     "00000",
+     "180001700",
+     "Worker_7",
+     "180001700",
+     "sub_180001700",
+     "0.9009592",
+     "4",
+     "5",
+     "Same binary with symbols stripped"
+    ]
+   ],
+   "unmatched": [
+    [
+     "primary",
+     "00000",
+     "180002400",
+     "sub_180002400"
+    ],
+    [
+     "primary",
+     "00001",
+     "180004000",
+     "sub_180004000"
+    ]
+   ]
+  },
+  {
+   "name": "cg_list_json",
+   "base": "stripped",
+   "main_sql": "UPDATE program SET callgraph_all_primes = '[1, 2]';",
+   "diff_sql": "",
+   "exit_code": 1,
+   "output_written": false,
+   "exception": {
+    "type": "AttributeError",
+    "message": "'list' object has no attribute 'keys'",
+    "frame": {
+     "file": "jkutils/factor.py",
+     "line": 219,
+     "function": "_difference"
+    }
+   },
+   "mode": "N",
+   "log": [],
+   "native_log_omitted": false,
+   "native_unsupported": false
+  },
+  {
+   "name": "cg_string_values",
+   "base": "stripped",
+   "main_sql": "UPDATE program SET callgraph_all_primes = '{\"6\": \"x\"}';",
+   "diff_sql": "UPDATE program SET callgraph_all_primes = '{\"6\": \"y\"}';",
+   "exit_code": 1,
+   "output_written": false,
+   "exception": {
+    "type": "TypeError",
+    "message": "unsupported operand type(s) for -: 'str' and 'str'",
+    "frame": {
+     "file": "jkutils/factor.py",
+     "line": 222,
+     "function": "_difference"
+    }
+   },
+   "mode": "N",
+   "log": [],
+   "native_log_omitted": false,
+   "native_unsupported": false
+  },
+  {
+   "name": "cg_null_value",
+   "base": "stripped",
+   "main_sql": "UPDATE program SET callgraph_all_primes = '{\"6\": null}';",
+   "diff_sql": "",
+   "exit_code": 1,
+   "output_written": false,
+   "exception": {
+    "type": "TypeError",
+    "message": "unsupported operand type(s) for +: 'int' and 'NoneType'",
+    "frame": {
+     "file": "jkutils/factor.py",
+     "line": 242,
+     "function": "difference"
+    }
+   },
+   "mode": "N",
+   "log": [],
+   "native_log_omitted": false,
+   "native_unsupported": false
+  },
+  {
+   "name": "cg_equal_strings_in_both",
+   "base": "stripped",
+   "main_sql": "UPDATE program SET callgraph_all_primes = '{\"6\": \"x\", \"7\": 1}';",
+   "diff_sql": "UPDATE program SET callgraph_all_primes = '{\"6\": \"x\", \"7\": 2}';",
+   "exit_code": 1,
+   "output_written": false,
+   "exception": {
+    "type": "TypeError",
+    "message": "unsupported operand type(s) for +: 'int' and 'str'",
+    "frame": {
+     "file": "diaphora.py",
+     "line": 1315,
+     "function": "get_callgraph_difference"
+    }
+   },
+   "mode": "N",
+   "log": [],
+   "native_log_omitted": false,
+   "native_unsupported": false
+  },
+  {
+   "name": "cg_snan",
+   "base": "stripped",
+   "main_sql": "UPDATE program SET callgraph_primes = 'sNaN';",
+   "diff_sql": "",
+   "exit_code": 1,
+   "output_written": false,
+   "exception": {
+    "type": "InvalidOperation",
+    "message": "[<class 'decimal.InvalidOperation'>]",
+    "frame": {
+     "file": "diaphora.py",
+     "line": 1305,
+     "function": "get_callgraph_difference"
+    }
+   },
+   "mode": "N",
+   "log": [],
+   "native_log_omitted": false,
+   "native_unsupported": false
+  },
+  {
+   "name": "cg_qnan",
+   "base": "stripped",
+   "main_sql": "UPDATE program SET callgraph_primes = 'NaN';",
+   "diff_sql": "UPDATE program SET callgraph_primes = 'nan';",
+   "exit_code": 0,
+   "output_written": true,
+   "exception": null,
+   "mode": "S",
+   "log": [
+    "Call graphs are absolutely different",
+    "Symbols stripped detected: A total of 20 matches out of 20, 100.0% percent have the same address",
+    "Final results: Best 19, Partial 1, Unreliable 0, Multimatches 0"
+   ],
+   "native_log_omitted": false,
+   "native_unsupported": false,
+   "results": [
+    [
+     "best",
+     "00000",
+     "180001000",
+     "DllMain",
+     "180001000",
+     "DllMain",
+     "1.0000000",
+     "4",
+     "4",
+     "100% equal"
+    ],
+    [
+     "best",
+     "00001",
+     "180001200",
+     "Worker_2",
+     "180001200",
+     "sub_180001200",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00002",
+     "180001300",
+     "Worker_3",
+     "180001300",
+     "sub_180001300",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00003",
+     "180001400",
+     "Worker_4",
+     "180001400",
+     "sub_180001400",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00004",
+     "180001500",
+     "Worker_5",
+     "180001500",
+     "sub_180001500",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00005",
+     "180001600",
+     "Worker_6",
+     "180001600",
+     "sub_180001600",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00006",
+     "180001800",
+     "Worker_8",
+     "180001800",
+     "sub_180001800",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00007",
+     "180001900",
+     "Worker_9",
+     "180001900",
+     "sub_180001900",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00008",
+     "180001a00",
+     "Worker_10",
+     "180001a00",
+     "sub_180001A00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00009",
+     "180001b00",
+     "Worker_11",
+     "180001b00",
+     "sub_180001B00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00010",
+     "180001c00",
+     "Worker_12",
+     "180001c00",
+     "sub_180001C00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00011",
+     "180001d00",
+     "Worker_13",
+     "180001d00",
+     "sub_180001D00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00012",
+     "180001e00",
+     "Worker_14",
+     "180001e00",
+     "sub_180001E00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00013",
+     "180001f00",
+     "Worker_15",
+     "180001f00",
+     "sub_180001F00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00014",
+     "180002000",
+     "Worker_16",
+     "180002000",
+     "sub_180002000",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00015",
+     "180002100",
+     "Worker_17",
+     "180002100",
+     "sub_180002100",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00016",
+     "180002200",
+     "Worker_18",
+     "180002200",
+     "sub_180002200",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00017",
+     "180002300",
+     "Worker_19",
+     "180002300",
+     "sub_180002300",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00018",
+     "180002400",
+     "helper_20",
+     "180003400",
+     "helper_20",
+     "1.0000000",
+     "3",
+     "3",
+     "Perfect match, same name"
+    ],
+    [
+     "partial",
+     "00000",
+     "180001700",
+     "Worker_7",
+     "180001700",
+     "sub_180001700",
+     "0.9009592",
+     "4",
+     "5",
+     "Same binary with symbols stripped"
+    ]
+   ],
+   "unmatched": [
+    [
+     "primary",
+     "00000",
+     "180002400",
+     "sub_180002400"
+    ],
+    [
+     "primary",
+     "00001",
+     "180004000",
+     "sub_180004000"
+    ]
+   ]
+  },
+  {
+   "name": "cg_infinity_equal",
+   "base": "stripped",
+   "main_sql": "UPDATE program SET callgraph_primes = '-Infinity', callgraph_all_primes = '[]';",
+   "diff_sql": "UPDATE program SET callgraph_primes = '-inf', callgraph_all_primes = 'null';",
+   "exit_code": 0,
+   "output_written": true,
+   "exception": null,
+   "mode": "S",
+   "log": [
+    "Call graph signature for both databases is equal, the programs seem to be 100% equal structurally",
+    "Call graphs are 100% equal",
+    "Symbols stripped detected: A total of 20 matches out of 20, 100.0% percent have the same address",
+    "Final results: Best 19, Partial 1, Unreliable 0, Multimatches 0"
+   ],
+   "native_log_omitted": false,
+   "native_unsupported": false,
+   "results": [
+    [
+     "best",
+     "00000",
+     "180001000",
+     "DllMain",
+     "180001000",
+     "DllMain",
+     "1.0000000",
+     "4",
+     "4",
+     "100% equal"
+    ],
+    [
+     "best",
+     "00001",
+     "180001200",
+     "Worker_2",
+     "180001200",
+     "sub_180001200",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00002",
+     "180001300",
+     "Worker_3",
+     "180001300",
+     "sub_180001300",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00003",
+     "180001400",
+     "Worker_4",
+     "180001400",
+     "sub_180001400",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00004",
+     "180001500",
+     "Worker_5",
+     "180001500",
+     "sub_180001500",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00005",
+     "180001600",
+     "Worker_6",
+     "180001600",
+     "sub_180001600",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00006",
+     "180001800",
+     "Worker_8",
+     "180001800",
+     "sub_180001800",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00007",
+     "180001900",
+     "Worker_9",
+     "180001900",
+     "sub_180001900",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00008",
+     "180001a00",
+     "Worker_10",
+     "180001a00",
+     "sub_180001A00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00009",
+     "180001b00",
+     "Worker_11",
+     "180001b00",
+     "sub_180001B00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00010",
+     "180001c00",
+     "Worker_12",
+     "180001c00",
+     "sub_180001C00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00011",
+     "180001d00",
+     "Worker_13",
+     "180001d00",
+     "sub_180001D00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00012",
+     "180001e00",
+     "Worker_14",
+     "180001e00",
+     "sub_180001E00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00013",
+     "180001f00",
+     "Worker_15",
+     "180001f00",
+     "sub_180001F00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00014",
+     "180002000",
+     "Worker_16",
+     "180002000",
+     "sub_180002000",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00015",
+     "180002100",
+     "Worker_17",
+     "180002100",
+     "sub_180002100",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00016",
+     "180002200",
+     "Worker_18",
+     "180002200",
+     "sub_180002200",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00017",
+     "180002300",
+     "Worker_19",
+     "180002300",
+     "sub_180002300",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00018",
+     "180002400",
+     "helper_20",
+     "180003400",
+     "helper_20",
+     "1.0000000",
+     "3",
+     "3",
+     "Perfect match, same name"
+    ],
+    [
+     "partial",
+     "00000",
+     "180001700",
+     "Worker_7",
+     "180001700",
+     "sub_180001700",
+     "0.9009592",
+     "4",
+     "5",
+     "Same binary with symbols stripped"
+    ]
+   ],
+   "unmatched": [
+    [
+     "primary",
+     "00000",
+     "180002400",
+     "sub_180002400"
+    ],
+    [
+     "primary",
+     "00001",
+     "180004000",
+     "sub_180004000"
+    ]
+   ]
+  },
+  {
+   "name": "cg_bigint_overflow",
+   "base": "stripped",
+   "main_sql": "UPDATE program SET callgraph_all_primes = '{\"6\": 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000}';",
+   "diff_sql": "UPDATE program SET callgraph_all_primes = '{\"6\": 1}';",
+   "exit_code": 1,
+   "output_written": false,
+   "exception": {
+    "type": "OverflowError",
+    "message": "int too large to convert to float",
+    "frame": {
+     "file": "diaphora.py",
+     "line": 1319,
+     "function": "get_callgraph_difference"
+    }
+   },
+   "mode": "N",
+   "log": [],
+   "native_log_omitted": false,
+   "native_unsupported": false
+  },
+  {
+   "name": "cg_bigint_cancel",
+   "base": "stripped",
+   "main_sql": "UPDATE program SET callgraph_all_primes = '{\"6\": 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000, \"7\": -10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000}';",
+   "diff_sql": "UPDATE program SET callgraph_all_primes = '{\"6\": 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000, \"7\": -10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000, \"8\": 1}';",
+   "exit_code": 0,
+   "output_written": true,
+   "exception": null,
+   "mode": "S",
+   "log": [
+    "Call graphs are 100% equal",
+    "Symbols stripped detected: A total of 20 matches out of 20, 100.0% percent have the same address",
+    "Final results: Best 19, Partial 1, Unreliable 0, Multimatches 0"
+   ],
+   "native_log_omitted": false,
+   "native_unsupported": false,
+   "results": [
+    [
+     "best",
+     "00000",
+     "180001000",
+     "DllMain",
+     "180001000",
+     "DllMain",
+     "1.0000000",
+     "4",
+     "4",
+     "100% equal"
+    ],
+    [
+     "best",
+     "00001",
+     "180001200",
+     "Worker_2",
+     "180001200",
+     "sub_180001200",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00002",
+     "180001300",
+     "Worker_3",
+     "180001300",
+     "sub_180001300",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00003",
+     "180001400",
+     "Worker_4",
+     "180001400",
+     "sub_180001400",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00004",
+     "180001500",
+     "Worker_5",
+     "180001500",
+     "sub_180001500",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00005",
+     "180001600",
+     "Worker_6",
+     "180001600",
+     "sub_180001600",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00006",
+     "180001800",
+     "Worker_8",
+     "180001800",
+     "sub_180001800",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00007",
+     "180001900",
+     "Worker_9",
+     "180001900",
+     "sub_180001900",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00008",
+     "180001a00",
+     "Worker_10",
+     "180001a00",
+     "sub_180001A00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00009",
+     "180001b00",
+     "Worker_11",
+     "180001b00",
+     "sub_180001B00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00010",
+     "180001c00",
+     "Worker_12",
+     "180001c00",
+     "sub_180001C00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00011",
+     "180001d00",
+     "Worker_13",
+     "180001d00",
+     "sub_180001D00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00012",
+     "180001e00",
+     "Worker_14",
+     "180001e00",
+     "sub_180001E00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00013",
+     "180001f00",
+     "Worker_15",
+     "180001f00",
+     "sub_180001F00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00014",
+     "180002000",
+     "Worker_16",
+     "180002000",
+     "sub_180002000",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00015",
+     "180002100",
+     "Worker_17",
+     "180002100",
+     "sub_180002100",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00016",
+     "180002200",
+     "Worker_18",
+     "180002200",
+     "sub_180002200",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00017",
+     "180002300",
+     "Worker_19",
+     "180002300",
+     "sub_180002300",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00018",
+     "180002400",
+     "helper_20",
+     "180003400",
+     "helper_20",
+     "1.0000000",
+     "3",
+     "3",
+     "Perfect match, same name"
+    ],
+    [
+     "partial",
+     "00000",
+     "180001700",
+     "Worker_7",
+     "180001700",
+     "sub_180001700",
+     "0.9009592",
+     "4",
+     "5",
+     "Same binary with symbols stripped"
+    ]
+   ],
+   "unmatched": [
+    [
+     "primary",
+     "00000",
+     "180002400",
+     "sub_180002400"
+    ],
+    [
+     "primary",
+     "00001",
+     "180004000",
+     "sub_180004000"
+    ]
+   ]
+  },
+  {
+   "name": "cg_bigint_mixed_float",
+   "base": "stripped",
+   "main_sql": "UPDATE program SET callgraph_all_primes = '{\"6\": 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000}';",
+   "diff_sql": "UPDATE program SET callgraph_all_primes = '{\"6\": 1.5}';",
+   "exit_code": 1,
+   "output_written": false,
+   "exception": {
+    "type": "OverflowError",
+    "message": "int too large to convert to float",
+    "frame": {
+     "file": "jkutils/factor.py",
+     "line": 222,
+     "function": "_difference"
+    }
+   },
+   "mode": "N",
+   "log": [],
+   "native_log_omitted": false,
+   "native_unsupported": false
+  },
+  {
+   "name": "cg_float_total_nonzero_bigint_diff",
+   "base": "stripped",
+   "main_sql": "UPDATE program SET callgraph_all_primes = '{\"6\": 0.5, \"7\": -0.5, \"9\": 1}';",
+   "diff_sql": "UPDATE program SET callgraph_all_primes = '{\"6\": 0.5, \"7\": -0.5, \"9\": 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000}';",
+   "exit_code": 1,
+   "output_written": false,
+   "exception": {
+    "type": "OverflowError",
+    "message": "int too large to convert to float",
+    "frame": {
+     "file": "diaphora.py",
+     "line": 1319,
+     "function": "get_callgraph_difference"
+    }
+   },
+   "mode": "N",
+   "log": [],
+   "native_log_omitted": false,
+   "native_unsupported": true
+  },
+  {
+   "name": "cg_float_total_zero_bigint_diff",
+   "base": "stripped",
+   "main_sql": "UPDATE program SET callgraph_all_primes = '{\"6\": 0.5, \"7\": -0.5, \"9\": 0}';",
+   "diff_sql": "UPDATE program SET callgraph_all_primes = '{\"6\": 0.5, \"7\": -0.5, \"9\": 10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000}';",
+   "exit_code": 0,
+   "output_written": true,
+   "exception": null,
+   "mode": "S",
+   "log": [
+    "Call graphs are 100% equal",
+    "Symbols stripped detected: A total of 20 matches out of 20, 100.0% percent have the same address",
+    "Final results: Best 19, Partial 1, Unreliable 0, Multimatches 0"
+   ],
+   "native_log_omitted": false,
+   "native_unsupported": true,
+   "results": [
+    [
+     "best",
+     "00000",
+     "180001000",
+     "DllMain",
+     "180001000",
+     "DllMain",
+     "1.0000000",
+     "4",
+     "4",
+     "100% equal"
+    ],
+    [
+     "best",
+     "00001",
+     "180001200",
+     "Worker_2",
+     "180001200",
+     "sub_180001200",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00002",
+     "180001300",
+     "Worker_3",
+     "180001300",
+     "sub_180001300",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00003",
+     "180001400",
+     "Worker_4",
+     "180001400",
+     "sub_180001400",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00004",
+     "180001500",
+     "Worker_5",
+     "180001500",
+     "sub_180001500",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00005",
+     "180001600",
+     "Worker_6",
+     "180001600",
+     "sub_180001600",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00006",
+     "180001800",
+     "Worker_8",
+     "180001800",
+     "sub_180001800",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00007",
+     "180001900",
+     "Worker_9",
+     "180001900",
+     "sub_180001900",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00008",
+     "180001a00",
+     "Worker_10",
+     "180001a00",
+     "sub_180001A00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00009",
+     "180001b00",
+     "Worker_11",
+     "180001b00",
+     "sub_180001B00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00010",
+     "180001c00",
+     "Worker_12",
+     "180001c00",
+     "sub_180001C00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00011",
+     "180001d00",
+     "Worker_13",
+     "180001d00",
+     "sub_180001D00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00012",
+     "180001e00",
+     "Worker_14",
+     "180001e00",
+     "sub_180001E00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00013",
+     "180001f00",
+     "Worker_15",
+     "180001f00",
+     "sub_180001F00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00014",
+     "180002000",
+     "Worker_16",
+     "180002000",
+     "sub_180002000",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00015",
+     "180002100",
+     "Worker_17",
+     "180002100",
+     "sub_180002100",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00016",
+     "180002200",
+     "Worker_18",
+     "180002200",
+     "sub_180002200",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00017",
+     "180002300",
+     "Worker_19",
+     "180002300",
+     "sub_180002300",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00018",
+     "180002400",
+     "helper_20",
+     "180003400",
+     "helper_20",
+     "1.0000000",
+     "3",
+     "3",
+     "Perfect match, same name"
+    ],
+    [
+     "partial",
+     "00000",
+     "180001700",
+     "Worker_7",
+     "180001700",
+     "sub_180001700",
+     "0.9009592",
+     "4",
+     "5",
+     "Same binary with symbols stripped"
+    ]
+   ],
+   "unmatched": [
+    [
+     "primary",
+     "00000",
+     "180002400",
+     "sub_180002400"
+    ],
+    [
+     "primary",
+     "00001",
+     "180004000",
+     "sub_180004000"
+    ]
+   ]
+  },
+  {
+   "name": "cg_float_counts",
+   "base": "stripped",
+   "main_sql": "UPDATE program SET callgraph_all_primes = '{\"6\": 1.5}';",
+   "diff_sql": "UPDATE program SET callgraph_all_primes = '{\"6\": 2}';",
+   "exit_code": 0,
+   "output_written": true,
+   "exception": null,
+   "mode": "S",
+   "log": [
+    "Call graphs from both programs differ in 33.333333333333336%",
+    "Symbols stripped detected: A total of 20 matches out of 20, 100.0% percent have the same address",
+    "Final results: Best 19, Partial 1, Unreliable 0, Multimatches 0"
+   ],
+   "native_log_omitted": true,
+   "native_unsupported": false,
+   "results": [
+    [
+     "best",
+     "00000",
+     "180001000",
+     "DllMain",
+     "180001000",
+     "DllMain",
+     "1.0000000",
+     "4",
+     "4",
+     "100% equal"
+    ],
+    [
+     "best",
+     "00001",
+     "180001200",
+     "Worker_2",
+     "180001200",
+     "sub_180001200",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00002",
+     "180001300",
+     "Worker_3",
+     "180001300",
+     "sub_180001300",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00003",
+     "180001400",
+     "Worker_4",
+     "180001400",
+     "sub_180001400",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00004",
+     "180001500",
+     "Worker_5",
+     "180001500",
+     "sub_180001500",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00005",
+     "180001600",
+     "Worker_6",
+     "180001600",
+     "sub_180001600",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00006",
+     "180001800",
+     "Worker_8",
+     "180001800",
+     "sub_180001800",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00007",
+     "180001900",
+     "Worker_9",
+     "180001900",
+     "sub_180001900",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00008",
+     "180001a00",
+     "Worker_10",
+     "180001a00",
+     "sub_180001A00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00009",
+     "180001b00",
+     "Worker_11",
+     "180001b00",
+     "sub_180001B00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00010",
+     "180001c00",
+     "Worker_12",
+     "180001c00",
+     "sub_180001C00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00011",
+     "180001d00",
+     "Worker_13",
+     "180001d00",
+     "sub_180001D00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00012",
+     "180001e00",
+     "Worker_14",
+     "180001e00",
+     "sub_180001E00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00013",
+     "180001f00",
+     "Worker_15",
+     "180001f00",
+     "sub_180001F00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00014",
+     "180002000",
+     "Worker_16",
+     "180002000",
+     "sub_180002000",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00015",
+     "180002100",
+     "Worker_17",
+     "180002100",
+     "sub_180002100",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00016",
+     "180002200",
+     "Worker_18",
+     "180002200",
+     "sub_180002200",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00017",
+     "180002300",
+     "Worker_19",
+     "180002300",
+     "sub_180002300",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00018",
+     "180002400",
+     "helper_20",
+     "180003400",
+     "helper_20",
+     "1.0000000",
+     "3",
+     "3",
+     "Perfect match, same name"
+    ],
+    [
+     "partial",
+     "00000",
+     "180001700",
+     "Worker_7",
+     "180001700",
+     "sub_180001700",
+     "0.9009592",
+     "4",
+     "5",
+     "Same binary with symbols stripped"
+    ]
+   ],
+   "unmatched": [
+    [
+     "primary",
+     "00000",
+     "180002400",
+     "sub_180002400"
+    ],
+    [
+     "primary",
+     "00001",
+     "180004000",
+     "sub_180004000"
+    ]
+   ]
+  },
+  {
+   "name": "cg_int_counts",
+   "base": "stripped",
+   "main_sql": "UPDATE program SET callgraph_all_primes = '{\"2\": 3, \"3\": 1, \"5\": 2, \"7\": 1}';",
+   "diff_sql": "UPDATE program SET callgraph_all_primes = '{\"2\": 1, \"3\": 1, \"11\": 4, \"13\": true}';",
+   "exit_code": 0,
+   "output_written": true,
+   "exception": null,
+   "mode": "S",
+   "log": [
+    "Call graphs are absolutely different",
+    "Symbols stripped detected: A total of 20 matches out of 20, 100.0% percent have the same address",
+    "Final results: Best 19, Partial 1, Unreliable 0, Multimatches 0"
+   ],
+   "native_log_omitted": false,
+   "native_unsupported": false,
+   "results": [
+    [
+     "best",
+     "00000",
+     "180001000",
+     "DllMain",
+     "180001000",
+     "DllMain",
+     "1.0000000",
+     "4",
+     "4",
+     "100% equal"
+    ],
+    [
+     "best",
+     "00001",
+     "180001200",
+     "Worker_2",
+     "180001200",
+     "sub_180001200",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00002",
+     "180001300",
+     "Worker_3",
+     "180001300",
+     "sub_180001300",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00003",
+     "180001400",
+     "Worker_4",
+     "180001400",
+     "sub_180001400",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00004",
+     "180001500",
+     "Worker_5",
+     "180001500",
+     "sub_180001500",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00005",
+     "180001600",
+     "Worker_6",
+     "180001600",
+     "sub_180001600",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00006",
+     "180001800",
+     "Worker_8",
+     "180001800",
+     "sub_180001800",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00007",
+     "180001900",
+     "Worker_9",
+     "180001900",
+     "sub_180001900",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00008",
+     "180001a00",
+     "Worker_10",
+     "180001a00",
+     "sub_180001A00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00009",
+     "180001b00",
+     "Worker_11",
+     "180001b00",
+     "sub_180001B00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00010",
+     "180001c00",
+     "Worker_12",
+     "180001c00",
+     "sub_180001C00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00011",
+     "180001d00",
+     "Worker_13",
+     "180001d00",
+     "sub_180001D00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00012",
+     "180001e00",
+     "Worker_14",
+     "180001e00",
+     "sub_180001E00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00013",
+     "180001f00",
+     "Worker_15",
+     "180001f00",
+     "sub_180001F00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00014",
+     "180002000",
+     "Worker_16",
+     "180002000",
+     "sub_180002000",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00015",
+     "180002100",
+     "Worker_17",
+     "180002100",
+     "sub_180002100",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00016",
+     "180002200",
+     "Worker_18",
+     "180002200",
+     "sub_180002200",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00017",
+     "180002300",
+     "Worker_19",
+     "180002300",
+     "sub_180002300",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00018",
+     "180002400",
+     "helper_20",
+     "180003400",
+     "helper_20",
+     "1.0000000",
+     "3",
+     "3",
+     "Perfect match, same name"
+    ],
+    [
+     "partial",
+     "00000",
+     "180001700",
+     "Worker_7",
+     "180001700",
+     "sub_180001700",
+     "0.9009592",
+     "4",
+     "5",
+     "Same binary with symbols stripped"
+    ]
+   ],
+   "unmatched": [
+    [
+     "primary",
+     "00000",
+     "180002400",
+     "sub_180002400"
+    ],
+    [
+     "primary",
+     "00001",
+     "180004000",
+     "sub_180004000"
+    ]
+   ]
+  },
+  {
+   "name": "cg_scientific_equal",
+   "base": "stripped",
+   "main_sql": "UPDATE program SET callgraph_primes = '1.258765552879565110995976484E+366';",
+   "diff_sql": "UPDATE program SET callgraph_primes = '1258765552879565110995976484E+339';",
+   "exit_code": 0,
+   "output_written": true,
+   "exception": null,
+   "mode": "S",
+   "log": [
+    "Call graph signature for both databases is equal, the programs seem to be 100% equal structurally",
+    "Call graphs are 100% equal",
+    "Symbols stripped detected: A total of 20 matches out of 20, 100.0% percent have the same address",
+    "Final results: Best 19, Partial 1, Unreliable 0, Multimatches 0"
+   ],
+   "native_log_omitted": false,
+   "native_unsupported": false,
+   "results": [
+    [
+     "best",
+     "00000",
+     "180001000",
+     "DllMain",
+     "180001000",
+     "DllMain",
+     "1.0000000",
+     "4",
+     "4",
+     "100% equal"
+    ],
+    [
+     "best",
+     "00001",
+     "180001200",
+     "Worker_2",
+     "180001200",
+     "sub_180001200",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00002",
+     "180001300",
+     "Worker_3",
+     "180001300",
+     "sub_180001300",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00003",
+     "180001400",
+     "Worker_4",
+     "180001400",
+     "sub_180001400",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00004",
+     "180001500",
+     "Worker_5",
+     "180001500",
+     "sub_180001500",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00005",
+     "180001600",
+     "Worker_6",
+     "180001600",
+     "sub_180001600",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00006",
+     "180001800",
+     "Worker_8",
+     "180001800",
+     "sub_180001800",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00007",
+     "180001900",
+     "Worker_9",
+     "180001900",
+     "sub_180001900",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00008",
+     "180001a00",
+     "Worker_10",
+     "180001a00",
+     "sub_180001A00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00009",
+     "180001b00",
+     "Worker_11",
+     "180001b00",
+     "sub_180001B00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00010",
+     "180001c00",
+     "Worker_12",
+     "180001c00",
+     "sub_180001C00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00011",
+     "180001d00",
+     "Worker_13",
+     "180001d00",
+     "sub_180001D00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00012",
+     "180001e00",
+     "Worker_14",
+     "180001e00",
+     "sub_180001E00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00013",
+     "180001f00",
+     "Worker_15",
+     "180001f00",
+     "sub_180001F00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00014",
+     "180002000",
+     "Worker_16",
+     "180002000",
+     "sub_180002000",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00015",
+     "180002100",
+     "Worker_17",
+     "180002100",
+     "sub_180002100",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00016",
+     "180002200",
+     "Worker_18",
+     "180002200",
+     "sub_180002200",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00017",
+     "180002300",
+     "Worker_19",
+     "180002300",
+     "sub_180002300",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00018",
+     "180002400",
+     "helper_20",
+     "180003400",
+     "helper_20",
+     "1.0000000",
+     "3",
+     "3",
+     "Perfect match, same name"
+    ],
+    [
+     "partial",
+     "00000",
+     "180001700",
+     "Worker_7",
+     "180001700",
+     "sub_180001700",
+     "0.9009592",
+     "4",
+     "5",
+     "Same binary with symbols stripped"
+    ]
+   ],
+   "unmatched": [
+    [
+     "primary",
+     "00000",
+     "180002400",
+     "sub_180002400"
+    ],
+    [
+     "primary",
+     "00001",
+     "180004000",
+     "sub_180004000"
+    ]
+   ]
+  },
+  {
+   "name": "cg_underscore_space_equal",
+   "base": "stripped",
+   "main_sql": "UPDATE program SET callgraph_primes = ' 1_0 ';",
+   "diff_sql": "UPDATE program SET callgraph_primes = '10.000';",
+   "exit_code": 0,
+   "output_written": true,
+   "exception": null,
+   "mode": "S",
+   "log": [
+    "Call graph signature for both databases is equal, the programs seem to be 100% equal structurally",
+    "Call graphs are 100% equal",
+    "Symbols stripped detected: A total of 20 matches out of 20, 100.0% percent have the same address",
+    "Final results: Best 19, Partial 1, Unreliable 0, Multimatches 0"
+   ],
+   "native_log_omitted": false,
+   "native_unsupported": false,
+   "results": [
+    [
+     "best",
+     "00000",
+     "180001000",
+     "DllMain",
+     "180001000",
+     "DllMain",
+     "1.0000000",
+     "4",
+     "4",
+     "100% equal"
+    ],
+    [
+     "best",
+     "00001",
+     "180001200",
+     "Worker_2",
+     "180001200",
+     "sub_180001200",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00002",
+     "180001300",
+     "Worker_3",
+     "180001300",
+     "sub_180001300",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00003",
+     "180001400",
+     "Worker_4",
+     "180001400",
+     "sub_180001400",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00004",
+     "180001500",
+     "Worker_5",
+     "180001500",
+     "sub_180001500",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00005",
+     "180001600",
+     "Worker_6",
+     "180001600",
+     "sub_180001600",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00006",
+     "180001800",
+     "Worker_8",
+     "180001800",
+     "sub_180001800",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00007",
+     "180001900",
+     "Worker_9",
+     "180001900",
+     "sub_180001900",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00008",
+     "180001a00",
+     "Worker_10",
+     "180001a00",
+     "sub_180001A00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00009",
+     "180001b00",
+     "Worker_11",
+     "180001b00",
+     "sub_180001B00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00010",
+     "180001c00",
+     "Worker_12",
+     "180001c00",
+     "sub_180001C00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00011",
+     "180001d00",
+     "Worker_13",
+     "180001d00",
+     "sub_180001D00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00012",
+     "180001e00",
+     "Worker_14",
+     "180001e00",
+     "sub_180001E00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00013",
+     "180001f00",
+     "Worker_15",
+     "180001f00",
+     "sub_180001F00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00014",
+     "180002000",
+     "Worker_16",
+     "180002000",
+     "sub_180002000",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00015",
+     "180002100",
+     "Worker_17",
+     "180002100",
+     "sub_180002100",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00016",
+     "180002200",
+     "Worker_18",
+     "180002200",
+     "sub_180002200",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00017",
+     "180002300",
+     "Worker_19",
+     "180002300",
+     "sub_180002300",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00018",
+     "180002400",
+     "helper_20",
+     "180003400",
+     "helper_20",
+     "1.0000000",
+     "3",
+     "3",
+     "Perfect match, same name"
+    ],
+    [
+     "partial",
+     "00000",
+     "180001700",
+     "Worker_7",
+     "180001700",
+     "sub_180001700",
+     "0.9009592",
+     "4",
+     "5",
+     "Same binary with symbols stripped"
+    ]
+   ],
+   "unmatched": [
+    [
+     "primary",
+     "00000",
+     "180002400",
+     "sub_180002400"
+    ],
+    [
+     "primary",
+     "00001",
+     "180004000",
+     "sub_180004000"
+    ]
+   ]
+  },
+  {
+   "name": "cg_duplicate_keys",
+   "base": "stripped",
+   "main_sql": "UPDATE program SET callgraph_all_primes = '{\"6\": 1, \"6\": 3}';",
+   "diff_sql": "UPDATE program SET callgraph_all_primes = '{\"6\": 3}';",
+   "exit_code": 0,
+   "output_written": true,
+   "exception": null,
+   "mode": "S",
+   "log": [
+    "Call graphs are 100% equal",
+    "Symbols stripped detected: A total of 20 matches out of 20, 100.0% percent have the same address",
+    "Final results: Best 19, Partial 1, Unreliable 0, Multimatches 0"
+   ],
+   "native_log_omitted": false,
+   "native_unsupported": false,
+   "results": [
+    [
+     "best",
+     "00000",
+     "180001000",
+     "DllMain",
+     "180001000",
+     "DllMain",
+     "1.0000000",
+     "4",
+     "4",
+     "100% equal"
+    ],
+    [
+     "best",
+     "00001",
+     "180001200",
+     "Worker_2",
+     "180001200",
+     "sub_180001200",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00002",
+     "180001300",
+     "Worker_3",
+     "180001300",
+     "sub_180001300",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00003",
+     "180001400",
+     "Worker_4",
+     "180001400",
+     "sub_180001400",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00004",
+     "180001500",
+     "Worker_5",
+     "180001500",
+     "sub_180001500",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00005",
+     "180001600",
+     "Worker_6",
+     "180001600",
+     "sub_180001600",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00006",
+     "180001800",
+     "Worker_8",
+     "180001800",
+     "sub_180001800",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00007",
+     "180001900",
+     "Worker_9",
+     "180001900",
+     "sub_180001900",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00008",
+     "180001a00",
+     "Worker_10",
+     "180001a00",
+     "sub_180001A00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00009",
+     "180001b00",
+     "Worker_11",
+     "180001b00",
+     "sub_180001B00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00010",
+     "180001c00",
+     "Worker_12",
+     "180001c00",
+     "sub_180001C00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00011",
+     "180001d00",
+     "Worker_13",
+     "180001d00",
+     "sub_180001D00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00012",
+     "180001e00",
+     "Worker_14",
+     "180001e00",
+     "sub_180001E00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00013",
+     "180001f00",
+     "Worker_15",
+     "180001f00",
+     "sub_180001F00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00014",
+     "180002000",
+     "Worker_16",
+     "180002000",
+     "sub_180002000",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00015",
+     "180002100",
+     "Worker_17",
+     "180002100",
+     "sub_180002100",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00016",
+     "180002200",
+     "Worker_18",
+     "180002200",
+     "sub_180002200",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00017",
+     "180002300",
+     "Worker_19",
+     "180002300",
+     "sub_180002300",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00018",
+     "180002400",
+     "helper_20",
+     "180003400",
+     "helper_20",
+     "1.0000000",
+     "3",
+     "3",
+     "Perfect match, same name"
+    ],
+    [
+     "partial",
+     "00000",
+     "180001700",
+     "Worker_7",
+     "180001700",
+     "sub_180001700",
+     "0.9009592",
+     "4",
+     "5",
+     "Same binary with symbols stripped"
+    ]
+   ],
+   "unmatched": [
+    [
+     "primary",
+     "00000",
+     "180002400",
+     "sub_180002400"
+    ],
+    [
+     "primary",
+     "00001",
+     "180004000",
+     "sub_180004000"
+    ]
+   ]
+  },
+  {
+   "name": "equal_null_nodes",
+   "base": "stripped",
+   "main_sql": "UPDATE functions SET nodes = NULL WHERE name = 'DllMain';",
+   "diff_sql": "UPDATE functions SET nodes = NULL WHERE name = 'DllMain';",
+   "exit_code": 1,
+   "output_written": false,
+   "exception": {
+    "type": "TypeError",
+    "message": "int() argument must be a string, a bytes-like object or a real number, not 'NoneType'",
+    "frame": {
+     "file": "diaphora.py",
+     "line": 1437,
+     "function": "find_equal_matches"
+    }
+   },
+   "mode": "N",
+   "log": [
+    "Call graphs are absolutely different"
+   ],
+   "native_log_omitted": false,
+   "native_unsupported": false
+  },
+  {
+   "name": "same_name_null_mangled",
+   "base": "patch",
+   "main_sql": "UPDATE functions SET mangled_function = NULL WHERE name = 'func_5';",
+   "diff_sql": "",
+   "exit_code": 1,
+   "output_written": false,
+   "exception": {
+    "type": "AttributeError",
+    "message": "'NoneType' object has no attribute 'startswith'",
+    "frame": {
+     "file": "diaphora.py",
+     "line": 2179,
+     "function": "find_same_name"
+    }
+   },
+   "mode": "N",
+   "log": [
+    "Call graphs are absolutely different"
+   ],
+   "native_log_omitted": false,
+   "native_unsupported": false
+  },
+  {
+   "name": "same_name_null_nodes",
+   "base": "patch",
+   "main_sql": "UPDATE functions SET nodes = NULL WHERE name = 'func_4';",
+   "diff_sql": "",
+   "exit_code": 1,
+   "output_written": false,
+   "exception": {
+    "type": "TypeError",
+    "message": "int() argument must be a string, a bytes-like object or a real number, not 'NoneType'",
+    "frame": {
+     "file": "diaphora.py",
+     "line": 2192,
+     "function": "find_same_name"
+    }
+   },
+   "mode": "P",
+   "log": [
+    "Call graphs are absolutely different",
+    "Patch diffing detected: A total of 19 matches out of 21, 90.47619047619048% percent have the same name"
+   ],
+   "native_log_omitted": false,
+   "native_unsupported": false
+  },
+  {
+   "name": "hook_added_empty_line",
+   "base": "patch",
+   "main_sql": "",
+   "diff_sql": "UPDATE functions SET assembly = replace(assembly, 'nop', char(10) || 'nop') WHERE name = 'func_3';",
+   "exit_code": 1,
+   "output_written": false,
+   "exception": {
+    "type": "IndexError",
+    "message": "string index out of range",
+    "frame": {
+     "file": "scripts/patch_diff_vulns.py",
+     "line": 162,
+     "function": "find_vulns_using_assembly"
+    }
+   },
+   "mode": "P",
+   "log": [
+    "Call graphs are absolutely different",
+    "Patch diffing detected: A total of 19 matches out of 21, 90.47619047619048% percent have the same name"
+   ],
+   "native_log_omitted": false,
+   "native_unsupported": false
+  },
+  {
+   "name": "hook_added_leading_space",
+   "base": "patch",
+   "main_sql": "",
+   "diff_sql": "UPDATE functions SET assembly = replace(assembly, 'nop', ' nop') WHERE name = 'func_3';",
+   "exit_code": 1,
+   "output_written": false,
+   "exception": {
+    "type": "IndexError",
+    "message": "string index out of range",
+    "frame": {
+     "file": "scripts/patch_diff_vulns.py",
+     "line": 162,
+     "function": "find_vulns_using_assembly"
+    }
+   },
+   "mode": "P",
+   "log": [
+    "Call graphs are absolutely different",
+    "Patch diffing detected: A total of 19 matches out of 21, 90.47619047619048% percent have the same name"
+   ],
+   "native_log_omitted": false,
+   "native_unsupported": false
+  },
+  {
+   "name": "hook_removed_empty_b",
+   "base": "patch",
+   "main_sql": "UPDATE functions SET assembly = replace(assembly, 'mov eax, ebx', char(10) || 'mov eax, ebx') WHERE name = 'func_3';",
+   "diff_sql": "UPDATE functions SET assembly = replace(assembly, 'mov eax, ebx', 'bswap eax' || char(10) || 'mov eax, ebx') WHERE name = 'func_3';",
+   "exit_code": 1,
+   "output_written": false,
+   "exception": {
+    "type": "IndexError",
+    "message": "string index out of range",
+    "frame": {
+     "file": "scripts/patch_diff_vulns.py",
+     "line": 162,
+     "function": "find_vulns_using_assembly"
+    }
+   },
+   "mode": "P",
+   "log": [
+    "Call graphs are absolutely different",
+    "Patch diffing detected: A total of 19 matches out of 21, 90.47619047619048% percent have the same name"
+   ],
+   "native_log_omitted": false,
+   "native_unsupported": false
+  },
+  {
+   "name": "hook_removed_empty_not_b",
+   "base": "patch",
+   "main_sql": "UPDATE functions SET assembly = replace(assembly, 'mov eax, ebx', char(10) || 'mov eax, ebx') WHERE name = 'func_3';",
+   "diff_sql": "UPDATE functions SET assembly = replace(assembly, 'mov eax, ebx', 'xchg eax, eax' || char(10) || 'mov eax, ebx') WHERE name = 'func_3';",
+   "exit_code": 0,
+   "output_written": true,
+   "exception": null,
+   "mode": "P",
+   "log": [
+    "Call graphs are absolutely different",
+    "Patch diffing detected: A total of 19 matches out of 21, 90.47619047619048% percent have the same name",
+    "Final results: Best 17, Partial 3, Unreliable 0, Multimatches 0"
+   ],
+   "native_log_omitted": false,
+   "native_unsupported": false,
+   "results": [
+    [
+     "best",
+     "00000",
+     "180001100",
+     "func_1",
+     "180002100",
+     "func_1",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00001",
+     "180001400",
+     "func_4",
+     "180002400",
+     "func_4",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00002",
+     "180001500",
+     "func_5",
+     "180002500",
+     "func_5",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00003",
+     "180001600",
+     "func_6",
+     "180002600",
+     "func_6",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00004",
+     "180001700",
+     "func_7",
+     "180002700",
+     "func_7",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00005",
+     "180001800",
+     "func_8",
+     "180002800",
+     "func_8",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00006",
+     "180001900",
+     "func_9",
+     "180002900",
+     "func_9",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00007",
+     "180001a00",
+     "func_10",
+     "180002a00",
+     "func_10",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00008",
+     "180001b00",
+     "func_11",
+     "180002b00",
+     "func_11",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00009",
+     "180001c00",
+     "func_12",
+     "180002c00",
+     "func_12",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00010",
+     "180001d00",
+     "func_13",
+     "180002d00",
+     "func_13",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00011",
+     "180001e00",
+     "func_14",
+     "180002e00",
+     "func_14",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00012",
+     "180001f00",
+     "func_15",
+     "180002f00",
+     "func_15",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00013",
+     "180002000",
+     "func_16",
+     "180003000",
+     "func_16",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00014",
+     "180002100",
+     "func_17",
+     "180003100",
+     "func_17",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00015",
+     "180002200",
+     "func_18",
+     "180003200",
+     "func_18",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00016",
+     "180002300",
+     "func_19",
+     "180003300",
+     "func_19",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "partial",
+     "00000",
+     "180001300",
+     "func_3",
+     "180002300",
+     "func_3",
+     "0.9907778",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "partial",
+     "00001",
+     "180004000",
+     "sub_180004000",
+     "180006000",
+     "renamed_fn",
+     "0.9848182",
+     "5",
+     "5",
+     "Renamed or anonymous function match in patch diffing session"
+    ],
+    [
+     "partial",
+     "00002",
+     "180001200",
+     "func_2",
+     "180002200",
+     "func_2",
+     "0.9723939",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ]
+   ],
+   "unmatched": [
+    [
+     "primary",
+     "00000",
+     "180007000",
+     "renamed_small"
+    ],
+    [
+     "primary",
+     "00001",
+     "180008000",
+     "unnamed_extra"
+    ],
+    [
+     "secondary",
+     "00000",
+     "180005000",
+     "sub_180005000"
+    ]
+   ]
+  },
+  {
+   "name": "hook_break_before_bad_line",
+   "base": "patch",
+   "main_sql": "",
+   "diff_sql": "UPDATE functions SET assembly = assembly || char(10) WHERE name = 'func_2';",
+   "exit_code": 0,
+   "output_written": true,
+   "exception": null,
+   "mode": "P",
+   "log": [
+    "Call graphs are absolutely different",
+    "Patch diffing detected: A total of 19 matches out of 21, 90.47619047619048% percent have the same name",
+    "Final results: Best 17, Partial 3, Unreliable 0, Multimatches 0"
+   ],
+   "native_log_omitted": false,
+   "native_unsupported": false,
+   "results": [
+    [
+     "best",
+     "00000",
+     "180001100",
+     "func_1",
+     "180002100",
+     "func_1",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00001",
+     "180001400",
+     "func_4",
+     "180002400",
+     "func_4",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00002",
+     "180001500",
+     "func_5",
+     "180002500",
+     "func_5",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00003",
+     "180001600",
+     "func_6",
+     "180002600",
+     "func_6",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00004",
+     "180001700",
+     "func_7",
+     "180002700",
+     "func_7",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00005",
+     "180001800",
+     "func_8",
+     "180002800",
+     "func_8",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00006",
+     "180001900",
+     "func_9",
+     "180002900",
+     "func_9",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00007",
+     "180001a00",
+     "func_10",
+     "180002a00",
+     "func_10",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00008",
+     "180001b00",
+     "func_11",
+     "180002b00",
+     "func_11",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00009",
+     "180001c00",
+     "func_12",
+     "180002c00",
+     "func_12",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00010",
+     "180001d00",
+     "func_13",
+     "180002d00",
+     "func_13",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00011",
+     "180001e00",
+     "func_14",
+     "180002e00",
+     "func_14",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00012",
+     "180001f00",
+     "func_15",
+     "180002f00",
+     "func_15",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00013",
+     "180002000",
+     "func_16",
+     "180003000",
+     "func_16",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00014",
+     "180002100",
+     "func_17",
+     "180003100",
+     "func_17",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00015",
+     "180002200",
+     "func_18",
+     "180003200",
+     "func_18",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00016",
+     "180002300",
+     "func_19",
+     "180003300",
+     "func_19",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "partial",
+     "00000",
+     "180001300",
+     "func_3",
+     "180002300",
+     "func_3",
+     "0.9907778",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "partial",
+     "00001",
+     "180004000",
+     "sub_180004000",
+     "180006000",
+     "renamed_fn",
+     "0.9848182",
+     "5",
+     "5",
+     "Renamed or anonymous function match in patch diffing session"
+    ],
+    [
+     "partial",
+     "00002",
+     "180001200",
+     "func_2",
+     "180002200",
+     "func_2",
+     "0.9723939",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ]
+   ],
+   "unmatched": [
+    [
+     "primary",
+     "00000",
+     "180007000",
+     "renamed_small"
+    ],
+    [
+     "primary",
+     "00001",
+     "180008000",
+     "unnamed_extra"
+    ],
+    [
+     "secondary",
+     "00000",
+     "180005000",
+     "sub_180005000"
+    ]
+   ]
+  },
+  {
+   "name": "hook_found_null_nodes",
+   "base": "patch",
+   "main_sql": "",
+   "diff_sql": "UPDATE functions SET nodes = NULL WHERE name = 'func_3';",
+   "exit_code": 1,
+   "output_written": false,
+   "exception": {
+    "type": "TypeError",
+    "message": "int() argument must be a string, a bytes-like object or a real number, not 'NoneType'",
+    "frame": {
+     "file": "diaphora.py",
+     "line": 245,
+     "function": "__init__"
+    }
+   },
+   "mode": "P",
+   "log": [
+    "Call graphs are absolutely different",
+    "Patch diffing detected: A total of 19 matches out of 21, 90.47619047619048% percent have the same name"
+   ],
+   "native_log_omitted": false,
+   "native_unsupported": false
+  },
+  {
+   "name": "hook_remaining_added_empty_line",
+   "base": "patch",
+   "main_sql": "",
+   "diff_sql": "UPDATE functions SET assembly = replace(assembly, 'nop', char(10) || 'nop') WHERE name = 'renamed_fn';",
+   "exit_code": 1,
+   "output_written": false,
+   "exception": {
+    "type": "IndexError",
+    "message": "string index out of range",
+    "frame": {
+     "file": "scripts/patch_diff_vulns.py",
+     "line": 162,
+     "function": "find_vulns_using_assembly"
+    }
+   },
+   "mode": "P",
+   "log": [
+    "Call graphs are absolutely different",
+    "Patch diffing detected: A total of 19 matches out of 21, 90.47619047619048% percent have the same name"
+   ],
+   "native_log_omitted": false,
+   "native_unsupported": false
+  },
+  {
+   "name": "stripped_exactly_99",
+   "base": "stripped",
+   "main_sql": "WITH RECURSIVE n(i) AS (SELECT 0 UNION ALL SELECT i + 1 FROM n WHERE i < 79) INSERT INTO functions (id, name, address, mangled_function, rva, nodes, edges, indegree, outdegree, size, instructions, mnemonics, names, prototype, cyclomatic_complexity, primes_value, comment, bytes_hash, pseudocode, pseudocode_lines, pseudocode_hash1, pseudocode_primes, function_flags, assembly, prototype2, pseudocode_hash2, pseudocode_hash3, strongly_connected, loops, tarjan_topological_sort, strongly_connected_spp, clean_assembly, clean_pseudo, mnemonics_spp, switches, function_hash, bytes_sum, md_index, constants, constants_count, segment_rva, assembly_addrs, kgh_hash, source_file, userdata, microcode, clean_microcode, microcode_spp, export_time) SELECT 1000 + n.i, 'extra_' || n.i, CAST(6710886400 + n.i * 256 AS TEXT), 'extra_' || n.i, CAST(6710886400 + n.i * 256 AS TEXT), f.nodes, f.edges, f.indegree, f.outdegree, f.size, f.instructions, f.mnemonics, f.names, f.prototype, f.cyclomatic_complexity, f.primes_value, f.comment, f.bytes_hash, f.pseudocode, f.pseudocode_lines, f.pseudocode_hash1, f.pseudocode_primes, f.function_flags, f.assembly, f.prototype2, f.pseudocode_hash2, f.pseudocode_hash3, f.strongly_connected, f.loops, f.tarjan_topological_sort, f.strongly_connected_spp, f.clean_assembly, f.clean_pseudo, f.mnemonics_spp, f.switches, f.function_hash, f.bytes_sum, f.md_index, f.constants, f.constants_count, f.segment_rva, f.assembly_addrs, f.kgh_hash, f.source_file, f.userdata, f.microcode, f.clean_microcode, f.microcode_spp, f.export_time FROM n, functions f WHERE f.name = 'Worker_2';",
+   "diff_sql": "WITH RECURSIVE n(i) AS (SELECT 0 UNION ALL SELECT i + 1 FROM n WHERE i < 78) INSERT INTO functions (id, name, address, mangled_function, rva, nodes, edges, indegree, outdegree, size, instructions, mnemonics, names, prototype, cyclomatic_complexity, primes_value, comment, bytes_hash, pseudocode, pseudocode_lines, pseudocode_hash1, pseudocode_primes, function_flags, assembly, prototype2, pseudocode_hash2, pseudocode_hash3, strongly_connected, loops, tarjan_topological_sort, strongly_connected_spp, clean_assembly, clean_pseudo, mnemonics_spp, switches, function_hash, bytes_sum, md_index, constants, constants_count, segment_rva, assembly_addrs, kgh_hash, source_file, userdata, microcode, clean_microcode, microcode_spp, export_time) SELECT 1000 + n.i, 'sub_extra_' || n.i, CAST(6710886400 + n.i * 256 AS TEXT), 'sub_extra_' || n.i, CAST(6710886400 + n.i * 256 AS TEXT), f.nodes, f.edges, f.indegree, f.outdegree, f.size, f.instructions, f.mnemonics, f.names, f.prototype, f.cyclomatic_complexity, f.primes_value, f.comment, f.bytes_hash, f.pseudocode, f.pseudocode_lines, f.pseudocode_hash1, f.pseudocode_primes, f.function_flags, f.assembly, f.prototype2, f.pseudocode_hash2, f.pseudocode_hash3, f.strongly_connected, f.loops, f.tarjan_topological_sort, f.strongly_connected_spp, f.clean_assembly, f.clean_pseudo, f.mnemonics_spp, f.switches, f.function_hash, f.bytes_sum, f.md_index, f.constants, f.constants_count, f.segment_rva, f.assembly_addrs, f.kgh_hash, f.source_file, f.userdata, f.microcode, f.clean_microcode, f.microcode_spp, f.export_time FROM n, functions f WHERE f.name = 'sub_180001200';",
+   "exit_code": 0,
+   "output_written": true,
+   "exception": null,
+   "mode": "S",
+   "log": [
+    "Call graphs are absolutely different",
+    "Symbols stripped detected: A total of 99 matches out of 100, 99.0% percent have the same address",
+    "Final results: Best 98, Partial 1, Unreliable 0, Multimatches 0"
+   ],
+   "native_log_omitted": false,
+   "native_unsupported": false,
+   "results": [
+    [
+     "best",
+     "00000",
+     "180001000",
+     "DllMain",
+     "180001000",
+     "DllMain",
+     "1.0000000",
+     "4",
+     "4",
+     "100% equal"
+    ],
+    [
+     "best",
+     "00001",
+     "180001200",
+     "Worker_2",
+     "180001200",
+     "sub_180001200",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00002",
+     "180001300",
+     "Worker_3",
+     "180001300",
+     "sub_180001300",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00003",
+     "180001400",
+     "Worker_4",
+     "180001400",
+     "sub_180001400",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00004",
+     "180001500",
+     "Worker_5",
+     "180001500",
+     "sub_180001500",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00005",
+     "180001600",
+     "Worker_6",
+     "180001600",
+     "sub_180001600",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00006",
+     "180001800",
+     "Worker_8",
+     "180001800",
+     "sub_180001800",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00007",
+     "180001900",
+     "Worker_9",
+     "180001900",
+     "sub_180001900",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00008",
+     "180001a00",
+     "Worker_10",
+     "180001a00",
+     "sub_180001A00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00009",
+     "180001b00",
+     "Worker_11",
+     "180001b00",
+     "sub_180001B00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00010",
+     "180001c00",
+     "Worker_12",
+     "180001c00",
+     "sub_180001C00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00011",
+     "180001d00",
+     "Worker_13",
+     "180001d00",
+     "sub_180001D00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00012",
+     "180001e00",
+     "Worker_14",
+     "180001e00",
+     "sub_180001E00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00013",
+     "180001f00",
+     "Worker_15",
+     "180001f00",
+     "sub_180001F00",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00014",
+     "180002000",
+     "Worker_16",
+     "180002000",
+     "sub_180002000",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00015",
+     "180002100",
+     "Worker_17",
+     "180002100",
+     "sub_180002100",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00016",
+     "180002200",
+     "Worker_18",
+     "180002200",
+     "sub_180002200",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00017",
+     "180002300",
+     "Worker_19",
+     "180002300",
+     "sub_180002300",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00018",
+     "190000000",
+     "extra_0",
+     "190000000",
+     "sub_extra_0",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00019",
+     "190000100",
+     "extra_1",
+     "190000100",
+     "sub_extra_1",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00020",
+     "190000200",
+     "extra_2",
+     "190000200",
+     "sub_extra_2",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00021",
+     "190000300",
+     "extra_3",
+     "190000300",
+     "sub_extra_3",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00022",
+     "190000400",
+     "extra_4",
+     "190000400",
+     "sub_extra_4",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00023",
+     "190000500",
+     "extra_5",
+     "190000500",
+     "sub_extra_5",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00024",
+     "190000600",
+     "extra_6",
+     "190000600",
+     "sub_extra_6",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00025",
+     "190000700",
+     "extra_7",
+     "190000700",
+     "sub_extra_7",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00026",
+     "190000800",
+     "extra_8",
+     "190000800",
+     "sub_extra_8",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00027",
+     "190000900",
+     "extra_9",
+     "190000900",
+     "sub_extra_9",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00028",
+     "190000a00",
+     "extra_10",
+     "190000a00",
+     "sub_extra_10",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00029",
+     "190000b00",
+     "extra_11",
+     "190000b00",
+     "sub_extra_11",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00030",
+     "190000c00",
+     "extra_12",
+     "190000c00",
+     "sub_extra_12",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00031",
+     "190000d00",
+     "extra_13",
+     "190000d00",
+     "sub_extra_13",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00032",
+     "190000e00",
+     "extra_14",
+     "190000e00",
+     "sub_extra_14",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00033",
+     "190000f00",
+     "extra_15",
+     "190000f00",
+     "sub_extra_15",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00034",
+     "190001000",
+     "extra_16",
+     "190001000",
+     "sub_extra_16",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00035",
+     "190001100",
+     "extra_17",
+     "190001100",
+     "sub_extra_17",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00036",
+     "190001200",
+     "extra_18",
+     "190001200",
+     "sub_extra_18",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00037",
+     "190001300",
+     "extra_19",
+     "190001300",
+     "sub_extra_19",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00038",
+     "190001400",
+     "extra_20",
+     "190001400",
+     "sub_extra_20",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00039",
+     "190001500",
+     "extra_21",
+     "190001500",
+     "sub_extra_21",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00040",
+     "190001600",
+     "extra_22",
+     "190001600",
+     "sub_extra_22",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00041",
+     "190001700",
+     "extra_23",
+     "190001700",
+     "sub_extra_23",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00042",
+     "190001800",
+     "extra_24",
+     "190001800",
+     "sub_extra_24",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00043",
+     "190001900",
+     "extra_25",
+     "190001900",
+     "sub_extra_25",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00044",
+     "190001a00",
+     "extra_26",
+     "190001a00",
+     "sub_extra_26",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00045",
+     "190001b00",
+     "extra_27",
+     "190001b00",
+     "sub_extra_27",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00046",
+     "190001c00",
+     "extra_28",
+     "190001c00",
+     "sub_extra_28",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00047",
+     "190001d00",
+     "extra_29",
+     "190001d00",
+     "sub_extra_29",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00048",
+     "190001e00",
+     "extra_30",
+     "190001e00",
+     "sub_extra_30",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00049",
+     "190001f00",
+     "extra_31",
+     "190001f00",
+     "sub_extra_31",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00050",
+     "190002000",
+     "extra_32",
+     "190002000",
+     "sub_extra_32",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00051",
+     "190002100",
+     "extra_33",
+     "190002100",
+     "sub_extra_33",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00052",
+     "190002200",
+     "extra_34",
+     "190002200",
+     "sub_extra_34",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00053",
+     "190002300",
+     "extra_35",
+     "190002300",
+     "sub_extra_35",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00054",
+     "190002400",
+     "extra_36",
+     "190002400",
+     "sub_extra_36",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00055",
+     "190002500",
+     "extra_37",
+     "190002500",
+     "sub_extra_37",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00056",
+     "190002600",
+     "extra_38",
+     "190002600",
+     "sub_extra_38",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00057",
+     "190002700",
+     "extra_39",
+     "190002700",
+     "sub_extra_39",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00058",
+     "190002800",
+     "extra_40",
+     "190002800",
+     "sub_extra_40",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00059",
+     "190002900",
+     "extra_41",
+     "190002900",
+     "sub_extra_41",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00060",
+     "190002a00",
+     "extra_42",
+     "190002a00",
+     "sub_extra_42",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00061",
+     "190002b00",
+     "extra_43",
+     "190002b00",
+     "sub_extra_43",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00062",
+     "190002c00",
+     "extra_44",
+     "190002c00",
+     "sub_extra_44",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00063",
+     "190002d00",
+     "extra_45",
+     "190002d00",
+     "sub_extra_45",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00064",
+     "190002e00",
+     "extra_46",
+     "190002e00",
+     "sub_extra_46",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00065",
+     "190002f00",
+     "extra_47",
+     "190002f00",
+     "sub_extra_47",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00066",
+     "190003000",
+     "extra_48",
+     "190003000",
+     "sub_extra_48",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00067",
+     "190003100",
+     "extra_49",
+     "190003100",
+     "sub_extra_49",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00068",
+     "190003200",
+     "extra_50",
+     "190003200",
+     "sub_extra_50",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00069",
+     "190003300",
+     "extra_51",
+     "190003300",
+     "sub_extra_51",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00070",
+     "190003400",
+     "extra_52",
+     "190003400",
+     "sub_extra_52",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00071",
+     "190003500",
+     "extra_53",
+     "190003500",
+     "sub_extra_53",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00072",
+     "190003600",
+     "extra_54",
+     "190003600",
+     "sub_extra_54",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00073",
+     "190003700",
+     "extra_55",
+     "190003700",
+     "sub_extra_55",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00074",
+     "190003800",
+     "extra_56",
+     "190003800",
+     "sub_extra_56",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00075",
+     "190003900",
+     "extra_57",
+     "190003900",
+     "sub_extra_57",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00076",
+     "190003a00",
+     "extra_58",
+     "190003a00",
+     "sub_extra_58",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00077",
+     "190003b00",
+     "extra_59",
+     "190003b00",
+     "sub_extra_59",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00078",
+     "190003c00",
+     "extra_60",
+     "190003c00",
+     "sub_extra_60",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00079",
+     "190003d00",
+     "extra_61",
+     "190003d00",
+     "sub_extra_61",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00080",
+     "190003e00",
+     "extra_62",
+     "190003e00",
+     "sub_extra_62",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00081",
+     "190003f00",
+     "extra_63",
+     "190003f00",
+     "sub_extra_63",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00082",
+     "190004000",
+     "extra_64",
+     "190004000",
+     "sub_extra_64",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00083",
+     "190004100",
+     "extra_65",
+     "190004100",
+     "sub_extra_65",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00084",
+     "190004200",
+     "extra_66",
+     "190004200",
+     "sub_extra_66",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00085",
+     "190004300",
+     "extra_67",
+     "190004300",
+     "sub_extra_67",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00086",
+     "190004400",
+     "extra_68",
+     "190004400",
+     "sub_extra_68",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00087",
+     "190004500",
+     "extra_69",
+     "190004500",
+     "sub_extra_69",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00088",
+     "190004600",
+     "extra_70",
+     "190004600",
+     "sub_extra_70",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00089",
+     "190004700",
+     "extra_71",
+     "190004700",
+     "sub_extra_71",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00090",
+     "190004800",
+     "extra_72",
+     "190004800",
+     "sub_extra_72",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00091",
+     "190004900",
+     "extra_73",
+     "190004900",
+     "sub_extra_73",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00092",
+     "190004a00",
+     "extra_74",
+     "190004a00",
+     "sub_extra_74",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00093",
+     "190004b00",
+     "extra_75",
+     "190004b00",
+     "sub_extra_75",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00094",
+     "190004c00",
+     "extra_76",
+     "190004c00",
+     "sub_extra_76",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00095",
+     "190004d00",
+     "extra_77",
+     "190004d00",
+     "sub_extra_77",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00096",
+     "190004e00",
+     "extra_78",
+     "190004e00",
+     "sub_extra_78",
+     "1.0000000",
+     "4",
+     "4",
+     "Same binary with symbols stripped"
+    ],
+    [
+     "best",
+     "00097",
+     "180002400",
+     "helper_20",
+     "180003400",
+     "helper_20",
+     "1.0000000",
+     "3",
+     "3",
+     "Perfect match, same name"
+    ],
+    [
+     "partial",
+     "00000",
+     "180001700",
+     "Worker_7",
+     "180001700",
+     "sub_180001700",
+     "0.9009592",
+     "4",
+     "5",
+     "Same binary with symbols stripped"
+    ]
+   ],
+   "unmatched": [
+    [
+     "primary",
+     "00000",
+     "180002400",
+     "sub_180002400"
+    ],
+    [
+     "primary",
+     "00001",
+     "180004000",
+     "sub_180004000"
+    ],
+    [
+     "secondary",
+     "00000",
+     "190004f00",
+     "extra_79"
+    ]
+   ]
+  },
+  {
+   "name": "stripped_below_99",
+   "base": "stripped",
+   "main_sql": "WITH RECURSIVE n(i) AS (SELECT 0 UNION ALL SELECT i + 1 FROM n WHERE i < 79) INSERT INTO functions (id, name, address, mangled_function, rva, nodes, edges, indegree, outdegree, size, instructions, mnemonics, names, prototype, cyclomatic_complexity, primes_value, comment, bytes_hash, pseudocode, pseudocode_lines, pseudocode_hash1, pseudocode_primes, function_flags, assembly, prototype2, pseudocode_hash2, pseudocode_hash3, strongly_connected, loops, tarjan_topological_sort, strongly_connected_spp, clean_assembly, clean_pseudo, mnemonics_spp, switches, function_hash, bytes_sum, md_index, constants, constants_count, segment_rva, assembly_addrs, kgh_hash, source_file, userdata, microcode, clean_microcode, microcode_spp, export_time) SELECT 1000 + n.i, 'extra_' || n.i, CAST(6710886400 + n.i * 256 AS TEXT), 'extra_' || n.i, CAST(6710886400 + n.i * 256 AS TEXT), f.nodes, f.edges, f.indegree, f.outdegree, f.size, f.instructions, f.mnemonics, f.names, f.prototype, f.cyclomatic_complexity, f.primes_value, f.comment, f.bytes_hash, f.pseudocode, f.pseudocode_lines, f.pseudocode_hash1, f.pseudocode_primes, f.function_flags, f.assembly, f.prototype2, f.pseudocode_hash2, f.pseudocode_hash3, f.strongly_connected, f.loops, f.tarjan_topological_sort, f.strongly_connected_spp, f.clean_assembly, f.clean_pseudo, f.mnemonics_spp, f.switches, f.function_hash, f.bytes_sum, f.md_index, f.constants, f.constants_count, f.segment_rva, f.assembly_addrs, f.kgh_hash, f.source_file, f.userdata, f.microcode, f.clean_microcode, f.microcode_spp, f.export_time FROM n, functions f WHERE f.name = 'Worker_2';",
+   "diff_sql": "WITH RECURSIVE n(i) AS (SELECT 0 UNION ALL SELECT i + 1 FROM n WHERE i < 77) INSERT INTO functions (id, name, address, mangled_function, rva, nodes, edges, indegree, outdegree, size, instructions, mnemonics, names, prototype, cyclomatic_complexity, primes_value, comment, bytes_hash, pseudocode, pseudocode_lines, pseudocode_hash1, pseudocode_primes, function_flags, assembly, prototype2, pseudocode_hash2, pseudocode_hash3, strongly_connected, loops, tarjan_topological_sort, strongly_connected_spp, clean_assembly, clean_pseudo, mnemonics_spp, switches, function_hash, bytes_sum, md_index, constants, constants_count, segment_rva, assembly_addrs, kgh_hash, source_file, userdata, microcode, clean_microcode, microcode_spp, export_time) SELECT 1000 + n.i, 'sub_extra_' || n.i, CAST(6710886400 + n.i * 256 AS TEXT), 'sub_extra_' || n.i, CAST(6710886400 + n.i * 256 AS TEXT), f.nodes, f.edges, f.indegree, f.outdegree, f.size, f.instructions, f.mnemonics, f.names, f.prototype, f.cyclomatic_complexity, f.primes_value, f.comment, f.bytes_hash, f.pseudocode, f.pseudocode_lines, f.pseudocode_hash1, f.pseudocode_primes, f.function_flags, f.assembly, f.prototype2, f.pseudocode_hash2, f.pseudocode_hash3, f.strongly_connected, f.loops, f.tarjan_topological_sort, f.strongly_connected_spp, f.clean_assembly, f.clean_pseudo, f.mnemonics_spp, f.switches, f.function_hash, f.bytes_sum, f.md_index, f.constants, f.constants_count, f.segment_rva, f.assembly_addrs, f.kgh_hash, f.source_file, f.userdata, f.microcode, f.clean_microcode, f.microcode_spp, f.export_time FROM n, functions f WHERE f.name = 'sub_180001200';",
+   "exit_code": 0,
+   "output_written": true,
+   "exception": null,
+   "mode": "N",
+   "log": [
+    "Call graphs are absolutely different",
+    "Final results: Best 97, Partial 1, Unreliable 0, Multimatches 0"
+   ],
+   "native_log_omitted": false,
+   "native_unsupported": false,
+   "results": [
+    [
+     "best",
+     "00000",
+     "180001000",
+     "DllMain",
+     "180001000",
+     "DllMain",
+     "1.0000000",
+     "4",
+     "4",
+     "100% equal"
+    ],
+    [
+     "best",
+     "00001",
+     "180002400",
+     "helper_20",
+     "180003400",
+     "helper_20",
+     "1.0000000",
+     "3",
+     "3",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00002",
+     "180001200",
+     "Worker_2",
+     "180001200",
+     "sub_180001200",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00003",
+     "180001300",
+     "Worker_3",
+     "180001300",
+     "sub_180001300",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00004",
+     "180001400",
+     "Worker_4",
+     "180001400",
+     "sub_180001400",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00005",
+     "180001500",
+     "Worker_5",
+     "180001500",
+     "sub_180001500",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00006",
+     "180001600",
+     "Worker_6",
+     "180001600",
+     "sub_180001600",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00007",
+     "180001800",
+     "Worker_8",
+     "180001800",
+     "sub_180001800",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00008",
+     "180001900",
+     "Worker_9",
+     "180001900",
+     "sub_180001900",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00009",
+     "180001a00",
+     "Worker_10",
+     "180001a00",
+     "sub_180001A00",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00010",
+     "180001b00",
+     "Worker_11",
+     "180001b00",
+     "sub_180001B00",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00011",
+     "180001c00",
+     "Worker_12",
+     "180001c00",
+     "sub_180001C00",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00012",
+     "180001d00",
+     "Worker_13",
+     "180001d00",
+     "sub_180001D00",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00013",
+     "180001e00",
+     "Worker_14",
+     "180001e00",
+     "sub_180001E00",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00014",
+     "180001f00",
+     "Worker_15",
+     "180001f00",
+     "sub_180001F00",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00015",
+     "180002000",
+     "Worker_16",
+     "180002000",
+     "sub_180002000",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00016",
+     "180002100",
+     "Worker_17",
+     "180002100",
+     "sub_180002100",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00017",
+     "180002200",
+     "Worker_18",
+     "180002200",
+     "sub_180002200",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00018",
+     "180002300",
+     "Worker_19",
+     "180002300",
+     "sub_180002300",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00019",
+     "190000000",
+     "extra_0",
+     "190000000",
+     "sub_extra_0",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00020",
+     "190000100",
+     "extra_1",
+     "190000100",
+     "sub_extra_1",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00021",
+     "190000200",
+     "extra_2",
+     "190000200",
+     "sub_extra_2",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00022",
+     "190000300",
+     "extra_3",
+     "190000300",
+     "sub_extra_3",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00023",
+     "190000400",
+     "extra_4",
+     "190000400",
+     "sub_extra_4",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00024",
+     "190000500",
+     "extra_5",
+     "190000500",
+     "sub_extra_5",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00025",
+     "190000600",
+     "extra_6",
+     "190000600",
+     "sub_extra_6",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00026",
+     "190000700",
+     "extra_7",
+     "190000700",
+     "sub_extra_7",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00027",
+     "190000800",
+     "extra_8",
+     "190000800",
+     "sub_extra_8",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00028",
+     "190000900",
+     "extra_9",
+     "190000900",
+     "sub_extra_9",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00029",
+     "190000a00",
+     "extra_10",
+     "190000a00",
+     "sub_extra_10",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00030",
+     "190000b00",
+     "extra_11",
+     "190000b00",
+     "sub_extra_11",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00031",
+     "190000c00",
+     "extra_12",
+     "190000c00",
+     "sub_extra_12",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00032",
+     "190000d00",
+     "extra_13",
+     "190000d00",
+     "sub_extra_13",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00033",
+     "190000e00",
+     "extra_14",
+     "190000e00",
+     "sub_extra_14",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00034",
+     "190000f00",
+     "extra_15",
+     "190000f00",
+     "sub_extra_15",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00035",
+     "190001000",
+     "extra_16",
+     "190001000",
+     "sub_extra_16",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00036",
+     "190001100",
+     "extra_17",
+     "190001100",
+     "sub_extra_17",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00037",
+     "190001200",
+     "extra_18",
+     "190001200",
+     "sub_extra_18",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00038",
+     "190001300",
+     "extra_19",
+     "190001300",
+     "sub_extra_19",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00039",
+     "190001400",
+     "extra_20",
+     "190001400",
+     "sub_extra_20",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00040",
+     "190001500",
+     "extra_21",
+     "190001500",
+     "sub_extra_21",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00041",
+     "190001600",
+     "extra_22",
+     "190001600",
+     "sub_extra_22",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00042",
+     "190001700",
+     "extra_23",
+     "190001700",
+     "sub_extra_23",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00043",
+     "190001800",
+     "extra_24",
+     "190001800",
+     "sub_extra_24",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00044",
+     "190001900",
+     "extra_25",
+     "190001900",
+     "sub_extra_25",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00045",
+     "190001a00",
+     "extra_26",
+     "190001a00",
+     "sub_extra_26",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00046",
+     "190001b00",
+     "extra_27",
+     "190001b00",
+     "sub_extra_27",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00047",
+     "190001c00",
+     "extra_28",
+     "190001c00",
+     "sub_extra_28",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00048",
+     "190001d00",
+     "extra_29",
+     "190001d00",
+     "sub_extra_29",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00049",
+     "190001e00",
+     "extra_30",
+     "190001e00",
+     "sub_extra_30",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00050",
+     "190001f00",
+     "extra_31",
+     "190001f00",
+     "sub_extra_31",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00051",
+     "190002000",
+     "extra_32",
+     "190002000",
+     "sub_extra_32",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00052",
+     "190002100",
+     "extra_33",
+     "190002100",
+     "sub_extra_33",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00053",
+     "190002200",
+     "extra_34",
+     "190002200",
+     "sub_extra_34",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00054",
+     "190002300",
+     "extra_35",
+     "190002300",
+     "sub_extra_35",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00055",
+     "190002400",
+     "extra_36",
+     "190002400",
+     "sub_extra_36",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00056",
+     "190002500",
+     "extra_37",
+     "190002500",
+     "sub_extra_37",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00057",
+     "190002600",
+     "extra_38",
+     "190002600",
+     "sub_extra_38",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00058",
+     "190002700",
+     "extra_39",
+     "190002700",
+     "sub_extra_39",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00059",
+     "190002800",
+     "extra_40",
+     "190002800",
+     "sub_extra_40",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00060",
+     "190002900",
+     "extra_41",
+     "190002900",
+     "sub_extra_41",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00061",
+     "190002a00",
+     "extra_42",
+     "190002a00",
+     "sub_extra_42",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00062",
+     "190002b00",
+     "extra_43",
+     "190002b00",
+     "sub_extra_43",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00063",
+     "190002c00",
+     "extra_44",
+     "190002c00",
+     "sub_extra_44",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00064",
+     "190002d00",
+     "extra_45",
+     "190002d00",
+     "sub_extra_45",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00065",
+     "190002e00",
+     "extra_46",
+     "190002e00",
+     "sub_extra_46",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00066",
+     "190002f00",
+     "extra_47",
+     "190002f00",
+     "sub_extra_47",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00067",
+     "190003000",
+     "extra_48",
+     "190003000",
+     "sub_extra_48",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00068",
+     "190003100",
+     "extra_49",
+     "190003100",
+     "sub_extra_49",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00069",
+     "190003200",
+     "extra_50",
+     "190003200",
+     "sub_extra_50",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00070",
+     "190003300",
+     "extra_51",
+     "190003300",
+     "sub_extra_51",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00071",
+     "190003400",
+     "extra_52",
+     "190003400",
+     "sub_extra_52",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00072",
+     "190003500",
+     "extra_53",
+     "190003500",
+     "sub_extra_53",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00073",
+     "190003600",
+     "extra_54",
+     "190003600",
+     "sub_extra_54",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00074",
+     "190003700",
+     "extra_55",
+     "190003700",
+     "sub_extra_55",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00075",
+     "190003800",
+     "extra_56",
+     "190003800",
+     "sub_extra_56",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00076",
+     "190003900",
+     "extra_57",
+     "190003900",
+     "sub_extra_57",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00077",
+     "190003a00",
+     "extra_58",
+     "190003a00",
+     "sub_extra_58",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00078",
+     "190003b00",
+     "extra_59",
+     "190003b00",
+     "sub_extra_59",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00079",
+     "190003c00",
+     "extra_60",
+     "190003c00",
+     "sub_extra_60",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00080",
+     "190003d00",
+     "extra_61",
+     "190003d00",
+     "sub_extra_61",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00081",
+     "190003e00",
+     "extra_62",
+     "190003e00",
+     "sub_extra_62",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00082",
+     "190003f00",
+     "extra_63",
+     "190003f00",
+     "sub_extra_63",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00083",
+     "190004000",
+     "extra_64",
+     "190004000",
+     "sub_extra_64",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00084",
+     "190004100",
+     "extra_65",
+     "190004100",
+     "sub_extra_65",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00085",
+     "190004200",
+     "extra_66",
+     "190004200",
+     "sub_extra_66",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00086",
+     "190004300",
+     "extra_67",
+     "190004300",
+     "sub_extra_67",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00087",
+     "190004400",
+     "extra_68",
+     "190004400",
+     "sub_extra_68",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00088",
+     "190004500",
+     "extra_69",
+     "190004500",
+     "sub_extra_69",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00089",
+     "190004600",
+     "extra_70",
+     "190004600",
+     "sub_extra_70",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00090",
+     "190004700",
+     "extra_71",
+     "190004700",
+     "sub_extra_71",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00091",
+     "190004800",
+     "extra_72",
+     "190004800",
+     "sub_extra_72",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00092",
+     "190004900",
+     "extra_73",
+     "190004900",
+     "sub_extra_73",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00093",
+     "190004a00",
+     "extra_74",
+     "190004a00",
+     "sub_extra_74",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00094",
+     "190004b00",
+     "extra_75",
+     "190004b00",
+     "sub_extra_75",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00095",
+     "190004c00",
+     "extra_76",
+     "190004c00",
+     "sub_extra_76",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "best",
+     "00096",
+     "190004d00",
+     "extra_77",
+     "190004d00",
+     "sub_extra_77",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "partial",
+     "00000",
+     "180001700",
+     "Worker_7",
+     "180001700",
+     "sub_180001700",
+     "0.9009592",
+     "4",
+     "5",
+     "Same RVA"
+    ]
+   ],
+   "unmatched": [
+    [
+     "primary",
+     "00000",
+     "180002400",
+     "sub_180002400"
+    ],
+    [
+     "primary",
+     "00001",
+     "180004000",
+     "sub_180004000"
+    ],
+    [
+     "secondary",
+     "00000",
+     "190004e00",
+     "extra_78"
+    ],
+    [
+     "secondary",
+     "00001",
+     "190004f00",
+     "extra_79"
+    ]
+   ],
+   "early_points": {
+    "after:find_equal_matches": {
+     "schema": "dsig-parity-snapshot/1",
+     "producer": "diaphora-3.4.2-4-g621ec26",
+     "pair": "fixture",
+     "seq": 0,
+     "point": "after:find_equal_matches",
+     "iteration": null,
+     "flags": {
+      "is_same_processor": false,
+      "is_patch_diff": false,
+      "is_symbols_stripped": false,
+      "hooks_loaded": false,
+      "total_functions1": 100,
+      "total_functions2": 100
+     },
+     "all_matches": {
+      "best": [
+       [
+        "6442455040",
+        "DllMain",
+        "6442455040",
+        "DllMain",
+        "100% equal",
+        "3ff0000000000000",
+        4,
+        4
+       ]
+      ],
+      "partial": [],
+      "unreliable": []
+     },
+     "matched_primary": [
+      [
+       "DllMain",
+       "DllMain",
+       "3ff0000000000000"
+      ]
+     ],
+     "matched_secondary": [
+      [
+       "DllMain",
+       "DllMain",
+       "3ff0000000000000"
+      ]
+     ]
+    },
+    "after:apply_dirty_heuristics": {
+     "schema": "dsig-parity-snapshot/1",
+     "producer": "diaphora-3.4.2-4-g621ec26",
+     "pair": "fixture",
+     "seq": 1,
+     "point": "after:apply_dirty_heuristics",
+     "iteration": null,
+     "flags": {
+      "is_same_processor": true,
+      "is_patch_diff": false,
+      "is_symbols_stripped": false,
+      "hooks_loaded": false,
+      "total_functions1": 100,
+      "total_functions2": 100
+     },
+     "all_matches": {
+      "best": [
+       [
+        "6442455040",
+        "DllMain",
+        "6442455040",
+        "DllMain",
+        "100% equal",
+        "3ff0000000000000",
+        4,
+        4
+       ]
+      ],
+      "partial": [],
+      "unreliable": []
+     },
+     "matched_primary": [
+      [
+       "DllMain",
+       "DllMain",
+       "3ff0000000000000"
+      ]
+     ],
+     "matched_secondary": [
+      [
+       "DllMain",
+       "DllMain",
+       "3ff0000000000000"
+      ]
+     ]
+    },
+    "before:find_same_name": {
+     "schema": "dsig-parity-snapshot/1",
+     "producer": "diaphora-3.4.2-4-g621ec26",
+     "pair": "fixture",
+     "seq": 2,
+     "point": "before:find_same_name",
+     "iteration": null,
+     "flags": {
+      "is_same_processor": true,
+      "is_patch_diff": false,
+      "is_symbols_stripped": false,
+      "hooks_loaded": false,
+      "total_functions1": 100,
+      "total_functions2": 100
+     },
+     "all_matches": {
+      "best": [
+       [
+        "6442455040",
+        "DllMain",
+        "6442455040",
+        "DllMain",
+        "100% equal",
+        "3ff0000000000000",
+        4,
+        4
+       ]
+      ],
+      "partial": [],
+      "unreliable": []
+     },
+     "matched_primary": [
+      [
+       "DllMain",
+       "DllMain",
+       "3ff0000000000000"
+      ]
+     ],
+     "matched_secondary": [
+      [
+       "DllMain",
+       "DllMain",
+       "3ff0000000000000"
+      ]
+     ],
+     "ratios_cache": []
+    },
+    "after:find_same_name": {
+     "schema": "dsig-parity-snapshot/1",
+     "producer": "diaphora-3.4.2-4-g621ec26",
+     "pair": "fixture",
+     "seq": 3,
+     "point": "after:find_same_name",
+     "iteration": null,
+     "flags": {
+      "is_same_processor": true,
+      "is_patch_diff": false,
+      "is_symbols_stripped": false,
+      "hooks_loaded": false,
+      "total_functions1": 100,
+      "total_functions2": 100
+     },
+     "all_matches": {
+      "best": [
+       [
+        "6442455040",
+        "DllMain",
+        "6442455040",
+        "DllMain",
+        "100% equal",
+        "3ff0000000000000",
+        4,
+        4
+       ],
+       [
+        "6442460160",
+        "helper_20",
+        "6442464256",
+        "helper_20",
+        "Perfect match, same name",
+        "3ff0000000000000",
+        3,
+        3
+       ]
+      ],
+      "partial": [],
+      "unreliable": []
+     },
+     "matched_primary": [
+      [
+       "DllMain",
+       "DllMain",
+       "3ff0000000000000"
+      ],
+      [
+       "helper_20",
+       "helper_20",
+       "3ff0000000000000"
+      ]
+     ],
+     "matched_secondary": [
+      [
+       "DllMain",
+       "DllMain",
+       "3ff0000000000000"
+      ],
+      [
+       "helper_20",
+       "helper_20",
+       "3ff0000000000000"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "name": "patch_exactly_90",
+   "base": "patch",
+   "main_sql": "DELETE FROM functions WHERE name = 'sub_180005000';",
+   "diff_sql": "UPDATE functions SET name = 'other_19', mangled_function = 'other_19' WHERE name = 'func_19';",
+   "exit_code": 0,
+   "output_written": true,
+   "exception": null,
+   "mode": "N",
+   "log": [
+    "Call graphs are absolutely different",
+    "Final results: Best 17, Partial 3, Unreliable 0, Multimatches 0"
+   ],
+   "native_log_omitted": false,
+   "native_unsupported": false,
+   "results": [
+    [
+     "best",
+     "00000",
+     "180001100",
+     "func_1",
+     "180002100",
+     "func_1",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00001",
+     "180001400",
+     "func_4",
+     "180002400",
+     "func_4",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00002",
+     "180001500",
+     "func_5",
+     "180002500",
+     "func_5",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00003",
+     "180001600",
+     "func_6",
+     "180002600",
+     "func_6",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00004",
+     "180001700",
+     "func_7",
+     "180002700",
+     "func_7",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00005",
+     "180001800",
+     "func_8",
+     "180002800",
+     "func_8",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00006",
+     "180001900",
+     "func_9",
+     "180002900",
+     "func_9",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00007",
+     "180001a00",
+     "func_10",
+     "180002a00",
+     "func_10",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00008",
+     "180001b00",
+     "func_11",
+     "180002b00",
+     "func_11",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00009",
+     "180001c00",
+     "func_12",
+     "180002c00",
+     "func_12",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00010",
+     "180001d00",
+     "func_13",
+     "180002d00",
+     "func_13",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00011",
+     "180001e00",
+     "func_14",
+     "180002e00",
+     "func_14",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00012",
+     "180001f00",
+     "func_15",
+     "180002f00",
+     "func_15",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00013",
+     "180002000",
+     "func_16",
+     "180003000",
+     "func_16",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00014",
+     "180002100",
+     "func_17",
+     "180003100",
+     "func_17",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00015",
+     "180002200",
+     "func_18",
+     "180003200",
+     "func_18",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00016",
+     "180002300",
+     "func_19",
+     "180003300",
+     "other_19",
+     "1.0000000",
+     "4",
+     "4",
+     "Equal assembly"
+    ],
+    [
+     "partial",
+     "00000",
+     "180001300",
+     "func_3",
+     "180002300",
+     "func_3",
+     "0.9907778",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "partial",
+     "00001",
+     "180004000",
+     "sub_180004000",
+     "180006000",
+     "renamed_fn",
+     "0.9848182",
+     "5",
+     "5",
+     "Same KOKA hash and MD-Index"
+    ],
+    [
+     "partial",
+     "00002",
+     "180001200",
+     "func_2",
+     "180002200",
+     "func_2",
+     "0.9723939",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ]
+   ],
+   "unmatched": [
+    [
+     "primary",
+     "00000",
+     "180007000",
+     "renamed_small"
+    ],
+    [
+     "primary",
+     "00001",
+     "180008000",
+     "unnamed_extra"
+    ]
+   ],
+   "early_points": {
+    "after:find_equal_matches": {
+     "schema": "dsig-parity-snapshot/1",
+     "producer": "diaphora-3.4.2-4-g621ec26",
+     "pair": "fixture",
+     "seq": 0,
+     "point": "after:find_equal_matches",
+     "iteration": null,
+     "flags": {
+      "is_same_processor": false,
+      "is_patch_diff": false,
+      "is_symbols_stripped": false,
+      "hooks_loaded": false,
+      "total_functions1": 20,
+      "total_functions2": 22
+     },
+     "all_matches": {
+      "best": [],
+      "partial": [],
+      "unreliable": []
+     },
+     "matched_primary": [],
+     "matched_secondary": []
+    },
+    "after:apply_dirty_heuristics": {
+     "schema": "dsig-parity-snapshot/1",
+     "producer": "diaphora-3.4.2-4-g621ec26",
+     "pair": "fixture",
+     "seq": 1,
+     "point": "after:apply_dirty_heuristics",
+     "iteration": null,
+     "flags": {
+      "is_same_processor": true,
+      "is_patch_diff": false,
+      "is_symbols_stripped": false,
+      "hooks_loaded": false,
+      "total_functions1": 20,
+      "total_functions2": 22
+     },
+     "all_matches": {
+      "best": [],
+      "partial": [],
+      "unreliable": []
+     },
+     "matched_primary": [],
+     "matched_secondary": []
+    },
+    "before:find_same_name": {
+     "schema": "dsig-parity-snapshot/1",
+     "producer": "diaphora-3.4.2-4-g621ec26",
+     "pair": "fixture",
+     "seq": 2,
+     "point": "before:find_same_name",
+     "iteration": null,
+     "flags": {
+      "is_same_processor": true,
+      "is_patch_diff": false,
+      "is_symbols_stripped": false,
+      "hooks_loaded": false,
+      "total_functions1": 20,
+      "total_functions2": 22
+     },
+     "all_matches": {
+      "best": [],
+      "partial": [],
+      "unreliable": []
+     },
+     "matched_primary": [],
+     "matched_secondary": [],
+     "ratios_cache": []
+    },
+    "after:find_same_name": {
+     "schema": "dsig-parity-snapshot/1",
+     "producer": "diaphora-3.4.2-4-g621ec26",
+     "pair": "fixture",
+     "seq": 3,
+     "point": "after:find_same_name",
+     "iteration": null,
+     "flags": {
+      "is_same_processor": true,
+      "is_patch_diff": false,
+      "is_symbols_stripped": false,
+      "hooks_loaded": false,
+      "total_functions1": 20,
+      "total_functions2": 22
+     },
+     "all_matches": {
+      "best": [
+       [
+        "6442455296",
+        "func_1",
+        "6442459392",
+        "func_1",
+        "Perfect match, same name",
+        "3ff0000000000000",
+        4,
+        4
+       ],
+       [
+        "6442456064",
+        "func_4",
+        "6442460160",
+        "func_4",
+        "Perfect match, same name",
+        "3ff0000000000000",
+        4,
+        4
+       ],
+       [
+        "6442456320",
+        "func_5",
+        "6442460416",
+        "func_5",
+        "Perfect match, same name",
+        "3ff0000000000000",
+        4,
+        4
+       ],
+       [
+        "6442456576",
+        "func_6",
+        "6442460672",
+        "func_6",
+        "Perfect match, same name",
+        "3ff0000000000000",
+        4,
+        4
+       ],
+       [
+        "6442456832",
+        "func_7",
+        "6442460928",
+        "func_7",
+        "Perfect match, same name",
+        "3ff0000000000000",
+        4,
+        4
+       ],
+       [
+        "6442457088",
+        "func_8",
+        "6442461184",
+        "func_8",
+        "Perfect match, same name",
+        "3ff0000000000000",
+        4,
+        4
+       ],
+       [
+        "6442457344",
+        "func_9",
+        "6442461440",
+        "func_9",
+        "Perfect match, same name",
+        "3ff0000000000000",
+        4,
+        4
+       ],
+       [
+        "6442457600",
+        "func_10",
+        "6442461696",
+        "func_10",
+        "Perfect match, same name",
+        "3ff0000000000000",
+        4,
+        4
+       ],
+       [
+        "6442457856",
+        "func_11",
+        "6442461952",
+        "func_11",
+        "Perfect match, same name",
+        "3ff0000000000000",
+        4,
+        4
+       ],
+       [
+        "6442458112",
+        "func_12",
+        "6442462208",
+        "func_12",
+        "Perfect match, same name",
+        "3ff0000000000000",
+        4,
+        4
+       ],
+       [
+        "6442458368",
+        "func_13",
+        "6442462464",
+        "func_13",
+        "Perfect match, same name",
+        "3ff0000000000000",
+        4,
+        4
+       ],
+       [
+        "6442458624",
+        "func_14",
+        "6442462720",
+        "func_14",
+        "Perfect match, same name",
+        "3ff0000000000000",
+        4,
+        4
+       ],
+       [
+        "6442458880",
+        "func_15",
+        "6442462976",
+        "func_15",
+        "Perfect match, same name",
+        "3ff0000000000000",
+        4,
+        4
+       ],
+       [
+        "6442459136",
+        "func_16",
+        "6442463232",
+        "func_16",
+        "Perfect match, same name",
+        "3ff0000000000000",
+        4,
+        4
+       ],
+       [
+        "6442459392",
+        "func_17",
+        "6442463488",
+        "func_17",
+        "Perfect match, same name",
+        "3ff0000000000000",
+        4,
+        4
+       ],
+       [
+        "6442459648",
+        "func_18",
+        "6442463744",
+        "func_18",
+        "Perfect match, same name",
+        "3ff0000000000000",
+        4,
+        4
+       ]
+      ],
+      "partial": [
+       [
+        "6442455552",
+        "func_2",
+        "6442459648",
+        "func_2",
+        "Perfect match, same name",
+        "3fef1dd9e5641d61",
+        4,
+        4
+       ],
+       [
+        "6442455808",
+        "func_3",
+        "6442459904",
+        "func_3",
+        "Perfect match, same name",
+        "3fefb473a5134a60",
+        4,
+        4
+       ]
+      ],
+      "unreliable": []
+     },
+     "matched_primary": [
+      [
+       "func_1",
+       "func_1",
+       "3ff0000000000000"
+      ],
+      [
+       "func_2",
+       "func_2",
+       "3ff0000000000000"
+      ],
+      [
+       "func_3",
+       "func_3",
+       "3ff0000000000000"
+      ],
+      [
+       "func_4",
+       "func_4",
+       "3ff0000000000000"
+      ],
+      [
+       "func_5",
+       "func_5",
+       "3ff0000000000000"
+      ],
+      [
+       "func_6",
+       "func_6",
+       "3ff0000000000000"
+      ],
+      [
+       "func_7",
+       "func_7",
+       "3ff0000000000000"
+      ],
+      [
+       "func_8",
+       "func_8",
+       "3ff0000000000000"
+      ],
+      [
+       "func_9",
+       "func_9",
+       "3ff0000000000000"
+      ],
+      [
+       "func_10",
+       "func_10",
+       "3ff0000000000000"
+      ],
+      [
+       "func_11",
+       "func_11",
+       "3ff0000000000000"
+      ],
+      [
+       "func_12",
+       "func_12",
+       "3ff0000000000000"
+      ],
+      [
+       "func_13",
+       "func_13",
+       "3ff0000000000000"
+      ],
+      [
+       "func_14",
+       "func_14",
+       "3ff0000000000000"
+      ],
+      [
+       "func_15",
+       "func_15",
+       "3ff0000000000000"
+      ],
+      [
+       "func_16",
+       "func_16",
+       "3ff0000000000000"
+      ],
+      [
+       "func_17",
+       "func_17",
+       "3ff0000000000000"
+      ],
+      [
+       "func_18",
+       "func_18",
+       "3ff0000000000000"
+      ]
+     ],
+     "matched_secondary": [
+      [
+       "func_1",
+       "func_1",
+       "3ff0000000000000"
+      ],
+      [
+       "func_2",
+       "func_2",
+       "3ff0000000000000"
+      ],
+      [
+       "func_3",
+       "func_3",
+       "3ff0000000000000"
+      ],
+      [
+       "func_4",
+       "func_4",
+       "3ff0000000000000"
+      ],
+      [
+       "func_5",
+       "func_5",
+       "3ff0000000000000"
+      ],
+      [
+       "func_6",
+       "func_6",
+       "3ff0000000000000"
+      ],
+      [
+       "func_7",
+       "func_7",
+       "3ff0000000000000"
+      ],
+      [
+       "func_8",
+       "func_8",
+       "3ff0000000000000"
+      ],
+      [
+       "func_9",
+       "func_9",
+       "3ff0000000000000"
+      ],
+      [
+       "func_10",
+       "func_10",
+       "3ff0000000000000"
+      ],
+      [
+       "func_11",
+       "func_11",
+       "3ff0000000000000"
+      ],
+      [
+       "func_12",
+       "func_12",
+       "3ff0000000000000"
+      ],
+      [
+       "func_13",
+       "func_13",
+       "3ff0000000000000"
+      ],
+      [
+       "func_14",
+       "func_14",
+       "3ff0000000000000"
+      ],
+      [
+       "func_15",
+       "func_15",
+       "3ff0000000000000"
+      ],
+      [
+       "func_16",
+       "func_16",
+       "3ff0000000000000"
+      ],
+      [
+       "func_17",
+       "func_17",
+       "3ff0000000000000"
+      ],
+      [
+       "func_18",
+       "func_18",
+       "3ff0000000000000"
+      ]
+     ]
+    }
+   }
+  },
+  {
+   "name": "patch_over_100",
+   "base": "patch",
+   "main_sql": "",
+   "diff_sql": "WITH RECURSIVE n(i) AS (SELECT 0 UNION ALL SELECT i + 1 FROM n WHERE i < 2) INSERT INTO functions (id, name, address, mangled_function, rva, nodes, edges, indegree, outdegree, size, instructions, mnemonics, names, prototype, cyclomatic_complexity, primes_value, comment, bytes_hash, pseudocode, pseudocode_lines, pseudocode_hash1, pseudocode_primes, function_flags, assembly, prototype2, pseudocode_hash2, pseudocode_hash3, strongly_connected, loops, tarjan_topological_sort, strongly_connected_spp, clean_assembly, clean_pseudo, mnemonics_spp, switches, function_hash, bytes_sum, md_index, constants, constants_count, segment_rva, assembly_addrs, kgh_hash, source_file, userdata, microcode, clean_microcode, microcode_spp, export_time) SELECT 100 + n.i, f.name, CAST(6443499520 + n.i * 256 AS TEXT), f.mangled_function, CAST(6443499520 + n.i * 256 AS TEXT), f.nodes, f.edges, f.indegree, f.outdegree, f.size, f.instructions, f.mnemonics, f.names, f.prototype, f.cyclomatic_complexity, f.primes_value, f.comment, f.bytes_hash, f.pseudocode, f.pseudocode_lines, f.pseudocode_hash1, f.pseudocode_primes, f.function_flags, f.assembly, f.prototype2, f.pseudocode_hash2, f.pseudocode_hash3, f.strongly_connected, f.loops, f.tarjan_topological_sort, f.strongly_connected_spp, f.clean_assembly, f.clean_pseudo, f.mnemonics_spp, f.switches, f.function_hash, f.bytes_sum, f.md_index, f.constants, f.constants_count, f.segment_rva, f.assembly_addrs, f.kgh_hash, f.source_file, f.userdata, f.microcode, f.clean_microcode, f.microcode_spp, f.export_time FROM n, functions f WHERE f.name = 'func_1';",
+   "exit_code": 0,
+   "output_written": true,
+   "exception": null,
+   "mode": "P",
+   "log": [
+    "Call graphs are absolutely different",
+    "Patch diffing detected: A total of 22 matches out of 21, 104.76190476190476% percent have the same name",
+    "Final results: Best 17, Partial 3, Unreliable 0, Multimatches 0"
+   ],
+   "native_log_omitted": false,
+   "native_unsupported": false,
+   "results": [
+    [
+     "best",
+     "00000",
+     "180001100",
+     "func_1",
+     "180002100",
+     "func_1",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00001",
+     "180001400",
+     "func_4",
+     "180002400",
+     "func_4",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00002",
+     "180001500",
+     "func_5",
+     "180002500",
+     "func_5",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00003",
+     "180001600",
+     "func_6",
+     "180002600",
+     "func_6",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00004",
+     "180001700",
+     "func_7",
+     "180002700",
+     "func_7",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00005",
+     "180001800",
+     "func_8",
+     "180002800",
+     "func_8",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00006",
+     "180001900",
+     "func_9",
+     "180002900",
+     "func_9",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00007",
+     "180001a00",
+     "func_10",
+     "180002a00",
+     "func_10",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00008",
+     "180001b00",
+     "func_11",
+     "180002b00",
+     "func_11",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00009",
+     "180001c00",
+     "func_12",
+     "180002c00",
+     "func_12",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00010",
+     "180001d00",
+     "func_13",
+     "180002d00",
+     "func_13",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00011",
+     "180001e00",
+     "func_14",
+     "180002e00",
+     "func_14",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00012",
+     "180001f00",
+     "func_15",
+     "180002f00",
+     "func_15",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00013",
+     "180002000",
+     "func_16",
+     "180003000",
+     "func_16",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00014",
+     "180002100",
+     "func_17",
+     "180003100",
+     "func_17",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00015",
+     "180002200",
+     "func_18",
+     "180003200",
+     "func_18",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "best",
+     "00016",
+     "180002300",
+     "func_19",
+     "180003300",
+     "func_19",
+     "1.0000000",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "partial",
+     "00000",
+     "180001300",
+     "func_3",
+     "180002300",
+     "func_3",
+     "0.9907778",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ],
+    [
+     "partial",
+     "00001",
+     "180004000",
+     "sub_180004000",
+     "180006000",
+     "renamed_fn",
+     "0.9848182",
+     "5",
+     "5",
+     "Renamed or anonymous function match in patch diffing session"
+    ],
+    [
+     "partial",
+     "00002",
+     "180001200",
+     "func_2",
+     "180002200",
+     "func_2",
+     "0.9723939",
+     "4",
+     "4",
+     "Perfect match, same name"
+    ]
+   ],
+   "unmatched": [
+    [
+     "primary",
+     "00000",
+     "180007000",
+     "renamed_small"
+    ],
+    [
+     "primary",
+     "00001",
+     "180008000",
+     "unnamed_extra"
+    ],
+    [
+     "secondary",
+     "00000",
+     "180005000",
+     "sub_180005000"
+    ]
+   ]
+  }
+ ]
+}

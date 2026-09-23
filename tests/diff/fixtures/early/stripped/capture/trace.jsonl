@@ -1,0 +1,54 @@
+{"ev":"add_match","seq":0,"ctx":"find_equal_matches","name1":"DllMain","name2":"DllMain","ea1":"6442455040","ea2":"6442455040","desc":"100% equal","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"point","name":"after:find_equal_matches","best":1,"partial":0,"unreliable":0}
+{"ev":"row","ctx":"apply_dirty_heuristics","ea1":"6442455040","ea2":"6442455040","decision":"has_best","ratio_bits":null}
+{"ev":"row","ctx":"apply_dirty_heuristics","ea1":"6442455552","ea2":"6442455552","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":1,"ctx":"apply_dirty_heuristics","name1":"Worker_2","name2":"sub_180001200","ea1":"6442455552","ea2":"6442455552","desc":"Same binary with symbols stripped","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"apply_dirty_heuristics","ea1":"6442455808","ea2":"6442455808","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":2,"ctx":"apply_dirty_heuristics","name1":"Worker_3","name2":"sub_180001300","ea1":"6442455808","ea2":"6442455808","desc":"Same binary with symbols stripped","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"apply_dirty_heuristics","ea1":"6442456064","ea2":"6442456064","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":3,"ctx":"apply_dirty_heuristics","name1":"Worker_4","name2":"sub_180001400","ea1":"6442456064","ea2":"6442456064","desc":"Same binary with symbols stripped","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"apply_dirty_heuristics","ea1":"6442456320","ea2":"6442456320","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":4,"ctx":"apply_dirty_heuristics","name1":"Worker_5","name2":"sub_180001500","ea1":"6442456320","ea2":"6442456320","desc":"Same binary with symbols stripped","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"apply_dirty_heuristics","ea1":"6442456576","ea2":"6442456576","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":5,"ctx":"apply_dirty_heuristics","name1":"Worker_6","name2":"sub_180001600","ea1":"6442456576","ea2":"6442456576","desc":"Same binary with symbols stripped","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"apply_dirty_heuristics","ea1":"6442456832","ea2":"6442456832","decision":"accepted_partial","ratio_bits":"3fecd4a86360f868"}
+{"ev":"add_match","seq":6,"ctx":"apply_dirty_heuristics","name1":"Worker_7","name2":"sub_180001700","ea1":"6442456832","ea2":"6442456832","desc":"Same binary with symbols stripped","ratio_bits":"3fecd4a86360f868","chooser":"partial","result":"appended"}
+{"ev":"row","ctx":"apply_dirty_heuristics","ea1":"6442457088","ea2":"6442457088","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":7,"ctx":"apply_dirty_heuristics","name1":"Worker_8","name2":"sub_180001800","ea1":"6442457088","ea2":"6442457088","desc":"Same binary with symbols stripped","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"apply_dirty_heuristics","ea1":"6442457344","ea2":"6442457344","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":8,"ctx":"apply_dirty_heuristics","name1":"Worker_9","name2":"sub_180001900","ea1":"6442457344","ea2":"6442457344","desc":"Same binary with symbols stripped","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"apply_dirty_heuristics","ea1":"6442457600","ea2":"6442457600","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":9,"ctx":"apply_dirty_heuristics","name1":"Worker_10","name2":"sub_180001A00","ea1":"6442457600","ea2":"6442457600","desc":"Same binary with symbols stripped","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"apply_dirty_heuristics","ea1":"6442457856","ea2":"6442457856","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":10,"ctx":"apply_dirty_heuristics","name1":"Worker_11","name2":"sub_180001B00","ea1":"6442457856","ea2":"6442457856","desc":"Same binary with symbols stripped","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"apply_dirty_heuristics","ea1":"6442458112","ea2":"6442458112","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":11,"ctx":"apply_dirty_heuristics","name1":"Worker_12","name2":"sub_180001C00","ea1":"6442458112","ea2":"6442458112","desc":"Same binary with symbols stripped","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"apply_dirty_heuristics","ea1":"6442458368","ea2":"6442458368","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":12,"ctx":"apply_dirty_heuristics","name1":"Worker_13","name2":"sub_180001D00","ea1":"6442458368","ea2":"6442458368","desc":"Same binary with symbols stripped","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"apply_dirty_heuristics","ea1":"6442458624","ea2":"6442458624","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":13,"ctx":"apply_dirty_heuristics","name1":"Worker_14","name2":"sub_180001E00","ea1":"6442458624","ea2":"6442458624","desc":"Same binary with symbols stripped","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"apply_dirty_heuristics","ea1":"6442458880","ea2":"6442458880","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":14,"ctx":"apply_dirty_heuristics","name1":"Worker_15","name2":"sub_180001F00","ea1":"6442458880","ea2":"6442458880","desc":"Same binary with symbols stripped","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"apply_dirty_heuristics","ea1":"6442459136","ea2":"6442459136","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":15,"ctx":"apply_dirty_heuristics","name1":"Worker_16","name2":"sub_180002000","ea1":"6442459136","ea2":"6442459136","desc":"Same binary with symbols stripped","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"apply_dirty_heuristics","ea1":"6442459392","ea2":"6442459392","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":16,"ctx":"apply_dirty_heuristics","name1":"Worker_17","name2":"sub_180002100","ea1":"6442459392","ea2":"6442459392","desc":"Same binary with symbols stripped","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"apply_dirty_heuristics","ea1":"6442459648","ea2":"6442459648","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":17,"ctx":"apply_dirty_heuristics","name1":"Worker_18","name2":"sub_180002200","ea1":"6442459648","ea2":"6442459648","desc":"Same binary with symbols stripped","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"apply_dirty_heuristics","ea1":"6442459904","ea2":"6442459904","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":18,"ctx":"apply_dirty_heuristics","name1":"Worker_19","name2":"sub_180002300","ea1":"6442459904","ea2":"6442459904","desc":"Same binary with symbols stripped","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"apply_dirty_heuristics","ea1":"6442460160","ea2":"6442460160","decision":"below_min","ratio_bits":"3fb70763a1900821"}
+{"ev":"point","name":"after:apply_dirty_heuristics","best":18,"partial":1,"unreliable":0}
+{"ev":"point","name":"before:find_same_name","best":18,"partial":1,"unreliable":0}
+{"ev":"row","ctx":"find_same_name","ea1":"6442455040","ea2":"6442455040","decision":"has_best","ratio_bits":null}
+{"ev":"row","ctx":"find_same_name","ea1":"6442460160","ea2":"6442464256","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":19,"ctx":"find_same_name","name1":"helper_20","name2":"helper_20","ea1":"6442460160","ea2":"6442464256","desc":"Perfect match, same name","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"point","name":"after:find_same_name","best":19,"partial":1,"unreliable":0}
+{"ev":"point","name":"before:find_remaining_functions","best":19,"partial":1,"unreliable":0}
+{"ev":"point","name":"after:find_remaining_functions","best":19,"partial":1,"unreliable":0}
+{"ev":"point","name":"before:final_pass","best":19,"partial":1,"unreliable":0}
+{"ev":"point","name":"before:cleanup:2945:1","best":19,"partial":1,"unreliable":0}
+{"ev":"cleanup","site":2945,"n":1,"best":19,"partial":1,"unreliable":0}
+{"ev":"point","name":"after:cleanup:2945:1","best":19,"partial":1,"unreliable":0}
+{"ev":"point","name":"after:final_pass","best":19,"partial":1,"unreliable":0}
+{"ev":"point","name":"after:find_unmatched","best":19,"partial":1,"unreliable":0}

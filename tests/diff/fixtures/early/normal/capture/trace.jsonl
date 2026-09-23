@@ -1,0 +1,26 @@
+{"ev":"point","name":"after:find_equal_matches","best":0,"partial":0,"unreliable":0}
+{"ev":"point","name":"after:apply_dirty_heuristics","best":0,"partial":0,"unreliable":0}
+{"ev":"point","name":"before:find_same_name","best":0,"partial":0,"unreliable":0}
+{"ev":"row","ctx":"find_same_name","ea1":"6442455296","ea2":"6442488064","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":0,"ctx":"find_same_name","name1":"alpha","name2":"alpha","ea1":"6442455296","ea2":"6442488064","desc":"Perfect match, same name","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"6442455552","ea2":"6442488320","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":1,"ctx":"find_same_name","name1":"beta","name2":"beta","ea1":"6442455552","ea2":"6442488320","desc":"Perfect match, same name","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"6442455808","ea2":"6442488576","decision":"accepted_partial","ratio_bits":"3fef62881ff4920e"}
+{"ev":"add_match","seq":2,"ctx":"find_same_name","name1":"gamma","name2":"gamma","ea1":"6442455808","ea2":"6442488576","desc":"Perfect match, same name","ratio_bits":"3fefb473a5134a60","chooser":"partial","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"6442456064","ea2":"6442488832","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":3,"ctx":"find_same_name","name1":"delta","name2":"delta","ea1":"6442456064","ea2":"6442488832","desc":"Perfect match, same name","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"6442456320","ea2":"6442489088","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":4,"ctx":"find_same_name","name1":"epsilon","name2":"epsilon","ea1":"6442456320","ea2":"6442489088","desc":"Perfect match, same name","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"6442456576","ea2":"6442489344","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":5,"ctx":"find_same_name","name1":"zeta","name2":"zeta","ea1":"6442456576","ea2":"6442489344","desc":"Perfect match, same name","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"6442456832","ea2":"6442489600","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":6,"ctx":"find_same_name","name1":"eta","name2":"eta","ea1":"6442456832","ea2":"6442489600","desc":"Perfect match, same name","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"6442457088","ea2":"6442489856","decision":"accepted_partial","ratio_bits":"3fef62881ff4920e"}
+{"ev":"add_match","seq":7,"ctx":"find_same_name","name1":"theta","name2":"theta","ea1":"6442457088","ea2":"6442489856","desc":"Perfect match, same name","ratio_bits":"3fefb473a5134a60","chooser":"partial","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"6442457344","ea2":"6442490112","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":8,"ctx":"find_same_name","name1":"iota","name2":"iota","ea1":"6442457344","ea2":"6442490112","desc":"Perfect match, same name","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"6442457600","ea2":"6442490368","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":9,"ctx":"find_same_name","name1":"kappa","name2":"kappa","ea1":"6442457600","ea2":"6442490368","desc":"Perfect match, same name","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"6442460416","ea2":"6442493184","decision":"accepted_partial","ratio_bits":"3fe0189374bc6a7f"}
+{"ev":"add_match","seq":10,"ctx":"find_same_name","name1":"tiny","name2":"tiny","ea1":"6442460416","ea2":"6442493184","desc":"Perfect match, same name","ratio_bits":"3fe06a7ef9db22d1","chooser":"partial","result":"appended"}
+{"ev":"point","name":"after:find_same_name","best":8,"partial":3,"unreliable":0}
