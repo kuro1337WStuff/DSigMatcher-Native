@@ -68,9 +68,86 @@ target_link_libraries(dsigmatcher_core PUBLIC SQLite::SQLite3 Threads::Threads Z
 target_compile_definitions(dsigmatcher_core PUBLIC DSIG_VERSION="${PROJECT_VERSION}")
 dsig_apply_warnings(dsigmatcher_core)
 
+# ---------------------------------------------------------------------------------------------
+# Parity engine (docs/parity/00-plan.md §3). Every source is listed explicitly (no globs).
+add_library(dsigmatcher_diff STATIC
+  src/diff/Database.cpp
+  src/diff/Ingest.cpp
+  src/diff/SideTables.cpp
+  src/diff/Json.cpp
+  src/diff/Registry.cpp
+  src/diff/Snapshot.cpp
+  src/diff/Trace.cpp
+  src/diff/Pipeline.cpp
+  src/diff/MatchState.cpp
+  src/diff/Consumer.cpp
+  src/diff/FinalPass.cpp
+  src/diff/Unmatched.cpp
+  src/diff/Ratio.cpp
+  src/diff/PyValue.cpp
+  src/diff/TextDiff.cpp
+  src/diff/ResultsWriter.cpp
+  src/diff/stages/Preflight.cpp
+  src/diff/stages/EqualMatches.cpp
+  src/diff/stages/DirtyHeuristics.cpp
+  src/diff/stages/SameName.cpp
+  src/diff/stages/RemainingFunctions.cpp
+  src/diff/stages/PatchDiffHook.cpp
+  src/diff/stages/HeuristicTiers.cpp
+  src/diff/stages/SmallDifferences.cpp
+  src/diff/stages/CalleeDiffing.cpp
+  src/diff/stages/RelatedConstants.cpp
+  src/diff/stages/RelatedCompilationUnit.cpp
+  src/diff/stages/LocalAffinity.cpp)
+target_include_directories(dsigmatcher_diff PUBLIC include PRIVATE src/diff)
+target_link_libraries(dsigmatcher_diff PUBLIC dsigmatcher_core SQLite::SQLite3)
+dsig_apply_warnings(dsigmatcher_diff)
+
+# Floating point must follow Python's evaluation exactly (plan §3.12, 03a Hard parts 2): no
+# contraction into FMA, no fast-math, no /arch:AVX2 or -march=native on this library.
+function(dsig_apply_fp Target)
+  if(MSVC)
+    target_compile_options(${Target} PRIVATE /fp:precise)
+  else()
+    target_compile_options(${Target} PRIVATE -ffp-contract=off -fno-fast-math)
+  endif()
+endfunction()
+dsig_apply_fp(dsigmatcher_diff)
+
+# Product commands around the engine (plan §7.2): extract / ingest (L10), port --results (L11).
+add_library(dsigmatcher_cli STATIC
+  src/cli/ExportBridge.cpp
+  src/cli/PortResults.cpp)
+target_link_libraries(dsigmatcher_cli PUBLIC dsigmatcher_diff dsigmatcher_core)
+dsig_apply_warnings(dsigmatcher_cli)
+dsig_apply_fp(dsigmatcher_cli)
+
 add_executable(dsigmatcher src/main.cpp)
-target_link_libraries(dsigmatcher PRIVATE dsigmatcher_core)
+target_link_libraries(dsigmatcher PRIVATE dsigmatcher_cli dsigmatcher_diff dsigmatcher_core)
 dsig_apply_warnings(dsigmatcher)
+
+# Stage the sqlite3.dll that sits next to the linked import library beside the executables, so manual
+# runs load the same SQLite the tests use (plan §3.4; 07 §11.2). Windows only.
+if(WIN32)
+  set(_dsig_sqlite_lib "${SQLite3_LIBRARY}")
+  if(NOT _dsig_sqlite_lib)
+    get_target_property(_dsig_sqlite_lib SQLite::SQLite3 IMPORTED_LOCATION)
+  endif()
+  set(DSIG_SQLITE_DLL "")
+  if(_dsig_sqlite_lib)
+    get_filename_component(_dsig_sqlite_dir "${_dsig_sqlite_lib}" DIRECTORY)
+    foreach(_dsig_candidate "${_dsig_sqlite_dir}/../bin/sqlite3.dll" "${_dsig_sqlite_dir}/sqlite3.dll")
+      if(NOT DSIG_SQLITE_DLL AND EXISTS "${_dsig_candidate}")
+        get_filename_component(DSIG_SQLITE_DLL "${_dsig_candidate}" ABSOLUTE)
+      endif()
+    endforeach()
+  endif()
+  if(DSIG_SQLITE_DLL)
+    add_custom_command(TARGET dsigmatcher POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different "${DSIG_SQLITE_DLL}" "$<TARGET_FILE_DIR:dsigmatcher>"
+      VERBATIM)
+  endif()
+endif()
 
 enable_testing()
 
@@ -109,3 +186,31 @@ add_executable(dsigmatcher_cfg_tests tests/cfg_tests.cpp)
 target_link_libraries(dsigmatcher_cfg_tests PRIVATE dsigmatcher_core)
 dsig_apply_warnings(dsigmatcher_cfg_tests)
 add_test(NAME controlflowgraph COMMAND dsigmatcher_cfg_tests)
+
+# ---------------------------------------------------------------------------------------------
+# Parity suites (plan §2.6, §3.12). Corpus- and SQLite-3.51.1-dependent tests skip without them.
+function(dsig_add_suite Name Source)
+  add_executable(${Name} ${Source})
+  target_link_libraries(${Name} PRIVATE dsigmatcher_cli dsigmatcher_diff dsigmatcher_core)
+  target_include_directories(${Name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tests)
+  target_compile_definitions(${Name} PRIVATE DSIG_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/diff")
+  if(DSIG_CORPUS_ROOT)
+    target_compile_definitions(${Name} PRIVATE DSIG_CORPUS_ROOT="${DSIG_CORPUS_ROOT}")
+  endif()
+  dsig_apply_warnings(${Name})
+  dsig_apply_fp(${Name})
+  add_test(NAME ${Name} COMMAND ${Name})
+endfunction()
+
+dsig_add_suite(diff_foundation tests/diff/foundation_tests.cpp)
+dsig_add_suite(diff_state tests/diff/state_tests.cpp)
+dsig_add_suite(diff_ratio tests/diff/ratio_tests.cpp)
+dsig_add_suite(diff_textdiff tests/diff/textdiff_tests.cpp)
+dsig_add_suite(diff_writer tests/diff/writer_tests.cpp)
+dsig_add_suite(diff_early tests/diff/early_passes_tests.cpp)
+dsig_add_suite(diff_tiers tests/diff/tiers_tests.cpp)
+dsig_add_suite(diff_callee tests/diff/callee_tests.cpp)
+dsig_add_suite(diff_related tests/diff/related_tests.cpp)
+dsig_add_suite(diff_parity tests/diff/parity_tests.cpp)
+dsig_add_suite(cli_export_bridge tests/cli/export_bridge_tests.cpp)
+dsig_add_suite(cli_port_results tests/cli/port_results_tests.cpp)
