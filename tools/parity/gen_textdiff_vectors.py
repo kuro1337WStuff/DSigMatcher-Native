@@ -413,7 +413,9 @@ def sha256_file(path):
 
 
 def ro(path):
-    return sqlite3.connect("file:" + path.replace("\\", "/") + "?mode=ro", uri=True)
+    # immutable=1: no -shm/-wal is created or touched next to the oracle files (their -wal files are
+    # empty, tools/parity/README.md), so the reader sees exactly the main database file.
+    return sqlite3.connect("file:" + path.replace("\\", "/") + "?mode=ro&immutable=1", uri=True)
 
 
 def load_functions(path):
