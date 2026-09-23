@@ -19,6 +19,16 @@
 #include "dsigmatcher/Naming.h"
 #include "dsigmatcher/Sha256.h"
 
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
 #ifndef DSIG_VERSION
 #define DSIG_VERSION "0.0.0"
 #endif
@@ -26,6 +36,54 @@
 namespace DSig {
 
 namespace {
+
+// ---------------------------------------------------------------------------------------------
+// Path identity (lane F1). Paths are UTF-8, as every path the CLI passes on (src/diff/FileIo.h);
+// text that is not valid UTF-8 falls back to the native narrow conversion.
+
+std::filesystem::path PathOf(const std::string& Utf8) {
+  try {
+    return std::filesystem::path(std::u8string(Utf8.begin(), Utf8.end()));
+  } catch (const std::exception&) {
+    return std::filesystem::path(Utf8);
+  }
+}
+
+// weakly_canonical: ".", "..", symbolic links and, for the part of the path that exists, the spelling
+// the file system stores. Falls back to the absolute, lexically normal path when that fails.
+std::filesystem::path CanonicalOrAbsolute(const std::filesystem::path& Path) {
+  std::error_code Error;
+  std::filesystem::path Canonical = std::filesystem::weakly_canonical(Path, Error);
+  if (!Error && !Canonical.empty()) {
+    return Canonical;
+  }
+  Error.clear();
+  const std::filesystem::path Absolute = std::filesystem::absolute(Path, Error);
+  return (Error ? Path : Absolute).lexically_normal();
+}
+
+// Equality of two canonical paths the way the platform's default file system compares names: NTFS
+// and APFS/HFS+ ignore case (NTFS through its upper-case table, which CompareStringOrdinal with
+// bIgnoreCase uses as well); other systems compare bytes.
+bool SameSpelling(const std::filesystem::path& A, const std::filesystem::path& B) {
+#if defined(_WIN32)
+  const std::wstring& X = A.native();
+  const std::wstring& Y = B.native();
+  if (X.size() > static_cast<size_t>(INT32_MAX) || Y.size() > static_cast<size_t>(INT32_MAX)) {
+    return X == Y;
+  }
+  return CompareStringOrdinal(X.data(), static_cast<int>(X.size()), Y.data(), static_cast<int>(Y.size()), TRUE) ==
+         CSTR_EQUAL;
+#elif defined(__APPLE__)
+  const std::string& X = A.native();
+  const std::string& Y = B.native();
+  return X.size() == Y.size() && std::equal(X.begin(), X.end(), Y.begin(), [](char L, char R) {
+           return std::tolower(static_cast<unsigned char>(L)) == std::tolower(static_cast<unsigned char>(R));
+         });
+#else
+  return A.native() == B.native();
+#endif
+}
 
 const char* const CreateProvenanceSchema =
     "create table if not exists dsig_provenance ("
@@ -211,6 +269,47 @@ void BindHop(sqlite3_stmt* Statement, const HopRecord& Record) {
 
 }
 
+std::vector<NamedPath> DatabaseFileSet(const std::string& Role, const std::string& Path) {
+  std::vector<NamedPath> Files;
+  if (Path.empty()) {
+    return Files;
+  }
+  Files.push_back({Role, Path});
+  for (const char* Suffix : {"-wal", "-shm", "-journal"}) {
+    Files.push_back({Role + "'s " + Suffix + " file", Path + Suffix});
+  }
+  return Files;
+}
+
+bool SameFilePath(const std::string& A, const std::string& B) {
+  const std::filesystem::path PathA = PathOf(A);
+  const std::filesystem::path PathB = PathOf(B);
+  std::error_code Error;
+  const bool ExistsA = std::filesystem::exists(PathA, Error);
+  Error.clear();
+  const bool ExistsB = std::filesystem::exists(PathB, Error);
+  if (ExistsA && ExistsB) {
+    // One file under two names: hard links, 8.3 short names, a UNC share of a local drive, ...
+    Error.clear();
+    if (std::filesystem::equivalent(PathA, PathB, Error) && !Error) {
+      return true;
+    }
+  }
+  return SameSpelling(CanonicalOrAbsolute(PathA), CanonicalOrAbsolute(PathB));
+}
+
+std::optional<std::string> FindPathAlias(const std::vector<NamedPath>& Written, const std::vector<NamedPath>& Inputs) {
+  for (const NamedPath& Output : Written) {
+    for (const NamedPath& Input : Inputs) {
+      if (!Output.Path.empty() && !Input.Path.empty() && SameFilePath(Output.Path, Input.Path)) {
+        return Output.Role + " '" + Output.Path + "' is " + Input.Role + " '" + Input.Path +
+               "'; refusing to overwrite an input (nothing was changed)";
+      }
+    }
+  }
+  return std::nullopt;
+}
+
 std::string CurrentUtcTimestamp() {
   const auto Now = std::chrono::system_clock::now();
   const std::time_t Seconds = std::chrono::system_clock::to_time_t(Now);
@@ -356,16 +455,18 @@ std::unordered_map<std::string, NameOrigin> ReadNameOrigins(const std::string& P
 PortResult PortSymbols(const PortOptions& Options) {
   PortResult Result;
 
-  const std::string CanonicalReference = CanonicalPath(Options.ReferencePath);
-  const std::string CanonicalTarget = CanonicalPath(Options.TargetPath);
-  const std::string CanonicalOutput = CanonicalPath(Options.OutputPath);
-
-  if (CanonicalOutput == CanonicalTarget) {
-    Result.Error = "output path resolves to the target database; refusing to overwrite an input";
-    return Result;
+  // Alias refusal before any I/O (lane F1). The output is truncated by the copy and then opened
+  // read-write, and SQLite creates, rolls back, checkpoints or deletes the output's -journal, -wal and
+  // -shm files (https://www.sqlite.org/tempfiles.html §2.1-2.3; a hot "<output>-journal" is played
+  // back into the output and then deleted). None of those four files may be an input or one of the
+  // inputs' own sidecars.
+  std::vector<NamedPath> Inputs = DatabaseFileSet("the reference database", Options.ReferencePath);
+  for (NamedPath& Input : DatabaseFileSet("the target database", Options.TargetPath)) {
+    Inputs.push_back(std::move(Input));
   }
-  if (CanonicalOutput == CanonicalReference) {
-    Result.Error = "output path resolves to the reference database; refusing to overwrite an input";
+  if (const std::optional<std::string> Alias =
+          FindPathAlias(DatabaseFileSet("the output", Options.OutputPath), Inputs)) {
+    Result.Error = *Alias;
     return Result;
   }
 
@@ -846,6 +947,9 @@ bool ReadParentPortResults(const std::string& Path, std::vector<StoredRow>& Out,
   return Ok;
 }
 
+// Where PortLabels builds its output before the final rename.
+std::string TemporaryOutputPath(const std::string& OutputPath) { return OutputPath + ".dsig-tmp"; }
+
 void RemoveDatabaseFiles(const std::string& Path) {
   std::error_code Error;
   for (const char* Suffix : {"", "-wal", "-shm", "-journal"}) {
@@ -995,23 +1099,31 @@ LabelPortResult PortLabels(const LabelPortOptions& Options, const std::vector<La
     return Result;
   };
 
-  // Alias refusal, as PortSymbols: canonical paths, compared before any I/O (JOURNAL.md "in-place
-  // port destroyed the target database").
-  const std::string CanonicalOutput = CanonicalPath(Options.OutputPath);
+  // Alias refusal before any I/O (JOURNAL.md "in-place port destroyed the target database"; lane F1).
+  // The port deletes, creates and renames the output, the temporary "<output>.dsig-tmp" and every
+  // -wal / -shm / -journal sidecar of both (CopyDatabase, RemoveDatabaseFiles and the final rename
+  // below), and SQLite itself creates, plays back and deletes the temporary's sidecars
+  // (https://www.sqlite.org/tempfiles.html §2.1-2.3). None of those eight files may be an input or one
+  // of the inputs' own sidecars: a target named "<output>.dsig-tmp" was deleted by the old check,
+  // which compared only the output path itself.
   if (Options.OutputPath.empty()) {
     return Fail(PortFailure::Usage, "no output path");
   }
-  if (CanonicalOutput == CanonicalPath(Options.TargetPath)) {
-    return Fail(PortFailure::Usage, "output path resolves to the target database; refusing to overwrite an input");
+  std::vector<NamedPath> Written = DatabaseFileSet("the output", Options.OutputPath);
+  for (NamedPath& File : DatabaseFileSet("the temporary output", TemporaryOutputPath(Options.OutputPath))) {
+    Written.push_back(std::move(File));
   }
-  if (CanonicalOutput == CanonicalPath(Options.ReferencePath)) {
-    return Fail(PortFailure::Usage,
-                "output path resolves to the reference database; refusing to overwrite an input");
+  std::vector<NamedPath> Inputs = DatabaseFileSet("the reference database", Options.ReferencePath);
+  for (NamedPath& File : DatabaseFileSet("the target database", Options.TargetPath)) {
+    Inputs.push_back(std::move(File));
   }
   for (const std::string& Other : Options.OtherInputs) {
-    if (!Other.empty() && CanonicalOutput == CanonicalPath(Other)) {
-      return Fail(PortFailure::Usage, "output path resolves to input '" + Other + "'; refusing to overwrite an input");
+    for (NamedPath& File : DatabaseFileSet("the input", Other)) {
+      Inputs.push_back(std::move(File));
     }
+  }
+  if (const std::optional<std::string> Alias = FindPathAlias(Written, Inputs)) {
+    return Fail(PortFailure::Usage, *Alias);
   }
   for (const std::string* Input : {&Options.ReferencePath, &Options.TargetPath}) {
     if (!FileExists(*Input)) {
@@ -1245,8 +1357,8 @@ LabelPortResult PortLabels(const LabelPortOptions& Options, const std::vector<La
   Result.Lineage = BuildLineage(ReferenceIdentity.Lineage, ReferenceIdentity.InputMd5, TargetIdentity.InputMd5);
 
   // The output is built under a temporary name and renamed at the end, so a failed port leaves no
-  // half-written database behind.
-  const std::string Temporary = Options.OutputPath + ".dsig-tmp";
+  // half-written database behind. Neither name (nor any sidecar) is an input: checked at the top.
+  const std::string Temporary = TemporaryOutputPath(Options.OutputPath);
   std::string WriteError;
   if (!CopyDatabase(Options.TargetPath, Temporary, WriteError)) {
     RemoveDatabaseFiles(Temporary);

@@ -213,7 +213,7 @@ void TraceAddMatch(DiffSession& S, NameId N1, NameId N2, double Ratio, const Ite
     ChooserText = ChooserName(*C);
   }
   // `Ratio` must be add_match's ratio argument (the oracle's ratio_bits), not the forced 1.0 of
-  // D:1349-1350. ea1/ea2 are item[0]/item[2], the address TEXT from SQLite; a None address cannot
+  // D:1350-1351. ea1/ea2 are item[0]/item[2], the address TEXT from SQLite; a None address cannot
   // reach an item (SqlRowSource refuses NULL addresses), so AddrKeyText's "None" is never written.
   Sink.AddMatch(TraceCtx(S), Ids.NameOrNone(N1), Ids.NameOrNone(N2), Ids.AddrKeyText(It.Ea1),
                 Ids.AddrKeyText(It.Ea2), Ids.DescText(It.Desc), Ratio, ChooserText, Result);
