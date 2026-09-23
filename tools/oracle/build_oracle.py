@@ -101,10 +101,40 @@ def Expand(Template, Args):
     return os.path.abspath(Template.format(samples=Args.samples_dir, bin=Args.bin_dir))
 
 
+def FindProgramOnPath(Name):
+    """The absolute path of program Name found in an ABSOLUTE PATH entry, or None.
+
+    Never the current directory: on Windows, CreateProcess (and so subprocess with a bare "git") and
+    shutil.which before Python 3.12 look there first, and the current directory may hold a planted
+    git.exe (audit F16). Empty and relative PATH entries ("", ".", "bin") are skipped for the same
+    reason. tools/export/dsig_export.py and tools/e2e/e2e_common.py have the same function."""
+    Names = [Name + ".exe"] if sys.platform == "win32" and not os.path.splitext(Name)[1] else [Name]
+    for Entry in os.environ.get("PATH", "").split(os.pathsep):
+        Entry = Entry.strip().strip('"')
+        if not Entry or not os.path.isabs(Entry):
+            continue
+        for Candidate in (os.path.join(Entry, Each) for Each in Names):
+            if os.path.isfile(Candidate) and (sys.platform == "win32" or os.access(Candidate, os.X_OK)):
+                return os.path.abspath(Candidate)
+    return None
+
+
+def ChildEnv(Base=None):
+    """Base (default: this process's environment) with NoDefaultCurrentDirectoryInExePath=1, so no child
+    resolves a program started by a bare name in its current directory (audit F16)."""
+    Env = dict(os.environ if Base is None else Base)
+    Env["NoDefaultCurrentDirectoryInExePath"] = "1"
+    return Env
+
+
 def DiaphoraRevision(DiaphoraDir):
+    Git = FindProgramOnPath("git")
+    if Git is None:
+        return "unknown (no git in an absolute PATH entry)"
     try:
-        return subprocess.run(["git", "-C", DiaphoraDir, "describe", "--tags", "--long", "--dirty"],
-                              capture_output=True, text=True, check=True).stdout.strip()
+        return subprocess.run([Git, "-C", DiaphoraDir, "describe", "--tags", "--long", "--dirty"],
+                              capture_output=True, text=True, check=True, env=ChildEnv(),
+                              stdin=subprocess.DEVNULL).stdout.strip()
     except Exception as Exc:
         return "unknown (%s)" % Exc
 
@@ -113,10 +143,12 @@ def CleanEnv():
     """The caller's environment minus anything that steers Diaphora.
 
     PYTHONDONTWRITEBYTECODE only stops __pycache__ files appearing in the
-    Diaphora checkout; it does not change what Diaphora computes."""
+    Diaphora checkout; it does not change what Diaphora computes.
+    NoDefaultCurrentDirectoryInExePath=1 keeps a child from resolving a program
+    started by a bare name in its current directory (audit F16)."""
     Env = {Key: Value for Key, Value in os.environ.items() if not Key.upper().startswith("DIAPHORA_")}
     Env["PYTHONDONTWRITEBYTECODE"] = "1"
-    return Env
+    return ChildEnv(Env)
 
 
 # ----------------------------------------------------------------------------- exports
@@ -236,7 +268,8 @@ def StageValidate(Args):
         Reference = os.path.join(Args.root, "exports", Spec["id"], Spec["id"] + ".sqlite")
         with open(os.path.join(WorkDir, "compare.txt"), "w", encoding="utf-8") as Handle:
             Result = subprocess.call([sys.executable, os.path.join(HERE, "compare_exports.py"),
-                                      Reference, OutSqlite], stdout=Handle, stderr=subprocess.STDOUT)
+                                      Reference, OutSqlite], stdout=Handle, stderr=subprocess.STDOUT,
+                                     env=ChildEnv())
         with open(os.path.join(WorkDir, "compare.txt"), "r", encoding="utf-8") as Handle:
             Log(Handle.read())
         Log("[validate] %s: idalib export %s the tester-path export"

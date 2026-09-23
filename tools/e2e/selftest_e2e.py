@@ -5,7 +5,10 @@
 
 Builds a truth TSV (tools/oracle/ground_truth.py columns), an alias TSV (pdb_aliases.py columns) and a
 "ported" database with the dsig_* tables a `dsigmatcher port --results` writes, each address planting
-one scoring case, then checks every count of the report. Exit code 0 when all checks pass.
+one scoring case, then checks every count of the report. It also checks that e2e_common.py and
+tools/oracle/build_oracle.py never run a git planted in the current directory or a relative PATH entry
+(audit F16) and give their children NoDefaultCurrentDirectoryInExePath=1. Exit code 0 when all checks
+pass.
 """
 
 import os
@@ -17,8 +20,12 @@ import tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
+import e2e_common  # noqa: E402
 import pdb_aliases  # noqa: E402
 import score_ground_truth  # noqa: E402
+
+sys.path.insert(0, os.path.join(os.path.dirname(HERE), "oracle"))
+import build_oracle  # noqa: E402
 
 BASE = 0x180001000
 
@@ -95,10 +102,72 @@ def Check(Failures, Label, Actual, Expected):
         Failures.append("%s: %r != %r" % (Label, Actual, Expected))
 
 
+def CheckGitLookup(Failures, Directory):
+    """F16: git comes from an absolute PATH entry only, never the current directory (often a sample's
+    folder), and every child gets NoDefaultCurrentDirectoryInExePath=1."""
+    Plant = os.path.join(Directory, "sample folder")
+    os.makedirs(Plant)
+    Marker = os.path.join(Directory, "planted git ran")
+    if sys.platform == "win32":
+        # A copy of cmd.exe named git.exe: its banner would become the describe string.
+        shutil.copyfile(os.path.join(os.environ.get("SystemRoot", "C:\\Windows"), "System32", "cmd.exe"),
+                        os.path.join(Plant, "git.exe"))
+    else:
+        with open(os.path.join(Plant, "git"), "w") as Handle:
+            Handle.write("#!/bin/sh\necho PLANTED\ntouch '%s'\n" % Marker)
+        os.chmod(os.path.join(Plant, "git"), 0o755)
+    NotRepo = os.path.join(Directory, "not a repository")
+    os.makedirs(NotRepo)
+    Saved = {Key: os.environ.get(Key) for Key in ("PATH", "NoDefaultCurrentDirectoryInExePath")}
+    Cwd = os.getcwd()
+    try:
+        os.environ.pop("NoDefaultCurrentDirectoryInExePath", None)
+        os.environ["PATH"] = os.pathsep.join([".", "", "sample folder"] + [Saved["PATH"] or ""])
+        os.chdir(Plant)
+        for Module in (e2e_common, build_oracle):
+            Found = Module.FindProgramOnPath("git")
+            Check(Failures, "%s: git outside the current directory" % Module.__name__,
+                  Found is None or os.path.normcase(os.path.dirname(Found)) != os.path.normcase(Plant), True)
+            Check(Failures, "%s: git is an absolute path" % Module.__name__,
+                  Found is None or os.path.isabs(Found), True)
+            Check(Failures, "%s: ChildEnv" % Module.__name__,
+                  Module.ChildEnv({"A": "1"}), {"A": "1", "NoDefaultCurrentDirectoryInExePath": "1"})
+            Env = Module.CleanEnv()
+            Check(Failures, "%s: CleanEnv switches the lookup off" % Module.__name__,
+                  Env.get("NoDefaultCurrentDirectoryInExePath"), "1")
+            Check(Failures, "%s: CleanEnv drops DIAPHORA_*" % Module.__name__,
+                  any(Key.upper().startswith("DIAPHORA_") for Key in Env), False)
+        State = e2e_common.GitState(NotRepo)
+        Revision = build_oracle.DiaphoraRevision(NotRepo)
+        for Label, Text in (("GitState describe", State["describe"]), ("GitState status", State["status"]),
+                            ("DiaphoraRevision", Revision)):
+            Check(Failures, "%s is not the planted program's output" % Label,
+                  Text is None or ("Microsoft" not in Text and "PLANTED" not in Text), True)
+        Check(Failures, "the planted git did not run", os.path.exists(Marker), False)
+        # RunLogged gives the child the switch whatever environment it is handed.
+        Probe = [sys.executable, "-c",
+                 "import os, sys; sys.stdout.write('NODEFAULT=' + os.environ.get('NoDefaultCurrentDirectoryInExePath', '-'))"]
+        for Label, Env in (("inherited", None), ("given", {"SystemRoot": os.environ.get("SystemRoot", ""),
+                                                          "PATH": Saved["PATH"] or ""})):
+            Log = os.path.join(Directory, "runlogged-%s.log" % Label)
+            Code, _ = e2e_common.RunLogged(Probe, Log, Env=Env)
+            with open(Log, "r", encoding="utf-8") as Handle:
+                Check(Failures, "RunLogged (%s environment) sets the switch" % Label,
+                      (Code, "NODEFAULT=1" in Handle.read()), (0, True))
+    finally:
+        os.chdir(Cwd)
+        for Key, Value in Saved.items():
+            if Value is None:
+                os.environ.pop(Key, None)
+            else:
+                os.environ[Key] = Value
+
+
 def main():
     Directory = tempfile.mkdtemp(prefix="dsig-e2e-selftest-")
     Failures = []
     try:
+        CheckGitLookup(Failures, Directory)
         Ported, Truth, Aliases = Build(Directory)
         # The alias TSV is found next to the truth TSV (<dir>/aliases/<build>.tsv) without --aliases.
         Check(Failures, "default alias path", score_ground_truth.DefaultAliasPath(Truth), Aliases)
