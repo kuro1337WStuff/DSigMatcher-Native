@@ -70,12 +70,16 @@ struct TestFunction {
 
 bool CreateExport(const std::string& Path, const std::vector<TestFunction>& Rows,
                   const std::string& Processor) {
+  Checkpoint("ce: enter");
+
   std::error_code Removed;
   std::filesystem::remove(Path, Removed);
+  Checkpoint("ce: old file removed");
 
   sqlite3* Handle = nullptr;
   if (sqlite3_open_v2(Path.c_str(), &Handle, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr) !=
       SQLITE_OK) {
+    Checkpoint("ce: open failed branch");
     if (Handle != nullptr) {
       sqlite3_close(Handle);
     }
