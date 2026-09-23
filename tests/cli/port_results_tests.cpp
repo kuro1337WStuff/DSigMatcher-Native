@@ -8,6 +8,7 @@
 #include <sqlite3.h>
 
 #include <cctype>
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <filesystem>
@@ -19,10 +20,23 @@
 #include <vector>
 
 #include "diff/CorpusPaths.h"
+#include "diff/FixtureDb.h"
 #include "diff/TestHarness.h"
 #include "dsigmatcher/Provenance.h"
 #include "dsigmatcher/Sha256.h"
+#include "dsigmatcher/Version.h"
 #include "dsigmatcher/cli/Commands.h"
+#include "dsigmatcher/diff/Pipeline.h"
+
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
 
 namespace {
 
@@ -394,6 +408,16 @@ void TestHelpers() {
   CHECK(!ParseDecimalAddress(""));
   CHECK(!ParseDecimalAddress("  "));
   CHECK_TEXT_EQ(ReadOnlyDatabaseUri("no_such_dir/x%y?z#.sqlite"), "file:no_such_dir/x%25y%3fz%23.sqlite?mode=ro");
+  // F17: a UNC path keeps an empty URI authority (file:////server/...), like DiffDatabase::UriForPath;
+  // "file://server/..." made the server the authority and SQLite refused it.
+  CHECK_TEXT_EQ(SqliteReadOnlyUri("//server/share/a.sqlite", false), "file:////server/share/a.sqlite?mode=ro");
+  CHECK_TEXT_EQ(SqliteReadOnlyUri("//server/share/a.sqlite", true),
+                "file:////server/share/a.sqlite?mode=ro&immutable=1");
+  CHECK_TEXT_EQ(SqliteReadOnlyUri("/x/a?b.sqlite", false), "file:/x/a%3fb.sqlite?mode=ro");
+#ifdef _WIN32
+  CHECK_TEXT_EQ(SqliteReadOnlyUri("\\\\server\\share\\a b.sqlite", false), "file:////server/share/a b.sqlite?mode=ro");
+  CHECK_TEXT_EQ(SqliteReadOnlyUri("C:\\x\\a.sqlite", false), "file:/C:/x/a.sqlite?mode=ro");
+#endif
   CHECK_TEXT_EQ(LabelActionName(LabelAction::SkippedDuplicateName), "skipped_duplicate_name");
   CHECK_TEXT_EQ(LabelActionName(LabelAction::NotSelected), "not_selected");
 }
@@ -825,55 +849,6 @@ void TestDerivedPathAliases(const std::string& Dir) {
   }
 }
 
-// The legacy engine (port without --results) writes its output in place: the copy truncates it and
-// SQLite opens it read-write, so a hot "<output>-journal" would be played back and deleted and a WAL
-// output checkpoints and deletes "<output>-wal". The same audit applies.
-void TestLegacyPortAliases(const std::string& Dir) {
-  DSig::Test::Suite("legacy port: the output and its sidecars never alias an input or its sidecars");
-  struct Case {
-    const char* Label;
-    const char* Ref;
-    const char* Target;
-    const char* Out;
-    bool TargetWal = false;
-  };
-  const Case Cases[] = {
-      {"target is <out>-journal", "ref.sqlite", "out.sqlite-journal", "out.sqlite"},
-      {"target is <out>-wal", "ref.sqlite", "out.sqlite-wal", "out.sqlite"},
-      {"reference is <out>-journal", "out.sqlite-journal", "target.sqlite", "out.sqlite"},
-      {"output is the target's committed -wal", "ref.sqlite", "target.sqlite", "target.sqlite-wal", true},
-      {"output is the target", "ref.sqlite", "target.sqlite", "./target.sqlite"},
-  };
-  int Index = 0;
-  for (const Case& C : Cases) {
-    const std::string CaseDir = (std::filesystem::path(Dir) / ("legacy" + std::to_string(Index++))).string();
-    std::error_code Error;
-    std::filesystem::create_directories(CaseDir, Error);
-    const auto In = [&](const char* Name) { return (std::filesystem::path(CaseDir) / Name).string(); };
-    bool Built = CreateExport(In(C.Ref), ReferenceRows(), 0x10) && CreateExport(In(C.Target), TargetRows(), 0x20);
-    if (C.TargetWal) {
-      Built = Built && AddCommittedWalFrame(In(C.Target));
-    }
-    CHECK(Built);
-    if (!Built) {
-      continue;
-    }
-    const std::map<std::string, std::string> Before = DirState(CaseDir);
-    PortOptions Options;
-    Options.ReferencePath = In(C.Ref);
-    Options.TargetPath = In(C.Target);
-    Options.OutputPath = In(C.Out);
-    const PortResult Result = PortSymbols(Options);
-    const std::map<std::string, std::string> After = DirState(CaseDir);
-    CHECK(!Result.Ok);
-    CHECK(Result.Error.find("refusing to overwrite an input") != std::string::npos);
-    CHECK_TEXT_EQ(DescribeState(After), DescribeState(Before));
-    if (Result.Ok || After != Before) {
-      DSig::Test::Note(std::string(C.Label) + ": " + (Result.Ok ? std::string("ported") : Result.Error));
-    }
-  }
-}
-
 // Origin inheritance (Provenance.cpp PortLabels, "Inherit the reference's history only while the
 // reference still carries the name it recorded"): a reference function the user renamed after the
 // previous hop starts a new history (hop 1, confidence = this ratio, origin = the reference itself),
@@ -981,9 +956,15 @@ void TestBadInputs(const std::string& Dir) {
   };
 
   CHECK_NUM_EQ(Run((std::filesystem::path(Dir) / "missing.diaphora").string()).ExitCode, Cli::kExitIo);
+  // F57 (a): a file that is not SQLite at all is an I/O-class failure (exit 6, as diff reports it),
+  // named by path, without the internal URI.
   const std::string Text = (std::filesystem::path(Dir) / "text.diaphora").string();
-  std::ofstream(Text) << "not a database";
-  CHECK_NUM_EQ(Run(Text).ExitCode, Cli::kExitUnsupported);
+  std::ofstream(Text) << "not a database, only some text that is long enough to hold a header";
+  const Cli::CommandOutcome TextOutcome = Run(Text);
+  CHECK_NUM_EQ(TextOutcome.ExitCode, Cli::kExitIo);
+  CHECK(TextOutcome.Message.find("not an SQLite database") != std::string::npos);
+  CHECK(TextOutcome.Message.find(Text) != std::string::npos);
+  CHECK(TextOutcome.Message.find("file:") == std::string::npos && TextOutcome.Message.find("?mode=") == std::string::npos);
   // An export instead of a results file.
   CHECK_NUM_EQ(Run(S.Target).ExitCode, Cli::kExitUnsupported);
   const std::string NoResults = (std::filesystem::path(Dir) / "noresults.diaphora").string();
@@ -1006,14 +987,42 @@ void TestBadInputs(const std::string& Dir) {
   CHECK_NUM_EQ(Run(WithRows("type.diaphora", {{"ml", "00000", R(1), "Alpha", T(1), Sub(1), "1.0000000", "x"}})).ExitCode,
                Cli::kExitUnsupported);
 
+  // Without --results the parity diff runs first; these reduced exports lack its side tables, so the
+  // diff refuses them (exit 4) and nothing is written.
   Cli::PortFromResultsArgs NoResultsArg = Args(S.Ref, S.Target, Out, "");
-  CHECK_NUM_EQ(Cli::RunPortFromResults(NoResultsArg).ExitCode, Cli::kExitUnsupported);
+  NoResultsArg.Quiet = true;
+  const Cli::CommandOutcome NoResultsOutcome = Cli::RunPortFromResults(NoResultsArg);
+  CHECK_NUM_EQ(NoResultsOutcome.ExitCode, Cli::kExitUnsupported);
+  CHECK(NoResultsOutcome.Message.rfind("diff: ", 0) == 0);
+  CHECK(!Exists(Out));
   Cli::PortFromResultsArgs Strict = Args(S.Ref, S.Target, Out, S.Results);
   Strict.StrictSqlite = true;
   CHECK_NUM_EQ(Cli::RunPortFromResults(Strict).ExitCode, Cli::kExitUsage);
+  Cli::PortFromResultsArgs NoKeep = Args(S.Ref, S.Target, Out, S.Results);
+  NoKeep.KeepResults = false;
+  CHECK_NUM_EQ(Cli::RunPortFromResults(NoKeep).ExitCode, Cli::kExitUsage);
   Cli::PortFromResultsArgs BadRatio = Args(S.Ref, S.Target, Out, S.Results);
   BadRatio.MinRatio = 1.5;
   CHECK_NUM_EQ(Cli::RunPortFromResults(BadRatio).ExitCode, Cli::kExitUsage);
+  Cli::PortFromResultsArgs NanRatio = Args(S.Ref, S.Target, Out, S.Results);
+  NanRatio.MinRatio = std::nan("");
+  CHECK_NUM_EQ(Cli::RunPortFromResults(NanRatio).ExitCode, Cli::kExitUsage);
+  Cli::PortFromResultsArgs StrippedAlone = Args(S.Ref, S.Target, Out, S.Results);
+  StrippedAlone.OverwriteStripped = true;
+  CHECK_NUM_EQ(Cli::RunPortFromResults(StrippedAlone).ExitCode, Cli::kExitUsage);
+  // F57 (b): a missing output directory is named as such, not through the temporary file's name.
+  const std::string NoDir = (std::filesystem::path(Dir) / "no_such_dir" / "p.sqlite").string();
+  const Cli::CommandOutcome NoDirOutcome = Cli::RunPortFromResults(Args(S.Ref, S.Target, NoDir, S.Results));
+  CHECK_NUM_EQ(NoDirOutcome.ExitCode, Cli::kExitIo);
+  CHECK(NoDirOutcome.Message.find("output directory '") != std::string::npos);
+  CHECK(NoDirOutcome.Message.find("does not exist") != std::string::npos);
+  CHECK(NoDirOutcome.Message.find(".dsig-tmp") == std::string::npos);
+  // A reference that does not exist, and one that is not SQLite: exit 6, named by path.
+  const std::string Nowhere = (std::filesystem::path(Dir) / "nowhere.sqlite").string();
+  const Cli::CommandOutcome MissingRef = Cli::RunPortFromResults(Args(Nowhere, S.Target, Out, S.Results));
+  CHECK_NUM_EQ(MissingRef.ExitCode, Cli::kExitIo);
+  CHECK(MissingRef.Message.find(Nowhere) != std::string::npos);
+  CHECK_NUM_EQ(Cli::RunPortFromResults(Args(Text, S.Target, Out, S.Results)).ExitCode, Cli::kExitIo);
   // A reference that is not a Diaphora export, and one that lacks the results' functions.
   const Cli::CommandOutcome NotExport = Cli::RunPortFromResults(Args(S.Results, S.Target, Out, S.Results));
   CHECK_NUM_EQ(NotExport.ExitCode, Cli::kExitUnsupported);
@@ -1057,6 +1066,307 @@ void TestWal(const std::string& Dir) {
   CHECK_TEXT_EQ(One(Out, "pragma integrity_check"), "ok");
   CHECK(!Exists(Out + "-wal"));
 #endif
+}
+
+// IDA placeholders (Naming.h) on the target are replaced; on the reference they are not ported.
+// "Same binary with symbols stripped" rows never replace a real name without --overwrite-stripped.
+void TestPlaceholdersAndStripped(const std::string& Dir) {
+  DSig::Test::Suite("port --results: IDA placeholders are replaced; stripped rows need --overwrite-stripped");
+  std::error_code Error;
+  std::filesystem::create_directories(Dir, Error);
+  const std::string Ref = (std::filesystem::path(Dir) / "ref.sqlite").string();
+  const std::string Target = (std::filesystem::path(Dir) / "target.sqlite").string();
+  const std::string Results = (std::filesystem::path(Dir) / "r.diaphora").string();
+  CHECK(CreateExport(Ref, {{R(1), "CryptBaseInitialize"}, {R(2), "Alpha"}, {R(3), "Beta"}, {R(4), "Gamma"},
+                           {R(5), "j_memcpy"}, {R(6), "Delta"}, {R(7), "Epsilon"}},
+                     0x10));
+  CHECK(CreateExport(Target, {{T(1), "DllEntryPoint"}, {T(2), "j_Alpha"}, {T(3), "unknown_libname_4"}, {T(4), "start"},
+                              {T(5), "sub_" + Hex8(T(5))}, {T(6), "RealTargetName"}, {T(7), "OtherRealName"}},
+                     0x20));
+  CHECK(CreateResults(Results, {
+                                   {"best", "00000", R(1), "CryptBaseInitialize", T(1), "DllEntryPoint", "1.0000000",
+                                    "Microcode mnemonics small primes product"},
+                                   {"best", "00001", R(2), "Alpha", T(2), "j_Alpha", "1.0000000", "Bytes hash"},
+                                   {"best", "00002", R(3), "Beta", T(3), "unknown_libname_4", "1.0000000", "Bytes hash"},
+                                   {"best", "00003", R(4), "Gamma", T(4), "start", "1.0000000", "Bytes hash"},
+                                   {"best", "00004", R(5), "j_memcpy", T(5), "sub_" + Hex8(T(5)), "1.0000000",
+                                    "Bytes hash"},
+                                   {"best", "00005", R(6), "Delta", T(6), "RealTargetName", "1.0000000",
+                                    "Same binary with symbols stripped"},
+                                   {"best", "00006", R(7), "Epsilon", T(7), "OtherRealName", "1.0000000", "Bytes hash"},
+                               }));
+  const auto Port = [&](const std::string& Name, bool Overwrite, bool Stripped) {
+    Cli::PortFromResultsArgs A = Args(Ref, Target, (std::filesystem::path(Dir) / Name).string(), Results);
+    A.Overwrite = Overwrite;
+    A.OverwriteStripped = Stripped;
+    const Cli::CommandOutcome Outcome = Cli::RunPortFromResults(A);
+    CHECK_NUM_EQ(Outcome.ExitCode, Cli::kExitOk);
+    if (Outcome.ExitCode != Cli::kExitOk) {
+      DSig::Test::Note(Outcome.Message);
+    }
+    return A.Output;
+  };
+  const std::string Default = Port("default.sqlite", false, false);
+  CHECK_TEXT_EQ(NameAt(Default, T(1)), "CryptBaseInitialize");  // DllEntryPoint replaced
+  CHECK_TEXT_EQ(NameAt(Default, T(2)), "Alpha");                // j_ thunk name replaced
+  CHECK_TEXT_EQ(NameAt(Default, T(3)), "Beta");                 // unknown_libname_ replaced
+  CHECK_TEXT_EQ(NameAt(Default, T(4)), "Gamma");                // start replaced
+  CHECK_TEXT_EQ(NameAt(Default, T(5)), "sub_" + Hex8(T(5)));    // a j_ reference name does not travel
+  CHECK_TEXT_EQ(NameAt(Default, T(6)), "RealTargetName");       // real names are kept by default
+  CHECK_TEXT_EQ(NameAt(Default, T(7)), "OtherRealName");
+  CHECK_TEXT_EQ(One(Default, "select group_concat(action, ',') from (select action from dsig_port_log order by "
+                             "results_rowid)"),
+                "applied,applied,applied,applied,skipped_not_portable,skipped_existing,skipped_existing");
+
+  const std::string Overwrite = Port("overwrite.sqlite", true, false);
+  CHECK_TEXT_EQ(NameAt(Overwrite, T(7)), "Epsilon");         // --overwrite-existing replaces a real name ...
+  CHECK_TEXT_EQ(NameAt(Overwrite, T(6)), "RealTargetName");  // ... but not from a stripped-binary row
+  CHECK_TEXT_EQ(One(Overwrite, "select overwrite || '/' || overwrite_stripped from dsig_port_results"), "1/0");
+
+  const std::string Both = Port("both.sqlite", true, true);
+  CHECK_TEXT_EQ(NameAt(Both, T(6)), "Delta");
+  CHECK_TEXT_EQ(NameAt(Both, T(7)), "Epsilon");
+  CHECK_TEXT_EQ(One(Both, "select overwrite || '/' || overwrite_stripped from dsig_port_results"), "1/1");
+}
+
+// F32: a target that is itself a port output. Its dsig_* rows are replaced, so the output describes one
+// history: every dsig_name_origin row is this hop's, and info's hop count and histogram agree.
+void TestPortedTarget(const std::string& Dir) {
+  DSig::Test::Suite("port --results: a target that was itself ported gets one consistent history (F32)");
+  const Scenario S = MakeScenario(Dir);
+  CHECK(S.Ok);
+  const std::string Hop1 = (std::filesystem::path(Dir) / "hop1.sqlite").string();
+  CHECK_NUM_EQ(Cli::RunPortFromResults(Args(S.Ref, S.Target, Hop1, S.Results)).ExitCode, Cli::kExitOk);
+  constexpr uint64_t kV3 = 0x180003000ull;
+  const auto U = [](int Index) { return kV3 + static_cast<uint64_t>(Index) * 0x100; };
+  const std::string V3 = (std::filesystem::path(Dir) / "v3.sqlite").string();
+  CHECK(CreateExport(V3, {{U(1), "sub_" + Hex8(U(1))}, {U(3), "sub_" + Hex8(U(3))}}, 0x30));
+  const std::string R2 = (std::filesystem::path(Dir) / "hop1_vs_v3.diaphora").string();
+  CHECK(CreateResults(R2, {{"best", "00000", T(1), "Alpha", U(1), "sub_" + Hex8(U(1)), "1.0000000", "Bytes hash"},
+                           {"partial", "00000", T(3), "Gamma", U(3), "sub_" + Hex8(U(3)), "0.8000000", "Loop count"}}));
+  const std::string Hop2 = (std::filesystem::path(Dir) / "hop2.sqlite").string();
+  CHECK_NUM_EQ(Cli::RunPortFromResults(Args(Hop1, V3, Hop2, R2)).ExitCode, Cli::kExitOk);
+  CHECK_TEXT_EQ(One(Hop2, "select max(hops) from dsig_name_origin"), "2");
+
+  // The raw reference ported onto hop2 (a port output) as the target.
+  const std::string R3 = (std::filesystem::path(Dir) / "ref_vs_hop2.diaphora").string();
+  CHECK(CreateResults(R3, {{"best", "00000", R(1), "?Alpha@@YAXXZ", U(1), "?Alpha@@YAXXZ", "1.0000000", "Bytes hash"},
+                           {"partial", "00000", R(3), "Gamma", U(3), "Gamma", "0.9000000", "Loop count"}}));
+  const std::string Out = (std::filesystem::path(Dir) / "hop2re.sqlite").string();
+  const Cli::CommandOutcome Outcome = Cli::RunPortFromResults(Args(S.Ref, Hop2, Out, R3));
+  CHECK_NUM_EQ(Outcome.ExitCode, Cli::kExitOk);
+  if (Outcome.ExitCode != Cli::kExitOk) {
+    DSig::Test::Note(Outcome.Message);
+    return;
+  }
+  const DatabaseIdentity Identity = InspectDatabase(Out);
+  CHECK_NUM_EQ(Identity.HopCount, 1);
+  // Both proposals are confirmations (hop2 already carries the names), and no origin row survives
+  // from the target: no name claims 2 hops in a 1-hop history.
+  CHECK_TEXT_EQ(One(Out, "select count(*) from dsig_name_origin"), "0");
+  CHECK_TEXT_EQ(One(Out, "select count(*) from dsig_name_origin where hops > (select max(hop) from dsig_provenance)"),
+                "0");
+  CHECK_TEXT_EQ(One(Out, "select group_concat(hop) from dsig_port_results"), "1");
+  CHECK_TEXT_EQ(One(Out, "select group_concat(distinct hop) from dsig_port_log"), "1");
+}
+
+// F33: when the final rename fails, the previous output and its sidecars are left exactly as they were.
+void TestPublishFailureKeepsPreviousOutput(const std::string& Dir) {
+  DSig::Test::Suite("port --results: a failed final rename keeps the previous output and its sidecars (F33)");
+  const Scenario S = MakeScenario(Dir);
+  CHECK(S.Ok);
+  const std::string Out = (std::filesystem::path(Dir) / "out.sqlite").string();
+  CHECK_NUM_EQ(Cli::RunPortFromResults(Args(S.Ref, S.Target, Out, S.Results)).ExitCode, Cli::kExitOk);
+  std::ofstream(Out + "-wal", std::ios::binary) << "previous output's wal";
+  const std::string OldSha = FileSha(Out);
+  const std::string OldWalSha = FileSha(Out + "-wal");
+  Cli::CommandOutcome Failed;
+#if defined(_WIN32)
+  {
+    // The previous output held open without FILE_SHARE_DELETE (a virus scanner, an indexer, a viewer):
+    // it cannot be replaced.
+    const std::wstring Wide = std::filesystem::path(Out).wstring();
+    const HANDLE Held = CreateFileW(Wide.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+                                    OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    CHECK(Held != INVALID_HANDLE_VALUE);
+    Failed = Cli::RunPortFromResults(Args(S.Ref, S.Target, Out, S.Results));
+    CloseHandle(Held);
+  }
+#else
+  {
+    // The output path is a non-empty directory: rename(2) cannot replace it.
+    std::error_code Removed;
+    std::filesystem::remove(Out, Removed);
+    std::filesystem::create_directories(std::filesystem::path(Out) / "keep");
+    std::ofstream((std::filesystem::path(Out) / "keep" / "file").string()) << "x";
+    Failed = Cli::RunPortFromResults(Args(S.Ref, S.Target, Out, S.Results));
+  }
+#endif
+  CHECK_NUM_EQ(Failed.ExitCode, Cli::kExitIo);
+  CHECK(Failed.Message.find("the previous output was left as it was") != std::string::npos);
+  if (Failed.ExitCode != Cli::kExitIo) {
+    DSig::Test::Note(Failed.Message);
+  }
+#if defined(_WIN32)
+  CHECK_TEXT_EQ(FileSha(Out), OldSha);
+#else
+  CHECK(std::filesystem::is_directory(Out));
+  (void)OldSha;
+#endif
+  CHECK_TEXT_EQ(FileSha(Out + "-wal"), OldWalSha);  // moved aside, then restored
+  CHECK(!Exists(Out + "-wal.dsig-old") && !Exists(Out + ".dsig-tmp") && !Exists(Out + ".dsig-tmp-wal"));
+}
+
+// F34: the dsig_* path columns hold file names only by default, whatever path was typed; with
+// --store-full-paths they hold the absolute, normalised paths.
+void TestPathPolicy(const std::string& Dir) {
+  DSig::Test::Suite("port --results: dsig_* tables store file names by default, full paths on request (F34)");
+  const Scenario S = MakeScenario(Dir);
+  CHECK(S.Ok);
+  const std::string AbsoluteRef = std::filesystem::absolute(S.Ref).string();
+  const std::string AbsoluteResults = std::filesystem::absolute(S.Results).string();
+  const std::string Out = (std::filesystem::path(Dir) / "names.sqlite").string();
+  CHECK_NUM_EQ(Cli::RunPortFromResults(Args(AbsoluteRef, S.Target, Out, AbsoluteResults)).ExitCode, Cli::kExitOk);
+  CHECK_TEXT_EQ(One(Out, "select source_path from dsig_provenance where hop = 1"), "ref.sqlite");
+  CHECK_TEXT_EQ(One(Out, "select results_path from dsig_port_results where hop = 1"), "ref_vs_target.diaphora");
+  CHECK_TEXT_EQ(One(Out, "select results_main_db || '|' || results_diff_db from dsig_port_results"),
+                "ref.sqlite|target.sqlite");
+  CHECK_TEXT_EQ(One(Out, "select results_source from dsig_port_results"), "results file");
+  CHECK_TEXT_EQ(One(Out, "select tool_version from dsig_provenance"), DSIG_VERSION);
+
+  const std::string Full = (std::filesystem::path(Dir) / "full.sqlite").string();
+  Cli::PortFromResultsArgs A = Args(S.Ref, S.Target, Full, S.Results);
+  A.StoreFullPaths = true;
+  CHECK_NUM_EQ(Cli::RunPortFromResults(A).ExitCode, Cli::kExitOk);
+  const std::string Stored = One(Full, "select source_path from dsig_provenance where hop = 1");
+  CHECK(std::filesystem::path(Stored).is_absolute());
+  std::error_code Error;
+  CHECK(std::filesystem::equivalent(Stored, S.Ref, Error));
+  const std::string StoredResults = One(Full, "select results_path from dsig_port_results where hop = 1");
+  CHECK(std::filesystem::path(StoredResults).is_absolute());
+  CHECK(std::filesystem::equivalent(StoredResults, S.Results, Error));
+}
+
+// F17: port and info over UNC paths (\\localhost\<drive>$\...), as diff already accepted them.
+void TestUncPaths(const std::string& Dir) {
+#ifndef _WIN32
+  (void)Dir;
+  DSig::Test::Skip("port --results: UNC paths", "Windows only");
+#else
+  const Scenario S = MakeScenario(Dir);
+  const std::string Absolute = std::filesystem::absolute(Dir).string();
+  if (!S.Ok || Absolute.size() < 3 || Absolute[1] != ':') {
+    DSig::Test::Skip("port --results: UNC paths", "scratch directory is not on a drive letter");
+    return;
+  }
+  const std::string UncDir = std::string("\\\\localhost\\") + Absolute[0] + "$" + Absolute.substr(2);
+  const auto Unc = [&](const char* Name) { return UncDir + "\\" + Name; };
+  std::error_code Error;
+  if (!std::filesystem::exists(Unc("ref.sqlite"), Error)) {
+    DSig::Test::Skip("port --results: UNC paths", "\\\\localhost\\" + std::string(1, Absolute[0]) + "$ is not reachable");
+    return;
+  }
+  DSig::Test::Suite("port --results and info over UNC paths (F17)");
+  const DatabaseIdentity Identity = InspectDatabase(Unc("ref.sqlite"));
+  CHECK(Identity.Ok);
+  if (!Identity.Ok) {
+    DSig::Test::Note(Identity.Error);
+  }
+  const Cli::CommandOutcome Outcome = Cli::RunPortFromResults(
+      Args(Unc("ref.sqlite"), Unc("target.sqlite"), Unc("unc-out.sqlite"), Unc("ref_vs_target.diaphora")));
+  CHECK_NUM_EQ(Outcome.ExitCode, Cli::kExitOk);
+  if (Outcome.ExitCode != Cli::kExitOk) {
+    DSig::Test::Note(Outcome.Message);
+  }
+  CHECK_TEXT_EQ(NameAt((std::filesystem::path(Dir) / "unc-out.sqlite").string(), T(1)), "Alpha");
+  CHECK(!Exists(S.Ref + "-wal") && !Exists(S.Ref + "-shm"));
+#endif
+}
+
+// Plain `port` (no --results): the parity diff runs in-process, its results file is kept beside the
+// output, and the output is exactly what `diff` + `port --results` give.
+void TestInProcessPort(const std::string& Dir) {
+  DSig::Test::Suite("port without --results: in-process parity diff, then the same port as --results");
+  std::error_code Error;
+  std::filesystem::create_directories(Dir, Error);
+  const std::string Main = (std::filesystem::path(Dir) / "main.sqlite").string();
+  const std::string Diff = (std::filesystem::path(Dir) / "diff.sqlite").string();
+  const std::string Base = DSig::Test::TestDataDir() + "/fixtures/common/";
+  const std::string E1 = DSig::Test::BuildFixtureDb(Base + "main.sql", Main);
+  const std::string E2 = DSig::Test::BuildFixtureDb(Base + "diff.sql", Diff);
+  CHECK(E1.empty() && E2.empty());
+  if (!E1.empty() || !E2.empty()) {
+    DSig::Test::Note(E1 + " " + E2);
+    return;
+  }
+  const std::string MainSha = FileSha(Main), DiffSha = FileSha(Diff);
+
+  // diff, then port --results
+  Diff::DiffArgs Diffing;
+  Diffing.Db1 = Main;
+  Diffing.Db2 = Diff;
+  Diffing.Out = (std::filesystem::path(Dir) / "separate.diaphora").string();
+  Diffing.Quiet = true;
+  CHECK(Diff::RunDiff(Diffing).Status == Diff::DiffStatus::Ok);
+  const std::string Separate = (std::filesystem::path(Dir) / "separate.sqlite").string();
+  CHECK_NUM_EQ(Cli::RunPortFromResults(Args(Main, Diff, Separate, Diffing.Out)).ExitCode, Cli::kExitOk);
+
+  // plain port
+  const std::string Plain = (std::filesystem::path(Dir) / "plain.sqlite").string();
+  Cli::PortFromResultsArgs A = Args(Main, Diff, Plain, "");
+  A.Quiet = true;
+  const Cli::CommandOutcome Outcome = Cli::RunPortFromResults(A);
+  CHECK_NUM_EQ(Outcome.ExitCode, Cli::kExitOk);
+  if (Outcome.ExitCode != Cli::kExitOk) {
+    DSig::Test::Note(Outcome.Message);
+    return;
+  }
+  const std::string Kept = (std::filesystem::path(Dir) / "plain.diaphora").string();
+  CHECK_TEXT_EQ(Cli::DefaultResultsPath(Plain), Kept);
+  CHECK(Exists(Kept));
+  CHECK_TEXT_EQ(Report(Outcome, "results "), "results          : " + Kept + " (in-process diff, kept)");
+  CHECK(Report(Outcome, "diff ").rfind("diff             : mode ", 0) == 0);
+  const char* ResultRows = "select group_concat(type || ':' || address || ':' || address2 || ':' || ratio, ',') "
+                           "from (select * from results order by rowid)";
+  CHECK_TEXT_EQ(One(Kept, ResultRows), One(Diffing.Out, ResultRows));
+  CHECK(One(Kept, "select count(*) from results") != "0");
+  const char* Labels = "select group_concat(address || '=' || quote(name) || '/' || quote(mangled_function), ',') "
+                       "from (select * from functions order by id)";
+  CHECK_TEXT_EQ(One(Plain, Labels), One(Separate, Labels));
+  const char* LogRows = "select group_concat(results_rowid || ':' || action || ':' || quote(ref_name), ',') from "
+                        "(select * from dsig_port_log order by results_rowid)";
+  CHECK_TEXT_EQ(One(Plain, LogRows), One(Separate, LogRows));
+  CHECK_TEXT_EQ(One(Plain, "select results_source || '|' || results_path from dsig_port_results"),
+                "in-process diff|plain.diaphora");
+  CHECK(Outcome.Data.IsObject() && Outcome.Data.Find("diff") != nullptr && Outcome.Data.Find("diff")->IsObject());
+  CHECK_TEXT_EQ(FileSha(Main), MainSha);
+  CHECK_TEXT_EQ(FileSha(Diff), DiffSha);
+
+  // --no-keep-results: the results file is gone afterwards, and no other file was left.
+  const std::string NoKeep = (std::filesystem::path(Dir) / "nokeep.sqlite").string();
+  Cli::PortFromResultsArgs B = Args(Main, Diff, NoKeep, "");
+  B.Quiet = true;
+  B.KeepResults = false;
+  const Cli::CommandOutcome NoKeepOutcome = Cli::RunPortFromResults(B);
+  CHECK_NUM_EQ(NoKeepOutcome.ExitCode, Cli::kExitOk);
+  CHECK(Exists(NoKeep));
+  CHECK(!Exists((std::filesystem::path(Dir) / "nokeep.diaphora").string()));
+  CHECK(!Exists(NoKeep + ".dsig-results-tmp"));
+  CHECK(Report(NoKeepOutcome, "results ").find("(in-process diff, deleted)") != std::string::npos);
+  CHECK_TEXT_EQ(One(NoKeep, Labels), One(Separate, Labels));
+
+  // Refusals before the diff runs: the results file would be an input, or the output itself.
+  const std::map<std::string, std::string> Before = DirState(Dir);
+  Cli::PortFromResultsArgs OntoInput = Args(Main, Diff, (std::filesystem::path(Dir) / "other.sqlite").string(), "");
+  OntoInput.ResultsOutput = Main;
+  const Cli::CommandOutcome OntoInputOutcome = Cli::RunPortFromResults(OntoInput);
+  CHECK_NUM_EQ(OntoInputOutcome.ExitCode, Cli::kExitUsage);
+  CHECK(OntoInputOutcome.Message.find("the results file '") == 0);
+  const Cli::CommandOutcome Collide =
+      Cli::RunPortFromResults(Args(Main, Diff, (std::filesystem::path(Dir) / "x.diaphora").string(), ""));
+  CHECK_NUM_EQ(Collide.ExitCode, Cli::kExitUsage);
+  CHECK(Collide.Message.find("choose another -o") != std::string::npos);
+  CHECK_TEXT_EQ(DescribeState(DirState(Dir)), DescribeState(Before));
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1111,7 +1421,9 @@ void TestCorpus() {
     CHECK_TEXT_EQ(One(Out, "select count(*) from dsig_port_log l join functions f on f.address = l.address "
                            "where l.action = 'applied' and (f.name is not l.ref_name or f.mangled_function is not "
                            "case when l.ref_mangled is null or l.ref_mangled = '' or l.ref_mangled = '...' or "
-                           "substr(l.ref_mangled, 1, 4) = 'sub_' or substr(l.ref_mangled, 1, 7) = 'nullsub' "
+                           "substr(l.ref_mangled, 1, 4) = 'sub_' or substr(l.ref_mangled, 1, 7) = 'nullsub' or "
+                           "substr(l.ref_mangled, 1, 2) = 'j_' or substr(l.ref_mangled, 1, 16) = 'unknown_libname_' "
+                           "or l.ref_mangled in ('DllEntryPoint', 'start') "
                            "then l.ref_name else l.ref_mangled end)"),
                   "0");
     CHECK_TEXT_EQ(One(Out, "select count(*) from dsig_port_log where action = 'applied'"),
@@ -1153,10 +1465,15 @@ int main() {
   TestPathSafety((std::filesystem::path(Dir) / "safety").string());
   TestAliasHelpers((std::filesystem::path(Dir) / "alias-helpers").string());
   TestDerivedPathAliases((std::filesystem::path(Dir) / "alias").string());
-  TestLegacyPortAliases((std::filesystem::path(Dir) / "alias-legacy").string());
   TestOriginInheritance((std::filesystem::path(Dir) / "origin").string());
   TestBadInputs((std::filesystem::path(Dir) / "bad").string());
   TestWal((std::filesystem::path(Dir) / "wal").string());
+  TestPlaceholdersAndStripped((std::filesystem::path(Dir) / "placeholders").string());
+  TestPortedTarget((std::filesystem::path(Dir) / "ported-target").string());
+  TestPublishFailureKeepsPreviousOutput((std::filesystem::path(Dir) / "publish").string());
+  TestPathPolicy((std::filesystem::path(Dir) / "paths").string());
+  TestUncPaths((std::filesystem::path(Dir) / "unc").string());
+  TestInProcessPort((std::filesystem::path(Dir) / "inprocess").string());
   TestCorpus();
   DSig::Test::RemoveScratchDir(Dir);
   return DSig::Test::Finish();

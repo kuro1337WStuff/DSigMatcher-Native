@@ -95,7 +95,7 @@ unset(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME)
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   if(DSIG_FULLY_STATIC)
     # -z stack-size: musl sizes new threads' stacks from PT_GNU_STACK (default 128 KiB); 8 MiB matches the
-    # glibc default the ThreadPool workers are otherwise run with. glibc ignores it for threads.
+    # glibc default thread stack. glibc ignores it for threads.
     add_link_options(-static -Wl,-z,stack-size=8388608)
   elseif(DSIG_STATIC_RUNTIME)
     add_link_options(-static-libstdc++ -static-libgcc)
@@ -113,17 +113,12 @@ endfunction()
 add_library(dsigmatcher_core STATIC
   src/ControlFlowGraph.cpp
   src/DisassemblerZydis.cpp
-  src/ExportDatabase.cpp
-  src/Heuristics.cpp
   src/KghHash.cpp
-  src/MatchStore.cpp
   src/Md5.cpp
   src/PeImage.cpp
   src/PrimeTable.cpp
   src/Provenance.cpp
-  src/Sha256.cpp
-  src/Synth.cpp
-  src/ThreadPool.cpp)
+  src/Sha256.cpp)
 
 target_include_directories(dsigmatcher_core PUBLIC include "${DSIG_GENERATED_INCLUDE_DIR}")
 target_link_libraries(dsigmatcher_core PUBLIC ${DSIG_SQLITE_TARGET} Threads::Threads Zydis)
@@ -176,10 +171,12 @@ function(dsig_apply_fp Target)
 endfunction()
 dsig_apply_fp(dsigmatcher_diff)
 
-# Product commands around the engine (plan §7.2): extract / ingest (L10), port --results (L11).
+# Product commands around the engine (plan §7.2): extract / ingest, port (in-process diff or
+# --results) and update (ingest + diff + port).
 add_library(dsigmatcher_cli STATIC
   src/cli/ExportBridge.cpp
-  src/cli/PortResults.cpp)
+  src/cli/PortResults.cpp
+  src/cli/Update.cpp)
 target_link_libraries(dsigmatcher_cli PUBLIC dsigmatcher_diff dsigmatcher_core)
 dsig_apply_warnings(dsigmatcher_cli)
 dsig_apply_fp(dsigmatcher_cli)
@@ -245,9 +242,9 @@ if(WIN32 AND DSIG_SQLITE_DLL)
   install(FILES "${DSIG_SQLITE_DLL}" DESTINATION bin COMPONENT dsigmatcher)
 endif()
 
-# Tests and the benchmark (BUILD_TESTING, the CTest convention; default ON). OFF builds only the tool and
-# its libraries, e.g. for packaging after the tests have run.
-option(BUILD_TESTING "Build the unit and parity test suites and the benchmark" ON)
+# Tests (BUILD_TESTING, the CTest convention; default ON). OFF builds only the tool and its libraries,
+# e.g. for packaging after the tests have run.
+option(BUILD_TESTING "Build the unit and parity test suites" ON)
 if(BUILD_TESTING)
 enable_testing()
 
@@ -266,10 +263,6 @@ endif()
 dsig_apply_warnings(dsig_sqlite_info)
 add_test(NAME sqlite_info COMMAND dsig_sqlite_info)
 
-add_executable(dsigmatcher_bench bench/dsigmatcher_bench.cpp)
-target_link_libraries(dsigmatcher_bench PRIVATE dsigmatcher_core)
-dsig_apply_warnings(dsigmatcher_bench)
-
 add_executable(dsigmatcher_disasm_tests tests/disassembler_tests.cpp)
 target_link_libraries(dsigmatcher_disasm_tests PRIVATE dsigmatcher_core)
 dsig_apply_warnings(dsigmatcher_disasm_tests)
@@ -286,11 +279,6 @@ if(DSIG_CORPUS_ROOT)
   target_compile_definitions(dsigmatcher_pe_tests PRIVATE
     DSIG_CORPUS_ROOT="${DSIG_CORPUS_ROOT}")
 endif()
-
-add_executable(dsigmatcher_resolve_tests tests/resolve_tests.cpp)
-target_link_libraries(dsigmatcher_resolve_tests PRIVATE dsigmatcher_core)
-dsig_apply_warnings(dsigmatcher_resolve_tests)
-add_test(NAME resolve COMMAND dsigmatcher_resolve_tests)
 
 add_executable(dsigmatcher_cfg_tests tests/cfg_tests.cpp)
 target_link_libraries(dsigmatcher_cfg_tests PRIVATE dsigmatcher_core)
@@ -333,6 +321,11 @@ dsig_add_suite(diff_related tests/diff/related_tests.cpp)
 dsig_add_suite(diff_parity tests/diff/parity_tests.cpp)
 dsig_add_suite(cli_export_bridge tests/cli/export_bridge_tests.cpp)
 dsig_add_suite(cli_port_results tests/cli/port_results_tests.cpp)
+dsig_add_suite(cli_update tests/cli/update_tests.cpp)
+# The command-line contract (exit codes, help, --json, argument parsing) runs the built executable.
+dsig_add_suite(cli_commands tests/cli/cli_commands_tests.cpp)
+target_compile_definitions(cli_commands PRIVATE DSIG_CLI_PATH="$<TARGET_FILE:dsigmatcher>")
+add_dependencies(cli_commands dsigmatcher)
 
 # Install layout and export-script discovery away from the source tree (lane F1): installs into a
 # fresh prefix under the system temp directory and runs the installed executable. No Python and no
