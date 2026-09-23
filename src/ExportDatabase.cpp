@@ -24,6 +24,7 @@ enum class Field : uint8_t {
   KghHash,
   MdIndex,
   Mnemonics,
+  ConstantsText,
   CleanAssembly,
   CleanPseudo,
   CleanMicrocode,
@@ -59,6 +60,7 @@ const WantedColumn Columns[] = {
   {"kgh_hash", Field::KghHash, true},
   {"md_index", Field::MdIndex, true},
   {"mnemonics", Field::Mnemonics, true},
+  {"constants", Field::ConstantsText, true},
   {"clean_assembly", Field::CleanAssembly, true},
   {"clean_pseudo", Field::CleanPseudo, true},
   {"clean_microcode", Field::CleanMicrocode, true},
@@ -246,6 +248,9 @@ LoadResult ExportDatabase::Load(const std::string& Path, FunctionTable& OutTable
         break;
       case Field::Mnemonics:
         OutTable.Mnemonics[Row] = OutTable.Pool.Append(ColumnText(Statement, Index));
+        break;
+      case Field::ConstantsText:
+        OutTable.Constants[Row] = OutTable.Pool.Append(ColumnText(Statement, Index));
         break;
       case Field::CleanAssembly:
         OutTable.CleanAssembly[Row] = OutTable.Pool.Append(ColumnText(Statement, Index));

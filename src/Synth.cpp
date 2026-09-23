@@ -65,6 +65,8 @@ struct SpecHashes {
   std::string BytesHash;
   std::string FunctionHash;
   std::string KghHash;
+  std::string MdIndex;
+  std::string Constants;
   std::string CleanAssembly;
   std::string CleanPseudo;
   std::string CleanMicrocode;
@@ -104,9 +106,12 @@ SpecHashes DeriveTexts(const Spec& Item, const SynthOptions& Options) {
   Texts.BytesHash = HexToken(Item.Body, 0xA5A5A5A5A5A5A5A5ull);
   Texts.FunctionHash = HexToken(Item.Body ^ 0x5F5F5F5F5F5F5F5Full, Item.Body);
   Texts.KghHash = HexToken(Item.Body, Item.Body ^ 0x1234567890ABCDEFull);
+  Texts.MdIndex = HexToken(Item.Body, 0x0E0E0E0E0E0E0E0Eull);
 
   const uint64_t Identity = Item.Kind == Kind::Ambiguous ? Item.GroupKey : Item.Body;
   const bool Scaled = Options.TextBytesPerInstruction > 0;
+
+  Texts.Constants = MakeListing(Identity ^ 0x5555555555555555ull, 4, 12);
 
   if (Scaled) {
     const size_t AssemblyBytes = Item.Instructions * Options.TextBytesPerInstruction;
@@ -145,7 +150,7 @@ void EmitRow(FunctionTable& Table, const Spec& Item, const SpecHashes& Texts, ui
   Table.CyclomaticComplexity[Row] = static_cast<int64_t>(Item.Nodes);
   Table.Indegree[Row] = 1;
   Table.Outdegree[Row] = 1;
-  Table.ConstantsCount[Row] = 0;
+  Table.ConstantsCount[Row] = static_cast<int64_t>(Item.Instructions / 4 + 2);
   Table.Loops[Row] = 0;
   Table.StronglyConnected[Row] = 1;
   Table.PseudocodeLines[Row] = static_cast<int64_t>(Item.PseudoLines);
@@ -160,8 +165,9 @@ void EmitRow(FunctionTable& Table, const Spec& Item, const SpecHashes& Texts, ui
   Table.BytesHash[Row] = Table.Pool.Append(Texts.BytesHash);
   Table.FunctionHash[Row] = Table.Pool.Append(Texts.FunctionHash);
   Table.KghHash[Row] = Table.Pool.Append(Texts.KghHash);
-  Table.MdIndex[Row] = Table.Pool.Append("1.0");
+  Table.MdIndex[Row] = Table.Pool.Append(Texts.MdIndex);
   Table.Mnemonics[Row] = Table.Pool.Append(Texts.Mnemonics);
+  Table.Constants[Row] = Table.Pool.Append(Texts.Constants);
   Table.CleanAssembly[Row] = Table.Pool.Append(Texts.CleanAssembly);
   Table.CleanPseudo[Row] = Table.Pool.Append(Texts.CleanPseudo);
   Table.CleanMicrocode[Row] = Table.Pool.Append(Texts.CleanMicrocode);

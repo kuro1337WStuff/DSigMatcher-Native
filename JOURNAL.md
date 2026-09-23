@@ -778,6 +778,73 @@ Separately caught during test authoring: `std::string("5" "121" "343")` is C++ a
 concatenation, producing `"5121343"` — not the intended `5 * 121 * 343 = 207515`. The assertion was
 wrong before the code was. Worth remembering that concatenated string literals compile silently.
 
+### Four Partial heuristics: 8 of 46 becomes 12
+
+Added `Same KOKA hash and MD-Index`, `Same constants`, `Same rare KOKA hash` and `Same rare MD Index`,
+transcribed from `diaphora_heuristics.py` rather than reconstructed from memory. `MatchCategory` is now
+carried per heuristic in the definition table instead of being hardcoded to `Best`, and the
+`functions.constants` text column is ingested.
+
+Three details that re-reading the source caught, each of which would have produced plausible but wrong
+behaviour:
+
+1. **Rarity is per-database, not combined.** The CTE is `count(*) <= 2` within `diff.functions`
+   `UNION` `count(*) <= 2` within `main.functions`. A value appearing 5 times in one database and once
+   in the other **is** rare. A combined count across both would give 6 and exclude it. Implemented as
+   `rareInReference || rareInTarget`.
+2. **The node thresholds apply to the reference side only** — `f.nodes > 5` and `f.nodes > 10`, with no
+   corresponding `df.nodes` condition. A symmetric reading would silently drop valid matches.
+3. **`kgh_hash != 0` and `md_index != 0` are effectively no-ops in SQLite.** Both columns are TEXT, and
+   SQLite's type ordering places every INTEGER before every TEXT, so a TEXT value is never equal to the
+   integer `0` and the inequality is always true (for non-NULL). I implemented the evident *intent* —
+   skip empty and the literal string `"0"` — rather than the accidental behaviour, because for
+   `kgh_hash` the distinction cannot arise anyway (it is a product of primes, so at minimum `"1"`).
+   **This is a deliberate divergence, recorded here, and unverified against a real export.**
+
+Not replicated, and flagged rather than papered over: Diaphora's `ORDER BY f.source_file =
+df.source_file` feeds its graded ratio assignment, and `HEUR_TYPE_RATIO_MAX` heuristics carry a `min`
+threshold (`0.5`, `0.45`, `0.2`). This implementation uses a binary unique-or-ambiguous ratio of 1.0 or
+0.5, so those minimums would never bind. Adding the parameters now would be dead code. The graded
+similarity function (`compare_function_rows`) is a named follow-up; until it exists, `Partial` matches
+are coarser than Diaphora's.
+
+Measured impact at 19,000 functions per side, realistic text scale, 12 heuristics:
+
+| Heuristic | ms | Raw matches |
+|---|---|---|
+| Same cleaned microcode | 49.44 | 27,992 |
+| Same cleaned assembly | 48.97 | 26,577 |
+| Same cleaned pseudo-code | 38.24 | 26,359 |
+| Same rare KOKA hash | 13.50 | 6,954 |
+| Same rare MD Index | 11.27 | 1,924 |
+| Same KOKA hash and MD-Index | 7.17 | 9,022 |
+| Same constants | 7.07 | 22,992 |
+| Same RVA and hash | 6.36 | 10,012 |
+| Same order and hash | 4.82 | 11,000 |
+| Function Hash | 4.88 | 11,000 |
+| Bytes hash | 3.86 | 11,000 |
+| Same address and mnemonics | 3.34 | 4,410 |
+| **sum** | **198.92** | 171,307 |
+
+Two things worth carrying forward:
+
+- **The three text-keyed heuristics are 136.65 ms of 198.92 — 69% of total heuristic time.** That is a
+  direct measurement of where fusion and integer-key precomputation should be aimed, and it is why the
+  four new heuristics are comparatively cheap: their keys are 32 hex characters or ~52 bytes, not
+  kilobytes.
+- `sum of heuristics` (198.92 ms) now essentially equals `serial wall` (196.32 ms), where the wave
+  scheduler previously showed a 55 ms gap. The persistent pool removed the scheduler overhead.
+
+Precision 0.9322 and recall 0.9322 are unchanged from the 8-heuristic configuration, and the resolved
+count is still exactly 18,000. The new heuristics add raw candidates without changing outcomes on this
+corpus, which is expected: on synthetic data the exact-hash tier already resolves everything the
+`Partial` tier can. **They will only earn their keep on real binaries where recompilation breaks the
+exact hashes** — so this is not yet evidence about their value, only about their correctness and cost.
+
+The heuristic count rising from 8 to 12 also raises the heuristic-level parallelism ceiling by half.
+The earlier conclusion that scaling is capped by heuristic count predicts better thread scaling now;
+that has not been re-measured.
+
 ### Not yet done
 
 - 38 remaining heuristics (`Partial`, `Unreliable` categories)
