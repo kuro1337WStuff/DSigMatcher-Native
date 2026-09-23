@@ -18,6 +18,8 @@ struct SynthOptions {
   size_t AmbiguousGroupSize = 6;
   size_t MinInstructions = 6;
   size_t MaxInstructions = 80;
+  size_t TextBytesPerInstruction = 29;
+  size_t PseudoBytesPerLine = 41;
   uint64_t Seed = 0x9E3779B97F4A7C15ull;
 };
 

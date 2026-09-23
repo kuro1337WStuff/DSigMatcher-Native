@@ -71,14 +71,53 @@ struct SpecHashes {
   std::string Mnemonics;
 };
 
-SpecHashes DeriveTexts(const Spec& Item) {
+std::string MakeListing(uint64_t Seed, size_t Lines, size_t BytesPerLine) {
+  SplitMix64 Rng(Seed);
+  std::string Result;
+  Result.reserve(Lines * (BytesPerLine + 1));
+
+  for (size_t Line = 0; Line < Lines; ++Line) {
+    size_t Filled = 0;
+    while (Filled + 16 <= BytesPerLine) {
+      char Buffer[17];
+      std::snprintf(Buffer, sizeof(Buffer), "%016llx",
+                    static_cast<unsigned long long>(Rng.Next()));
+      Result.append(Buffer, 16);
+      Filled += 16;
+    }
+    while (Filled < BytesPerLine) {
+      char Buffer[3];
+      std::snprintf(Buffer, sizeof(Buffer), "%02x",
+                    static_cast<unsigned>(Rng.Next() & 0xFFull));
+      Result.append(Buffer, 2);
+      Filled += 2;
+    }
+    Result.push_back('\n');
+  }
+
+  return Result;
+}
+
+SpecHashes DeriveTexts(const Spec& Item, const SynthOptions& Options) {
   SpecHashes Texts;
 
   Texts.BytesHash = HexToken(Item.Body, 0xA5A5A5A5A5A5A5A5ull);
   Texts.FunctionHash = HexToken(Item.Body ^ 0x5F5F5F5F5F5F5F5Full, Item.Body);
   Texts.KghHash = HexToken(Item.Body, Item.Body ^ 0x1234567890ABCDEFull);
 
-  if (Item.Kind == Kind::Ambiguous) {
+  const uint64_t Identity = Item.Kind == Kind::Ambiguous ? Item.GroupKey : Item.Body;
+  const bool Scaled = Options.TextBytesPerInstruction > 0;
+
+  if (Scaled) {
+    const size_t AssemblyBytes = Item.Instructions * Options.TextBytesPerInstruction;
+    Texts.CleanAssembly = MakeListing(Identity ^ 0x1111111111111111ull, Item.Instructions,
+                                      Options.TextBytesPerInstruction);
+    Texts.CleanMicrocode = MakeListing(Identity ^ 0x2222222222222222ull, Item.Instructions,
+                                       Options.TextBytesPerInstruction);
+    Texts.CleanPseudo =
+        MakeListing(Identity ^ 0x3333333333333333ull, Item.PseudoLines, Options.PseudoBytesPerLine);
+    Texts.Mnemonics = MakeListing(Identity ^ 0x4444444444444444ull, 1, AssemblyBytes / 4 + 8);
+  } else if (Item.Kind == Kind::Ambiguous) {
     Texts.CleanAssembly = "asm-group-" + HexToken(Item.GroupKey, 4);
     Texts.CleanMicrocode = "micro-group-" + HexToken(Item.GroupKey, 5);
     Texts.CleanPseudo = "pseudo-group-" + HexToken(Item.GroupKey, 6);
@@ -170,11 +209,22 @@ SynthPair MakeSyntheticPair(const SynthOptions& Options) {
       Spec Item;
       Item.Kind = ItemKind;
       Item.Body = Random.Next();
-      Item.GroupKey = static_cast<uint64_t>(Specs.size() / GroupSize) * 0x100000001ull;
-      Item.Instructions = Random.Range(Options.MinInstructions, Options.MaxInstructions);
-      Item.Nodes = Random.Range(2, 12);
-      Item.PseudoLines =
-          ItemKind == Kind::Ambiguous ? Random.Range(8, 40) : Random.Range(2, 40);
+
+      const size_t GroupIndex = Specs.size() / GroupSize;
+      Item.GroupKey = static_cast<uint64_t>(GroupIndex) * 0x100000001ull;
+
+      if (ItemKind == Kind::Ambiguous) {
+        SplitMix64 GroupRandom(
+            Options.Seed ^ (static_cast<uint64_t>(GroupIndex) * 0xD6E8FEB86659FD93ull));
+        Item.Instructions = GroupRandom.Range(Options.MinInstructions, Options.MaxInstructions);
+        Item.Nodes = GroupRandom.Range(3, 12);
+        Item.PseudoLines = GroupRandom.Range(8, 40);
+      } else {
+        Item.Instructions = Random.Range(Options.MinInstructions, Options.MaxInstructions);
+        Item.Nodes = Random.Range(2, 12);
+        Item.PseudoLines = Random.Range(2, 40);
+      }
+
       Item.StableAddress = Random.Below(100) < Options.StableAddressPercent;
 
       const size_t Slot = Specs.size();
@@ -199,13 +249,13 @@ SynthPair MakeSyntheticPair(const SynthOptions& Options) {
     Prepared Entry;
     Entry.Item = Base;
     Entry.Id = NextId++;
-    Entry.ReferenceTexts = DeriveTexts(Entry.Item);
+    Entry.ReferenceTexts = DeriveTexts(Entry.Item, Options);
     Entry.TargetTexts = Entry.ReferenceTexts;
 
     if (Entry.Item.Kind == Kind::Recompiled || Entry.Item.Kind == Kind::Ambiguous) {
       Spec Mutated = Entry.Item;
       Mutated.Body ^= 0xDEADBEEFCAFEBABEull;
-      SpecHashes MutatedTexts = DeriveTexts(Mutated);
+      SpecHashes MutatedTexts = DeriveTexts(Mutated, Options);
 
       MutatedTexts.CleanAssembly = Entry.ReferenceTexts.CleanAssembly;
       MutatedTexts.CleanMicrocode = Entry.ReferenceTexts.CleanMicrocode;

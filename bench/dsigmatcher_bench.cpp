@@ -85,6 +85,7 @@ int main(int Argc, char** Argv) {
   uint64_t Seed = 0x9E3779B97F4A7C15ull;
   int Repetitions = 3;
   std::string ThreadListText = "1,2,4,8,16";
+  bool LegacyText = false;
 
   for (int Index = 1; Index < Argc; ++Index) {
     const std::string Argument = Argv[Index];
@@ -98,8 +99,11 @@ int main(int Argc, char** Argv) {
       Repetitions = std::atoi(Argv[++Index]);
     } else if ((Argument == "-t" || Argument == "--threads") && HasValue) {
       ThreadListText = Argv[++Index];
+    } else if (Argument == "--legacy-text") {
+      LegacyText = true;
     } else {
-      std::printf("usage: dsigmatcher_bench [-n functions] [-s seed] [-r repeats] [-t threadlist]\n");
+      std::printf("usage: dsigmatcher_bench [-n functions] [-s seed] [-r repeats] [-t threadlist] "
+                  "[--legacy-text]\n");
       return 1;
     }
   }
@@ -114,12 +118,17 @@ int main(int Argc, char** Argv) {
   SynthOptions Options;
   Options.FunctionCount = FunctionCount;
   Options.Seed = Seed;
+  if (LegacyText) {
+    Options.TextBytesPerInstruction = 0;
+  }
 
   const auto GenerationStart = Clock::now();
   const SynthPair Pair = MakeSyntheticPair(Options);
   const double GenerationMs = MillisecondsSince(GenerationStart);
 
   std::printf("dsigmatcher benchmark\n");
+  std::printf("  text scale     : %s\n",
+              LegacyText ? "legacy short tokens (~36 B)" : "realistic listing (KB scale)");
   std::printf("  hardware threads : %u\n", HardwareThreads);
   std::printf("  functions        : %zu per side (seed %llu)\n", Pair.Reference.Count(),
               static_cast<unsigned long long>(Seed));
