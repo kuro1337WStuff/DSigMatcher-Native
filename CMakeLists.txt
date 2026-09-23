@@ -36,9 +36,14 @@ FetchContent_Declare(zydis
   GIT_REPOSITORY https://github.com/zyantific/zydis.git
   GIT_TAG v4.1.1)
 
+# Zydis and Zycore bring their own install() rules (static libraries, headers, CMake packages). They
+# are grouped into their own install component, so `cmake --install <build> --component dsigmatcher`
+# installs only the tool (see the install rules below).
+set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME dsig_third_party)
 FetchContent_MakeAvailable(zycore)
 set(ZYAN_ZYCORE_PATH "${zycore_SOURCE_DIR}" CACHE PATH "" FORCE)
 FetchContent_MakeAvailable(zydis)
+unset(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME)
 
 function(dsig_apply_warnings Target)
   if(MSVC)
@@ -158,6 +163,28 @@ if(WIN32)
   endif()
 endif()
 
+# The export bridge's script (plan §7.1 D7). src/cli/ExportBridge.cpp FindExportScript looks for it
+# beside the executable, then in <prefix>/share/dsigmatcher/tools/export/, then in tools/export/ of an
+# ancestor directory; the last only works for a build directory inside the source tree. So the script
+# is copied next to the built executable (any build directory works), and installed with it. Editing
+# the script re-runs the copy: it is a link dependency of the executable (Makefile and Ninja
+# generators; other generators copy it whenever the executable is rebuilt).
+set(DSIG_EXPORT_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/tools/export/dsig_export.py")
+add_custom_command(TARGET dsigmatcher POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different "${DSIG_EXPORT_SCRIPT}" "$<TARGET_FILE_DIR:dsigmatcher>"
+  VERBATIM)
+set_property(TARGET dsigmatcher APPEND PROPERTY LINK_DEPENDS "${DSIG_EXPORT_SCRIPT}")
+
+# `cmake --install <build> --prefix <prefix> [--component dsigmatcher]`: <prefix>/bin/dsigmatcher and
+# <prefix>/share/dsigmatcher/tools/export/dsig_export.py, the two places FindExportScript pairs
+# (literal paths, not GNUInstallDirs variables, because the bridge searches exactly these). On Windows
+# the staged sqlite3.dll goes beside the executable as well.
+install(TARGETS dsigmatcher RUNTIME DESTINATION bin COMPONENT dsigmatcher)
+install(FILES "${DSIG_EXPORT_SCRIPT}" DESTINATION share/dsigmatcher/tools/export COMPONENT dsigmatcher)
+if(WIN32 AND DSIG_SQLITE_DLL)
+  install(FILES "${DSIG_SQLITE_DLL}" DESTINATION bin COMPONENT dsigmatcher)
+endif()
+
 enable_testing()
 
 add_executable(dsigmatcher_tests tests/dsigmatcher_tests.cpp)
@@ -228,3 +255,15 @@ dsig_add_suite(diff_related tests/diff/related_tests.cpp)
 dsig_add_suite(diff_parity tests/diff/parity_tests.cpp)
 dsig_add_suite(cli_export_bridge tests/cli/export_bridge_tests.cpp)
 dsig_add_suite(cli_port_results tests/cli/port_results_tests.cpp)
+
+# Install layout and export-script discovery away from the source tree (lane F1): installs into a
+# fresh prefix under the system temp directory and runs the installed executable. No Python and no
+# IDA are needed: the run stops at tool discovery, which reports every missing tool at once.
+add_test(NAME cli_install_layout
+  COMMAND ${CMAKE_COMMAND}
+    -DBUILD_DIR=${CMAKE_BINARY_DIR}
+    -DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}
+    -DCONFIG=$<CONFIG>
+    -DEXE_NAME=$<TARGET_FILE_NAME:dsigmatcher>
+    -DBUILT_EXE=$<TARGET_FILE:dsigmatcher>
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/cli/install_layout_test.cmake)
