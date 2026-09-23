@@ -845,6 +845,186 @@ The heuristic count rising from 8 to 12 also raises the heuristic-level parallel
 The earlier conclusion that scaling is capped by heuristic count predicts better thread scaling now;
 that has not been re-measured.
 
+### Diaphora signature fields: source-verified extraction
+
+A research pass over `diaphora_ida.py`, `diaphora.py`, `jkutils/` and the local IDA 9.2 Python bindings
+established exactly how each signature field is computed. These are the rules the native exporter must
+reproduce, and several are counter-intuitive enough that implementing from assumption would fail
+silently.
+
+**1. The operand-truncation normalization is dead code.** `get_decoded_instruction`
+(`diaphora_ida.py:2596-2605`) subtracts `ins.ops[0].offb` and `ins.ops[1].offb` from the decoded length
+for `o_mem/o_imm/o_far/o_near/o_displ` operands — clearly intended to strip relocated operand bytes so
+a moved function still hashes identically. But `process_basic_block` binds `decoded_size` at line 2828
+and **never reads it again**; only `ins` is forwarded. `process_instruction` then recomputes at line
+2729:
+
+```python
+decoded_size = ins[1] if isinstance(ins, tuple) else ins.size
+```
+
+`ins` is an `insn_t`, never a tuple, so this is always `ins.size` — the raw decode length. The tuple
+branch is a vestige of an older call convention. **Consequence: `bytes_hash` is relocation-sensitive,
+not relocation-invariant.** Implementing the truncation because it looks live would make every
+`bytes_hash` differ from a real Diaphora export.
+
+This connects directly to the win32u measurement: 76% of functions changed address between those two
+builds, and RIP-relative operands encode a delta, so their bytes change too. Exact-hash heuristics will
+miss most moved functions on a real corpus. That is *why* the text and structural heuristics carry the
+load, and it is a property of Diaphora itself, not of this port.
+
+**2. `curr_bytes` versus `function_hash_bytes` differ only in length source.**
+`curr_bytes = get_bytes(ea, ins.size)`; `function_hash_bytes = get_bytes(ea, get_item_size(ea))`. For an
+ordinary code head these are identical. They diverge when the head is not a plain instruction —
+`Heads()` yields data items interleaved with code, and for those `decode_insn` gives 0 or garbage while
+`get_item_size` gives the real item size. Note the asymmetric guard: only `curr_bytes` is
+length-checked (line 2731); a short or `None` read for `function_hash_bytes` would propagate into the
+`b"".join(...)` at line 2978.
+
+**3. `FlowChart` block order is the one blocking unknown.** Both hashes concatenate per-instruction
+bytes in `FlowChart(func)` iteration order, not address order. Block 0 is the entry block; the rest
+follow `qflow_chart_t`'s internal index order, which is native IDA C++ and **not visible in the Python
+bindings**. Within a block, order is ascending (`Heads(start, end)`). A native implementation walking
+blocks in address order will diverge on any function whose flow-chart order is not address order.
+**This must be pinned empirically against a real export before byte-exactness can be claimed.**
+
+**4. `md_index` is 28-digit decimal, not floating point.**
+
+```python
+rt2, rt3, rt5, rt7 = (decimal.Decimal(p).sqrt() for p in (2, 3, 5, 7))
+emb_tuples = (sum((z0, z1*rt2, z2*rt3, z3*rt5, z4*rt7)) for z0,z1,z2,z3,z4 in tuples)
+md_index = sum((1 / emb_t.sqrt() for emb_t in emb_tuples))
+md_index = str(md_index)
+```
+
+Per edge a 5-vector `(scc_ordinal, src_in, src_out, dst_in, dst_out)` is embedded with √2, √3, √5, √7
+weights, then `md_index = Σ 1/√embedding`. Everything is `decimal.Decimal` under **Python's default
+context: 28 significant digits, `ROUND_HALF_EVEN`**. There is no `setcontext` anywhere in the
+checkout. Computing in `double` and formatting will not reproduce it — intermediate rounding at every
+`sqrt`, multiply, divide and the final `sum` all matter. `str(Decimal)` can emit scientific notation.
+
+Degenerate cases are **inconsistently typed**: a falsy `bb_topological` returns the *integer* `0`
+(never `str()`-ed, so SQLite INTEGER), while a truthy one with no edges returns `sum(())` → `str(0)` →
+the *string* `"0"` (TEXT). Same column, two storage classes, depending on the path taken.
+
+**5. Cyclomatic complexity double-counts edges.** `cc = data['edges'] - data['nodes'] + 2`, but
+`edges` is incremented once per successor edge (line 2895) *and* once per predecessor edge (line 2921).
+In IDA 9.x both `succs()` and `preds()` are always populated (`FC_PREDS = 0`), so `edges ≈ 2E` and
+`cc ≈ 2E − N + 2`. Not the textbook formula. `primes_value = str(primes[cc])`, or the **integer** `0`
+via a bare `except` when `cc` is out of range.
+
+**6. `indegree` and `outdegree` are semantically backwards — reproduce as written.** Stored `outdegree`
+is (non-flow code refs over all instructions) + (predecessor-block edge count). Stored `indegree` is
+seeded from `len(list(CodeRefsTo(f, 1)))` then incremented once per *successor* edge. The comment in
+the source does not flag this; it is simply what the code does.
+
+**7. Two different prime tables, easy to conflate.**
+
+| Used by | Table | Size | Index basis |
+|---|---|---|---|
+| `mnemonics_spp`, `primes_value`, `strongly_connected_spp`, `microcode_spp`, `callgraph_primes` | `primesbelow(2048*2048)` | **295,947** primes, last `[4194277, 4194287, 4194301]` | position in `sorted(GetInstructionList())`, or SCC size, or `cc` |
+| `pseudocode_primes` | `primesbelow(4096)` | **564** primes, last `[4079, 4091, 4093]` | Hex-Rays ctree opcode **enum value**, not a name position |
+
+`mnemonics_spp` is the most version-fragile field in the schema: the index is a position in the
+*sorted* processor-module instruction name table, so IDA adding one instruction alphabetically early
+shifts every subsequent prime and changes every `mnemonics_spp` in the database. Unknown mnemonics
+contribute a factor of 1 **silently** in the assembly path (the microcode path logs a warning).
+
+**8. Integer-to-SQLite typing depends on magnitude.** `diaphora.py:719-727`:
+
+```python
+if isinstance(prop, int) and (prop > 0xFFFFFFFF or prop < -0xFFFFFFFF):
+    prop = str(prop)
+```
+
+So `mnemonics_spp`, `strongly_connected_spp` and `bytes_sum` are stored as **TEXT decimal strings when
+large and as SQLite INTEGER when small** — same column, two storage classes. `mnemonics_spp` exceeds 32
+bits after a handful of instructions so it is TEXT in practice, but `strongly_connected_spp` (1 for
+most acyclic functions) and `bytes_sum` for tiny functions are INTEGER. A reader that assumes one type
+will silently mis-parse. Note `callgraph_primes` is a `Decimal` *product*, so unlike the exact bignum
+`kgh_hash` it is **rounded at 28 digits** after only a few functions.
+
+**9. `constants` is a JSON array with specific formatting.** `json.dumps(list, ensure_ascii=False)`
+with **default separators** — `", "` between elements. Integers in base 10 via Python `repr`. Order is
+extraction order (flow-chart block order, then ascending address, then operand order), **not sorted**.
+Strings are deduplicated; **integers are not**. `constants_count` is `len()` of the unfiltered list.
+
+Extraction rules: `o_imm` → `operand.value` gated by both `is_constant` (value not in
+`DataRefsFrom(ea)`) and `constant_filter`; `o_displ` → `operand.addr` gated by `constant_filter`
+**only**. `constant_filter` rejects values `< 0x1000`, rejects the four sign-extension masks
+(`0xFFFFFF00`, `0xFFFF00`, `0xFFFFFFFFFFFFFF00`, `0xFFFFFFFFFFFF00`), and rejects every single-bit
+value across 64 bits. Strings come from `DataRefsFrom` targets outside any function via
+`get_strlit_contents(ea,-1,-1)`, decoded UTF-8 with `backslashreplace`.
+
+Two quirks: the `drefs` string block sits **inside** the `for operand in ins.ops` loop, so it runs once
+per operand rather than once per instruction — invisible only because strings are deduplicated. And the
+separate `constants` **table** drops strings of 4 characters or fewer (`diaphora.py:990`) while the JSON
+column retains them, so the two representations of "the constants of this function" genuinely differ.
+
+**10. `mnem` is verbatim `print_insn_mnem`** — no `.lower()`, no `.strip()`, casing is whatever the
+processor module emits. `GetDisasm` output (colour tags, comment style, operand digit formatting) is
+IDA-version and options dependent and feeds `assembly`/`clean_assembly`.
+
+**11. Microcode is off by default on large databases.** `export_microcode` defaults to
+`total_functions <= MIN_FUNCTIONS_TO_CONSIDER_MEDIUM` where that constant is **8001**, so any database
+larger than 8001 functions exports `microcode_spp = 1` and no microcode text. This matters for the
+win32u corpus (~1500 functions, so microcode would be on) versus anything larger.
+
+**No config flag alters** `bytes_hash`, `function_hash`, `bytes_sum`, `md_index`, `constants`,
+`primes_value` or `mnemonics_spp`. The only `IDA_SDK_VERSION` guard in the exporter selects PySide6
+versus PyQt5 and does not affect hashing.
+
+### What this means for the native exporter
+
+Byte-exact agreement with a real Diaphora export is **not yet achievable**, for one concrete reason:
+the `FlowChart` block ordering is native IDA C++ and was not determined. Everything else above is
+specified precisely enough to implement. The plan is therefore:
+
+1. Implement the prime tables, `bytes_sum`, `mnemonics_spp`, `primes_value`, `strongly_connected_spp`,
+   `constants` extraction and JSON serialization, and the `md_index` decimal arithmetic — all fully
+   specified.
+2. Implement `bytes_hash`/`function_hash` with block traversal order as an **explicit, named
+   assumption** rather than a hidden one, defaulting to address order.
+3. Pin the ordering empirically the first time a real Diaphora export is available, by comparing
+   per-function hashes and, where they differ, testing whether a flow-chart order hypothesis explains
+   the divergence.
+
+`md_index` additionally depends on `others/tarjan_sort.py` for the SCC *ordinal* assignment that feeds
+`z0`; that module was identified but not read. If `md_index` diverges while everything else matches,
+that is the place to look.
+
+### Prime tables implemented and oracle-verified
+
+`PrimeTable` (`include/dsigmatcher/PrimeTable.h`, `src/PrimeTable.cpp`) reproduces
+`jkutils/factor.py:primesbelow(N)` — a sieve returning primes `2 <= p < N` ascending — for both limits
+Diaphora uses, as lazily-initialised singletons (`Main()` = 4194304, `Pseudocode()` = 4096).
+
+Expected values were taken from **Diaphora's own `primesbelow`** via `tools/prime_vectors.py`, not from
+a reimplementation, so the oracle is the reference code itself. It confirmed the research report's
+figures exactly: 564 primes below 4096, 295,947 below 4194304, last three `[4079, 4091, 4093]` and
+`[4194277, 4194287, 4194301]`.
+
+Verification is layered rather than spot-check only:
+
+- Oracle probes at indices 0-7, 10, 47, 100, 1000, 10000, 100000 and the last three, for both tables.
+- **Exhaustive** trial-division cross-check of the 4096 table: every integer below 4096 is tested for
+  primality and compared against the table position by position, catching both composites admitted and
+  primes omitted.
+- For the 4194304 table (too large for exhaustive checking in a unit test), 512 sampled entries are
+  trial-divided for primality, and every integer *between* each sampled adjacent pair is checked to be
+  composite — which catches skipped primes, the failure mode a pure spot-check misses.
+- Out-of-range `At()` returns 0 rather than reading past the end, and the prefix of `Main` is asserted
+  equal to all of `Pseudocode`.
+
+Unit suite now **290 checks, 0 failed**.
+
+Not yet built on top of these tables: `mnemonics_spp`, `primes_value`, `strongly_connected_spp` and
+`microcode_spp`. Each needs inputs the native exporter does not yet produce — the processor module's
+sorted instruction-name list for the first, the double-counted edge total for the second, SCC sizes for
+the third, and Hex-Rays microcode for the fourth. `microcode_spp` in particular may be unreachable
+natively at all, since it indexes `dir(ida_hexrays)` names; that is an open scope question rather than
+an implementation task.
+
 ### Not yet done
 
 - 38 remaining heuristics (`Partial`, `Unreliable` categories)

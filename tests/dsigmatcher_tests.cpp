@@ -12,6 +12,7 @@
 #include "dsigmatcher/MatchStore.h"
 #include "dsigmatcher/Md5.h"
 #include "dsigmatcher/Naming.h"
+#include "dsigmatcher/PrimeTable.h"
 #include "dsigmatcher/Provenance.h"
 #include "dsigmatcher/Sha256.h"
 #include "dsigmatcher/Synth.h"
@@ -459,6 +460,113 @@ void TestKghAccumulatorSemantics() {
   CHECK_EQ(InstructionFeatures.Exponent(KghFeatureCallRef), static_cast<uint64_t>(6));
 }
 
+bool IsPrimeByTrialDivision(uint64_t Value) {
+  if (Value < 2) {
+    return false;
+  }
+  if (Value % 2 == 0) {
+    return Value == 2;
+  }
+  for (uint64_t Divisor = 3; Divisor * Divisor <= Value; Divisor += 2) {
+    if (Value % Divisor == 0) {
+      return false;
+    }
+  }
+  return true;
+}
+
+void TestPrimeTables() {
+  Suite("Prime tables vs Diaphora primesbelow oracle");
+
+  const PrimeTable& Pseudo = PrimeTable::Pseudocode();
+  CHECK_EQ(Pseudo.Limit(), static_cast<uint32_t>(4096));
+  CHECK_EQ(Pseudo.Count(), static_cast<size_t>(564));
+
+  const uint32_t ExpectedHead[] = {2, 3, 5, 7, 11, 13, 17, 19};
+  for (size_t Index = 0; Index < 8; ++Index) {
+    CHECK_EQ(Pseudo.At(Index), ExpectedHead[Index]);
+  }
+  CHECK_EQ(Pseudo.At(10), static_cast<uint32_t>(31));
+  CHECK_EQ(Pseudo.At(47), static_cast<uint32_t>(223));
+  CHECK_EQ(Pseudo.At(100), static_cast<uint32_t>(547));
+  CHECK_EQ(Pseudo.At(561), static_cast<uint32_t>(4079));
+  CHECK_EQ(Pseudo.At(562), static_cast<uint32_t>(4091));
+  CHECK_EQ(Pseudo.At(563), static_cast<uint32_t>(4093));
+
+  CHECK(!Pseudo.InRange(564));
+  CHECK_EQ(Pseudo.At(564), static_cast<uint32_t>(0));
+  CHECK(Pseudo.At(563) < Pseudo.Limit());
+
+  size_t ExhaustivePrimes = 0;
+  size_t Position = 0;
+  bool ExhaustiveOk = true;
+  for (uint32_t Value = 2; Value < 4096; ++Value) {
+    if (!IsPrimeByTrialDivision(Value)) {
+      if (Position < Pseudo.Count() && Pseudo.At(Position) == Value) {
+        ExhaustiveOk = false;
+      }
+      continue;
+    }
+    ++ExhaustivePrimes;
+    if (Position >= Pseudo.Count() || Pseudo.At(Position) != Value) {
+      ExhaustiveOk = false;
+    }
+    ++Position;
+  }
+  CHECK_EQ(ExhaustivePrimes, Pseudo.Count());
+  CHECK_EQ(Position, Pseudo.Count());
+  CHECK(ExhaustiveOk);
+  std::printf("  pseudocode table   : %zu primes, exhaustively verified below 4096\n",
+              ExhaustivePrimes);
+
+  const PrimeTable& Main = PrimeTable::Main();
+  CHECK_EQ(Main.Limit(), static_cast<uint32_t>(2048u * 2048u));
+  CHECK_EQ(Main.Count(), static_cast<size_t>(295947));
+
+  for (size_t Index = 0; Index < 8; ++Index) {
+    CHECK_EQ(Main.At(Index), ExpectedHead[Index]);
+  }
+  CHECK_EQ(Main.At(10), static_cast<uint32_t>(31));
+  CHECK_EQ(Main.At(47), static_cast<uint32_t>(223));
+  CHECK_EQ(Main.At(100), static_cast<uint32_t>(547));
+  CHECK_EQ(Main.At(1000), static_cast<uint32_t>(7927));
+  CHECK_EQ(Main.At(10000), static_cast<uint32_t>(104743));
+  CHECK_EQ(Main.At(100000), static_cast<uint32_t>(1299721));
+  CHECK_EQ(Main.At(295944), static_cast<uint32_t>(4194277));
+  CHECK_EQ(Main.At(295945), static_cast<uint32_t>(4194287));
+  CHECK_EQ(Main.At(295946), static_cast<uint32_t>(4194301));
+  CHECK(!Main.InRange(295947));
+  CHECK(Main.At(295946) < Main.Limit());
+
+  bool SampledPrimality = true;
+  bool SampledGaps = true;
+  const size_t Stride = Main.Count() / 512 + 1;
+  for (size_t Index = 0; Index < Main.Count(); Index += Stride) {
+    if (!IsPrimeByTrialDivision(Main.At(Index))) {
+      SampledPrimality = false;
+    }
+    if (Index + 1 < Main.Count()) {
+      for (uint32_t Between = Main.At(Index) + 1; Between < Main.At(Index + 1); ++Between) {
+        if (IsPrimeByTrialDivision(Between)) {
+          SampledGaps = false;
+          break;
+        }
+      }
+    }
+  }
+  CHECK(SampledPrimality);
+  CHECK(SampledGaps);
+
+  bool PrefixAgrees = true;
+  for (size_t Index = 0; Index < Pseudo.Count(); ++Index) {
+    if (Main.At(Index) != Pseudo.At(Index)) {
+      PrefixAgrees = false;
+      break;
+    }
+  }
+  CHECK(PrefixAgrees);
+}
+
 void TestStringPool() {
   Suite("StringPool");
 
@@ -827,6 +935,7 @@ int main() {
   TestBigUIntBasics();
   TestKghAgainstPythonOracle();
   TestKghAccumulatorSemantics();
+  TestPrimeTables();
   TestStringPool();
   TestNaming();
   TestMatchStore();
