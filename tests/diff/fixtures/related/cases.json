@@ -1,0 +1,2791 @@
+{
+ "generator": "tests/diff/fixtures/related/generate.py",
+ "diaphora": "3.4.2-4-g621ec26",
+ "python": "3.13.12",
+ "sqlite_version": "3.51.1",
+ "cases": [
+  {
+   "name": "related_matches",
+   "scenario": "related",
+   "stage": "find_related_matches",
+   "iteration": 0,
+   "forced_const_order": "main_first_appearance",
+   "before": {
+    "schema": "dsig-parity-snapshot/1",
+    "producer": "diaphora",
+    "pair": "fixture",
+    "seq": 0,
+    "point": "before:find_related_matches:0",
+    "iteration": 0,
+    "flags": {
+     "is_same_processor": true,
+     "is_patch_diff": false,
+     "is_symbols_stripped": false,
+     "hooks_loaded": false,
+     "total_functions1": 23,
+     "total_functions2": 23
+    },
+    "all_matches": {
+     "best": [
+      [
+       "20100",
+       "alpha",
+       "30100",
+       "alpha",
+       "Perfect match, same name",
+       "3ff0000000000000",
+       10,
+       10
+      ],
+      [
+       "20300",
+       "sub_20300",
+       "30300",
+       "sub_30300",
+       "Loop count",
+       "3fe8000000000000",
+       10,
+       10
+      ],
+      [
+       "21000",
+       "abs_probe",
+       "31100",
+       "abs_probe",
+       "Perfect match, same name",
+       "3ff0000000000000",
+       10,
+       10
+      ],
+      [
+       "99999",
+       null,
+       "30200",
+       "sub_30200",
+       "Synthetic None name",
+       "3ff0000000000000",
+       10,
+       10
+      ]
+     ],
+     "partial": [
+      [
+       "20400",
+       "gamma",
+       "30400",
+       "gamma2",
+       "Bytes hash",
+       "3feccccccccccccd",
+       10,
+       10
+      ],
+      [
+       "20800",
+       "zeta",
+       "30800",
+       "zeta",
+       "Same name",
+       "3fec28f5c28f5c29",
+       10,
+       10
+      ],
+      [
+       "20500",
+       "delta",
+       "30500",
+       "delta",
+       "Same name",
+       "3feb333333333333",
+       10,
+       10
+      ],
+      [
+       "20200",
+       "sub_20200",
+       "39999",
+       "sub_missing",
+       "Mnemonics",
+       "3feae147ae147ae1",
+       10,
+       10
+      ],
+      [
+       "20700",
+       "epsilon",
+       "30700",
+       "epsilon",
+       "Same name",
+       "3fe6666666666666",
+       10,
+       10
+      ],
+      [
+       "20900",
+       "sub_20900",
+       "30900",
+       "sub_30900",
+       "Mnemonics",
+       "3fea8f5c28f5c28f",
+       10,
+       10
+      ]
+     ],
+     "unreliable": []
+    },
+    "matched_primary": [
+     [
+      "alpha",
+      "alpha",
+      "3ff0000000000000"
+     ],
+     [
+      "sub_20300",
+      "sub_30300",
+      "3fe8000000000000"
+     ],
+     [
+      "abs_probe",
+      "abs_probe",
+      "3ff0000000000000"
+     ],
+     [
+      null,
+      "sub_30200",
+      "3ff0000000000000"
+     ],
+     [
+      "gamma",
+      "gamma2",
+      "3feccccccccccccd"
+     ],
+     [
+      "zeta",
+      "zeta",
+      "3ff0000000000000"
+     ],
+     [
+      "delta",
+      "delta",
+      "3ff0000000000000"
+     ],
+     [
+      "sub_20200",
+      "sub_missing",
+      "3feae147ae147ae1"
+     ],
+     [
+      "epsilon",
+      "epsilon",
+      "3ff0000000000000"
+     ],
+     [
+      "sub_20900",
+      "sub_30900",
+      "3fea8f5c28f5c28f"
+     ]
+    ],
+    "matched_secondary": [
+     [
+      "alpha",
+      "alpha",
+      "3ff0000000000000"
+     ],
+     [
+      "sub_30300",
+      "sub_20300",
+      "3fe8000000000000"
+     ],
+     [
+      "abs_probe",
+      "abs_probe",
+      "3ff0000000000000"
+     ],
+     [
+      "sub_30200",
+      null,
+      "3ff0000000000000"
+     ],
+     [
+      "gamma2",
+      "gamma",
+      "3feccccccccccccd"
+     ],
+     [
+      "zeta",
+      "zeta",
+      "3ff0000000000000"
+     ],
+     [
+      "delta",
+      "delta",
+      "3ff0000000000000"
+     ],
+     [
+      "sub_missing",
+      "sub_20200",
+      "3feae147ae147ae1"
+     ],
+     [
+      "epsilon",
+      "epsilon",
+      "3ff0000000000000"
+     ],
+     [
+      "sub_30900",
+      "sub_20900",
+      "3fea8f5c28f5c28f"
+     ]
+    ]
+   },
+   "after": {
+    "schema": "dsig-parity-snapshot/1",
+    "producer": "diaphora",
+    "pair": "fixture",
+    "seq": 0,
+    "point": "after:find_related_matches:0",
+    "iteration": 0,
+    "flags": {
+     "is_same_processor": true,
+     "is_patch_diff": false,
+     "is_symbols_stripped": false,
+     "hooks_loaded": false,
+     "total_functions1": 23,
+     "total_functions2": 23
+    },
+    "all_matches": {
+     "best": [
+      [
+       "20100",
+       "alpha",
+       "30100",
+       "alpha",
+       "Perfect match, same name",
+       "3ff0000000000000",
+       10,
+       10
+      ],
+      [
+       "21000",
+       "abs_probe",
+       "31100",
+       "abs_probe",
+       "Perfect match, same name",
+       "3ff0000000000000",
+       10,
+       10
+      ],
+      [
+       "99999",
+       null,
+       "30200",
+       "sub_30200",
+       "Synthetic None name",
+       "3ff0000000000000",
+       10,
+       10
+      ],
+      [
+       "20300",
+       "sub_20300",
+       "30300",
+       "sub_30300",
+       "Loop count",
+       "3fe8000000000000",
+       10,
+       10
+      ]
+     ],
+     "partial": [
+      [
+       "20400",
+       "gamma",
+       "30400",
+       "gamma2",
+       "Bytes hash",
+       "3feccccccccccccd",
+       10,
+       10
+      ],
+      [
+       "20800",
+       "zeta",
+       "30800",
+       "zeta",
+       "Same name",
+       "3fec28f5c28f5c29",
+       10,
+       10
+      ],
+      [
+       "20500",
+       "delta",
+       "30500",
+       "delta",
+       "Same name",
+       "3feb333333333333",
+       10,
+       10
+      ],
+      [
+       "20200",
+       "sub_20200",
+       "39999",
+       "sub_missing",
+       "Mnemonics",
+       "3feae147ae147ae1",
+       10,
+       10
+      ],
+      [
+       "20900",
+       "sub_20900",
+       "30900",
+       "sub_30900",
+       "Mnemonics",
+       "3fea8f5c28f5c28f",
+       10,
+       10
+      ],
+      [
+       "20700",
+       "epsilon",
+       "30700",
+       "epsilon",
+       "Same name",
+       "3fe6666666666666",
+       10,
+       10
+      ],
+      [
+       "20400",
+       "gamma",
+       "30400",
+       "gamma2",
+       "Same constants related matches",
+       "3fed92271440ffa5",
+       10,
+       10
+      ],
+      [
+       "20900",
+       "sub_20900",
+       "30900",
+       "sub_30900",
+       "Same constants related matches",
+       "3fed92271440ffa5",
+       10,
+       10
+      ],
+      [
+       "20300",
+       "sub_20300",
+       "30300",
+       "sub_30300",
+       "Same constants related matches",
+       "3fea7845f75b15d0",
+       10,
+       10
+      ]
+     ],
+     "unreliable": []
+    },
+    "matched_primary": [
+     [
+      "alpha",
+      "alpha",
+      "3ff0000000000000"
+     ],
+     [
+      "abs_probe",
+      "abs_probe",
+      "3ff0000000000000"
+     ],
+     [
+      null,
+      "sub_30200",
+      "3ff0000000000000"
+     ],
+     [
+      "sub_20300",
+      "sub_30300",
+      "3fea7845f75b15d0"
+     ],
+     [
+      "gamma",
+      "gamma2",
+      "3fed92271440ffa5"
+     ],
+     [
+      "zeta",
+      "zeta",
+      "3fec28f5c28f5c29"
+     ],
+     [
+      "delta",
+      "delta",
+      "3feb333333333333"
+     ],
+     [
+      "sub_20200",
+      "sub_missing",
+      "3feae147ae147ae1"
+     ],
+     [
+      "sub_20900",
+      "sub_30900",
+      "3fed92271440ffa5"
+     ],
+     [
+      "epsilon",
+      "epsilon",
+      "3fe6666666666666"
+     ]
+    ],
+    "matched_secondary": [
+     [
+      "alpha",
+      "alpha",
+      "3ff0000000000000"
+     ],
+     [
+      "abs_probe",
+      "abs_probe",
+      "3ff0000000000000"
+     ],
+     [
+      "sub_30200",
+      null,
+      "3ff0000000000000"
+     ],
+     [
+      "sub_30300",
+      "sub_20300",
+      "3fea7845f75b15d0"
+     ],
+     [
+      "gamma2",
+      "gamma",
+      "3fed92271440ffa5"
+     ],
+     [
+      "zeta",
+      "zeta",
+      "3fec28f5c28f5c29"
+     ],
+     [
+      "delta",
+      "delta",
+      "3feb333333333333"
+     ],
+     [
+      "sub_missing",
+      "sub_20200",
+      "3feae147ae147ae1"
+     ],
+     [
+      "sub_30900",
+      "sub_20900",
+      "3fed92271440ffa5"
+     ],
+     [
+      "epsilon",
+      "epsilon",
+      "3fe6666666666666"
+     ]
+    ]
+   },
+   "raised": null,
+   "add_match": [
+    [
+     "gamma",
+     "gamma2",
+     "20400",
+     "30400",
+     "Same constants related matches",
+     "3fed92271440ffa5",
+     "partial",
+     "appended"
+    ],
+    [
+     "sub_20900",
+     "sub_30900",
+     "20900",
+     "30900",
+     "Same constants related matches",
+     "3fed92271440ffa5",
+     "partial",
+     "appended"
+    ],
+    [
+     "sub_20300",
+     "sub_30300",
+     "20300",
+     "30300",
+     "Same constants related matches",
+     "3fea7845f75b15d0",
+     "partial",
+     "appended"
+    ],
+    [
+     "gamma",
+     "gamma2",
+     "20400",
+     "30400",
+     "Same constants related matches",
+     "3fed92271440ffa5",
+     "partial",
+     "duplicate"
+    ],
+    [
+     "sub_20900",
+     "sub_30900",
+     "20900",
+     "30900",
+     "Same constants related matches",
+     "3fed92271440ffa5",
+     "partial",
+     "duplicate"
+    ],
+    [
+     "gamma",
+     "gamma2",
+     "20400",
+     "30400",
+     "Same constants related matches",
+     "3fed92271440ffa5",
+     "partial",
+     "duplicate"
+    ],
+    [
+     "sub_20900",
+     "sub_30900",
+     "20900",
+     "30900",
+     "Same constants related matches",
+     "3fed92271440ffa5",
+     "partial",
+     "duplicate"
+    ],
+    [
+     "gamma",
+     "gamma2",
+     "20400",
+     "30400",
+     "Same constants related matches",
+     "3fed92271440ffa5",
+     "partial",
+     "duplicate"
+    ],
+    [
+     "sub_20900",
+     "sub_30900",
+     "20900",
+     "30900",
+     "Same constants related matches",
+     "3fed92271440ffa5",
+     "partial",
+     "duplicate"
+    ],
+    [
+     "gamma",
+     "gamma2",
+     "20400",
+     "30400",
+     "Same constants related matches",
+     "3fed92271440ffa5",
+     "partial",
+     "duplicate"
+    ],
+    [
+     "sub_20900",
+     "sub_30900",
+     "20900",
+     "30900",
+     "Same constants related matches",
+     "3fed92271440ffa5",
+     "partial",
+     "duplicate"
+    ]
+   ],
+   "rows": [
+    [
+     "20100",
+     "30100"
+    ],
+    [
+     "20100",
+     "30300"
+    ],
+    [
+     "20100",
+     "30700"
+    ],
+    [
+     "20200",
+     "30100"
+    ],
+    [
+     "20200",
+     "30300"
+    ],
+    [
+     "20200",
+     "30700"
+    ],
+    [
+     "20700",
+     "30100"
+    ],
+    [
+     "20700",
+     "30300"
+    ],
+    [
+     "20700",
+     "30700"
+    ],
+    [
+     "20100",
+     "30100"
+    ],
+    [
+     "20100",
+     "30100"
+    ],
+    [
+     "20100",
+     "30200"
+    ],
+    [
+     "20100",
+     "30400"
+    ],
+    [
+     "20100",
+     "30600"
+    ],
+    [
+     "20100",
+     "30900"
+    ],
+    [
+     "20100",
+     "31000"
+    ],
+    [
+     "20200",
+     "30100"
+    ],
+    [
+     "20200",
+     "30200"
+    ],
+    [
+     "20200",
+     "30400"
+    ],
+    [
+     "20200",
+     "30600"
+    ],
+    [
+     "20200",
+     "30900"
+    ],
+    [
+     "20200",
+     "31000"
+    ],
+    [
+     "20400",
+     "30100"
+    ],
+    [
+     "20400",
+     "30200"
+    ],
+    [
+     "20400",
+     "30400"
+    ],
+    [
+     "20400",
+     "30600"
+    ],
+    [
+     "20400",
+     "30900"
+    ],
+    [
+     "20400",
+     "31000"
+    ],
+    [
+     "20600",
+     "30100"
+    ],
+    [
+     "20600",
+     "30200"
+    ],
+    [
+     "20600",
+     "30400"
+    ],
+    [
+     "20600",
+     "30600"
+    ],
+    [
+     "20600",
+     "30900"
+    ],
+    [
+     "20600",
+     "31000"
+    ],
+    [
+     "20900",
+     "30100"
+    ],
+    [
+     "20900",
+     "30200"
+    ],
+    [
+     "20900",
+     "30400"
+    ],
+    [
+     "20900",
+     "30600"
+    ],
+    [
+     "20900",
+     "30900"
+    ],
+    [
+     "20900",
+     "31000"
+    ],
+    [
+     "20100",
+     "30100"
+    ],
+    [
+     "20100",
+     "30300"
+    ],
+    [
+     "20300",
+     "30100"
+    ],
+    [
+     "20300",
+     "30300"
+    ],
+    [
+     "21000",
+     "31100"
+    ],
+    [
+     "21000",
+     "31100"
+    ],
+    [
+     "21000",
+     "31100"
+    ],
+    [
+     "21000",
+     "31100"
+    ],
+    [
+     "21000",
+     "31100"
+    ],
+    [
+     "21000",
+     "31100"
+    ],
+    [
+     "21000",
+     "31100"
+    ],
+    [
+     "21000",
+     "31100"
+    ],
+    [
+     "21000",
+     "31100"
+    ],
+    [
+     "21000",
+     "31100"
+    ],
+    [
+     "21000",
+     "31100"
+    ],
+    [
+     "21000",
+     "31100"
+    ],
+    [
+     "21000",
+     "31100"
+    ],
+    [
+     "21000",
+     "31100"
+    ],
+    [
+     "20100",
+     "30100"
+    ],
+    [
+     "20100",
+     "30200"
+    ],
+    [
+     "20100",
+     "30400"
+    ],
+    [
+     "20100",
+     "30600"
+    ],
+    [
+     "20100",
+     "30900"
+    ],
+    [
+     "20100",
+     "31000"
+    ],
+    [
+     "20200",
+     "30100"
+    ],
+    [
+     "20200",
+     "30200"
+    ],
+    [
+     "20200",
+     "30400"
+    ],
+    [
+     "20200",
+     "30600"
+    ],
+    [
+     "20200",
+     "30900"
+    ],
+    [
+     "20200",
+     "31000"
+    ],
+    [
+     "20400",
+     "30100"
+    ],
+    [
+     "20400",
+     "30200"
+    ],
+    [
+     "20400",
+     "30400"
+    ],
+    [
+     "20400",
+     "30600"
+    ],
+    [
+     "20400",
+     "30900"
+    ],
+    [
+     "20400",
+     "31000"
+    ],
+    [
+     "20600",
+     "30100"
+    ],
+    [
+     "20600",
+     "30200"
+    ],
+    [
+     "20600",
+     "30400"
+    ],
+    [
+     "20600",
+     "30600"
+    ],
+    [
+     "20600",
+     "30900"
+    ],
+    [
+     "20600",
+     "31000"
+    ],
+    [
+     "20900",
+     "30100"
+    ],
+    [
+     "20900",
+     "30200"
+    ],
+    [
+     "20900",
+     "30400"
+    ],
+    [
+     "20900",
+     "30600"
+    ],
+    [
+     "20900",
+     "30900"
+    ],
+    [
+     "20900",
+     "31000"
+    ],
+    [
+     "20400",
+     "30400"
+    ],
+    [
+     "20400",
+     "30900"
+    ],
+    [
+     "20900",
+     "30400"
+    ],
+    [
+     "20900",
+     "30900"
+    ],
+    [
+     "20400",
+     "30400"
+    ],
+    [
+     "20400",
+     "30900"
+    ],
+    [
+     "20900",
+     "30400"
+    ],
+    [
+     "20900",
+     "30900"
+    ],
+    [
+     "20100",
+     "30100"
+    ],
+    [
+     "20100",
+     "30200"
+    ],
+    [
+     "20100",
+     "30400"
+    ],
+    [
+     "20100",
+     "30600"
+    ],
+    [
+     "20100",
+     "30900"
+    ],
+    [
+     "20100",
+     "31000"
+    ],
+    [
+     "20200",
+     "30100"
+    ],
+    [
+     "20200",
+     "30200"
+    ],
+    [
+     "20200",
+     "30400"
+    ],
+    [
+     "20200",
+     "30600"
+    ],
+    [
+     "20200",
+     "30900"
+    ],
+    [
+     "20200",
+     "31000"
+    ],
+    [
+     "20400",
+     "30100"
+    ],
+    [
+     "20400",
+     "30200"
+    ],
+    [
+     "20400",
+     "30400"
+    ],
+    [
+     "20400",
+     "30600"
+    ],
+    [
+     "20400",
+     "30900"
+    ],
+    [
+     "20400",
+     "31000"
+    ],
+    [
+     "20600",
+     "30100"
+    ],
+    [
+     "20600",
+     "30200"
+    ],
+    [
+     "20600",
+     "30400"
+    ],
+    [
+     "20600",
+     "30600"
+    ],
+    [
+     "20600",
+     "30900"
+    ],
+    [
+     "20600",
+     "31000"
+    ],
+    [
+     "20900",
+     "30100"
+    ],
+    [
+     "20900",
+     "30200"
+    ],
+    [
+     "20900",
+     "30400"
+    ],
+    [
+     "20900",
+     "30600"
+    ],
+    [
+     "20900",
+     "30900"
+    ],
+    [
+     "20900",
+     "31000"
+    ],
+    [
+     "20500",
+     "30500"
+    ]
+   ]
+  },
+  {
+   "name": "related_cu",
+   "scenario": "related",
+   "stage": "find_related_compilation_unit",
+   "iteration": 0,
+   "forced_const_order": "main_first_appearance",
+   "before": {
+    "schema": "dsig-parity-snapshot/1",
+    "producer": "diaphora",
+    "pair": "fixture",
+    "seq": 0,
+    "point": "before:find_related_compilation_unit:0",
+    "iteration": 0,
+    "flags": {
+     "is_same_processor": true,
+     "is_patch_diff": false,
+     "is_symbols_stripped": false,
+     "hooks_loaded": false,
+     "total_functions1": 23,
+     "total_functions2": 23
+    },
+    "all_matches": {
+     "best": [
+      [
+       "20100",
+       "alpha",
+       "30100",
+       "alpha",
+       "Perfect match, same name",
+       "3ff0000000000000",
+       10,
+       10
+      ],
+      [
+       "99999",
+       null,
+       "30200",
+       "sub_30200",
+       "Synthetic None name",
+       "3ff0000000000000",
+       10,
+       10
+      ]
+     ],
+     "partial": [
+      [
+       "20400",
+       "gamma",
+       "30400",
+       "gamma2",
+       "Bytes hash",
+       "3feccccccccccccd",
+       10,
+       10
+      ],
+      [
+       "20500",
+       "delta",
+       "30500",
+       "delta",
+       "Same name",
+       "3feb851eb851eb85",
+       10,
+       10
+      ],
+      [
+       "20700",
+       "epsilon",
+       "30700",
+       "epsilon",
+       "Same name",
+       "3feae147ae147ae1",
+       10,
+       10
+      ],
+      [
+       "20300",
+       "sub_20300",
+       "30300",
+       "sub_30300",
+       "Loop count",
+       "3fea3d70a3d70a3d",
+       10,
+       10
+      ],
+      [
+       "20900",
+       "sub_20900",
+       "30900",
+       "sub_30900",
+       "Mnemonics",
+       "3fe947ae147ae148",
+       10,
+       10
+      ]
+     ],
+     "unreliable": []
+    },
+    "matched_primary": [
+     [
+      "alpha",
+      "alpha",
+      "3ff0000000000000"
+     ],
+     [
+      null,
+      "sub_30200",
+      "3ff0000000000000"
+     ],
+     [
+      "gamma",
+      "gamma2",
+      "3feccccccccccccd"
+     ],
+     [
+      "delta",
+      "delta",
+      "3ff0000000000000"
+     ],
+     [
+      "epsilon",
+      "epsilon",
+      "3ff0000000000000"
+     ],
+     [
+      "sub_20300",
+      "sub_30300",
+      "3fea3d70a3d70a3d"
+     ],
+     [
+      "sub_20900",
+      "sub_30900",
+      "3fe947ae147ae148"
+     ]
+    ],
+    "matched_secondary": [
+     [
+      "alpha",
+      "alpha",
+      "3ff0000000000000"
+     ],
+     [
+      "sub_30200",
+      null,
+      "3ff0000000000000"
+     ],
+     [
+      "gamma2",
+      "gamma",
+      "3feccccccccccccd"
+     ],
+     [
+      "delta",
+      "delta",
+      "3ff0000000000000"
+     ],
+     [
+      "epsilon",
+      "epsilon",
+      "3ff0000000000000"
+     ],
+     [
+      "sub_30300",
+      "sub_20300",
+      "3fea3d70a3d70a3d"
+     ],
+     [
+      "sub_30900",
+      "sub_20900",
+      "3fe947ae147ae148"
+     ]
+    ]
+   },
+   "after": {
+    "schema": "dsig-parity-snapshot/1",
+    "producer": "diaphora",
+    "pair": "fixture",
+    "seq": 0,
+    "point": "after:find_related_compilation_unit:0",
+    "iteration": 0,
+    "flags": {
+     "is_same_processor": true,
+     "is_patch_diff": false,
+     "is_symbols_stripped": false,
+     "hooks_loaded": false,
+     "total_functions1": 23,
+     "total_functions2": 23
+    },
+    "all_matches": {
+     "best": [
+      [
+       "20100",
+       "alpha",
+       "30100",
+       "alpha",
+       "Perfect match, same name",
+       "3ff0000000000000",
+       10,
+       10
+      ],
+      [
+       "99999",
+       null,
+       "30200",
+       "sub_30200",
+       "Synthetic None name",
+       "3ff0000000000000",
+       10,
+       10
+      ],
+      [
+       "20800",
+       "zeta",
+       "30800",
+       "zeta",
+       "Related compilation unit",
+       "3ff0000000000000",
+       10,
+       10
+      ]
+     ],
+     "partial": [
+      [
+       "20400",
+       "gamma",
+       "30400",
+       "gamma2",
+       "Bytes hash",
+       "3feccccccccccccd",
+       10,
+       10
+      ],
+      [
+       "20500",
+       "delta",
+       "30500",
+       "delta",
+       "Same name",
+       "3feb851eb851eb85",
+       10,
+       10
+      ],
+      [
+       "20700",
+       "epsilon",
+       "30700",
+       "epsilon",
+       "Same name",
+       "3feae147ae147ae1",
+       10,
+       10
+      ],
+      [
+       "20300",
+       "sub_20300",
+       "30300",
+       "sub_30300",
+       "Loop count",
+       "3fea3d70a3d70a3d",
+       10,
+       10
+      ],
+      [
+       "20900",
+       "sub_20900",
+       "30900",
+       "sub_30900",
+       "Mnemonics",
+       "3fe947ae147ae148",
+       10,
+       10
+      ],
+      [
+       "20300",
+       "sub_20300",
+       "30300",
+       "sub_30300",
+       "Related compilation unit",
+       "3fea7845f75b15d0",
+       10,
+       10
+      ],
+      [
+       "20400",
+       "gamma",
+       "30400",
+       "gamma2",
+       "Related compilation unit",
+       "3fed92271440ffa5",
+       10,
+       10
+      ],
+      [
+       "20900",
+       "sub_20900",
+       "30900",
+       "sub_30900",
+       "Related compilation unit",
+       "3fed92271440ffa5",
+       10,
+       10
+      ]
+     ],
+     "unreliable": []
+    },
+    "matched_primary": [
+     [
+      "alpha",
+      "alpha",
+      "3ff0000000000000"
+     ],
+     [
+      null,
+      "sub_30200",
+      "3ff0000000000000"
+     ],
+     [
+      "gamma",
+      "gamma2",
+      "3fed92271440ffa5"
+     ],
+     [
+      "delta",
+      "delta",
+      "3feb851eb851eb85"
+     ],
+     [
+      "epsilon",
+      "epsilon",
+      "3feae147ae147ae1"
+     ],
+     [
+      "sub_20300",
+      "sub_30300",
+      "3fea7845f75b15d0"
+     ],
+     [
+      "sub_20900",
+      "sub_30900",
+      "3fed92271440ffa5"
+     ],
+     [
+      "zeta",
+      "zeta",
+      "3ff0000000000000"
+     ]
+    ],
+    "matched_secondary": [
+     [
+      "alpha",
+      "alpha",
+      "3ff0000000000000"
+     ],
+     [
+      "sub_30200",
+      null,
+      "3ff0000000000000"
+     ],
+     [
+      "gamma2",
+      "gamma",
+      "3fed92271440ffa5"
+     ],
+     [
+      "delta",
+      "delta",
+      "3feb851eb851eb85"
+     ],
+     [
+      "epsilon",
+      "epsilon",
+      "3feae147ae147ae1"
+     ],
+     [
+      "sub_30300",
+      "sub_20300",
+      "3fea7845f75b15d0"
+     ],
+     [
+      "sub_30900",
+      "sub_20900",
+      "3fed92271440ffa5"
+     ],
+     [
+      "zeta",
+      "zeta",
+      "3ff0000000000000"
+     ]
+    ]
+   },
+   "raised": null,
+   "add_match": [
+    [
+     "sub_20300",
+     "sub_30300",
+     "20300",
+     "30300",
+     "Related compilation unit",
+     "3fea7845f75b15d0",
+     "partial",
+     "appended"
+    ],
+    [
+     "gamma",
+     "gamma2",
+     "20400",
+     "30400",
+     "Related compilation unit",
+     "3fed92271440ffa5",
+     "partial",
+     "appended"
+    ],
+    [
+     "zeta",
+     "zeta",
+     "20800",
+     "30800",
+     "Related compilation unit",
+     "3ff0000000000000",
+     "best",
+     "appended"
+    ],
+    [
+     "sub_20900",
+     "sub_30900",
+     "20900",
+     "30900",
+     "Related compilation unit",
+     "3fed92271440ffa5",
+     "partial",
+     "appended"
+    ],
+    [
+     "sub_20300",
+     "sub_30300",
+     "20300",
+     "30300",
+     "Related compilation unit",
+     "3fea7845f75b15d0",
+     "partial",
+     "duplicate"
+    ],
+    [
+     "gamma",
+     "gamma2",
+     "20400",
+     "30400",
+     "Related compilation unit",
+     "3fed92271440ffa5",
+     "partial",
+     "duplicate"
+    ]
+   ],
+   "rows": [
+    [
+     "20100",
+     "30100"
+    ],
+    [
+     "20100",
+     "30200"
+    ],
+    [
+     "20100",
+     "30300"
+    ],
+    [
+     "20100",
+     "30400"
+    ],
+    [
+     "20200",
+     "30100"
+    ],
+    [
+     "20200",
+     "30200"
+    ],
+    [
+     "20200",
+     "30300"
+    ],
+    [
+     "20200",
+     "30400"
+    ],
+    [
+     "20300",
+     "30100"
+    ],
+    [
+     "20300",
+     "30200"
+    ],
+    [
+     "20300",
+     "30300"
+    ],
+    [
+     "20300",
+     "30400"
+    ],
+    [
+     "20400",
+     "30100"
+    ],
+    [
+     "20400",
+     "30200"
+    ],
+    [
+     "20400",
+     "30300"
+    ],
+    [
+     "20400",
+     "30400"
+    ],
+    [
+     "20500",
+     "30100"
+    ],
+    [
+     "20500",
+     "30200"
+    ],
+    [
+     "20500",
+     "30300"
+    ],
+    [
+     "20500",
+     "30400"
+    ],
+    [
+     "20600",
+     "30100"
+    ],
+    [
+     "20600",
+     "30200"
+    ],
+    [
+     "20600",
+     "30300"
+    ],
+    [
+     "20600",
+     "30400"
+    ],
+    [
+     "20700",
+     "30100"
+    ],
+    [
+     "20700",
+     "30200"
+    ],
+    [
+     "20700",
+     "30300"
+    ],
+    [
+     "20700",
+     "30400"
+    ],
+    [
+     "20800",
+     "30100"
+    ],
+    [
+     "20800",
+     "30200"
+    ],
+    [
+     "20800",
+     "30300"
+    ],
+    [
+     "20800",
+     "30400"
+    ],
+    [
+     "20900",
+     "30100"
+    ],
+    [
+     "20900",
+     "30200"
+    ],
+    [
+     "20900",
+     "30300"
+    ],
+    [
+     "20900",
+     "30400"
+    ],
+    [
+     "20500",
+     "30500"
+    ],
+    [
+     "20500",
+     "30600"
+    ],
+    [
+     "20500",
+     "30700"
+    ],
+    [
+     "20500",
+     "30800"
+    ],
+    [
+     "20500",
+     "30900"
+    ],
+    [
+     "20500",
+     "31000"
+    ],
+    [
+     "20600",
+     "30500"
+    ],
+    [
+     "20600",
+     "30600"
+    ],
+    [
+     "20600",
+     "30700"
+    ],
+    [
+     "20600",
+     "30800"
+    ],
+    [
+     "20600",
+     "30900"
+    ],
+    [
+     "20600",
+     "31000"
+    ],
+    [
+     "20700",
+     "30500"
+    ],
+    [
+     "20700",
+     "30600"
+    ],
+    [
+     "20700",
+     "30700"
+    ],
+    [
+     "20700",
+     "30800"
+    ],
+    [
+     "20700",
+     "30900"
+    ],
+    [
+     "20700",
+     "31000"
+    ],
+    [
+     "20800",
+     "30500"
+    ],
+    [
+     "20800",
+     "30600"
+    ],
+    [
+     "20800",
+     "30700"
+    ],
+    [
+     "20800",
+     "30800"
+    ],
+    [
+     "20800",
+     "30900"
+    ],
+    [
+     "20800",
+     "31000"
+    ],
+    [
+     "20900",
+     "30500"
+    ],
+    [
+     "20900",
+     "30600"
+    ],
+    [
+     "20900",
+     "30700"
+    ],
+    [
+     "20900",
+     "30800"
+    ],
+    [
+     "20900",
+     "30900"
+    ],
+    [
+     "20900",
+     "31000"
+    ],
+    [
+     "20100",
+     "30100"
+    ],
+    [
+     "20100",
+     "30200"
+    ],
+    [
+     "20100",
+     "30300"
+    ],
+    [
+     "20100",
+     "30400"
+    ],
+    [
+     "20200",
+     "30100"
+    ],
+    [
+     "20200",
+     "30200"
+    ],
+    [
+     "20200",
+     "30300"
+    ],
+    [
+     "20200",
+     "30400"
+    ],
+    [
+     "20300",
+     "30100"
+    ],
+    [
+     "20300",
+     "30200"
+    ],
+    [
+     "20300",
+     "30300"
+    ],
+    [
+     "20300",
+     "30400"
+    ],
+    [
+     "20400",
+     "30100"
+    ],
+    [
+     "20400",
+     "30200"
+    ],
+    [
+     "20400",
+     "30300"
+    ],
+    [
+     "20400",
+     "30400"
+    ]
+   ]
+  },
+  {
+   "name": "local_affinity",
+   "scenario": "related",
+   "stage": "find_locally_affine_functions",
+   "iteration": 0,
+   "forced_const_order": "main_first_appearance",
+   "before": {
+    "schema": "dsig-parity-snapshot/1",
+    "producer": "diaphora",
+    "pair": "fixture",
+    "seq": 0,
+    "point": "before:find_locally_affine_functions:0",
+    "iteration": 0,
+    "flags": {
+     "is_same_processor": true,
+     "is_patch_diff": false,
+     "is_symbols_stripped": false,
+     "hooks_loaded": false,
+     "total_functions1": 23,
+     "total_functions2": 23
+    },
+    "all_matches": {
+     "best": [
+      [
+       "4096",
+       "la_anchor1",
+       "14096",
+       "la_anchor1",
+       "Perfect match, same name",
+       "3ff0000000000000",
+       10,
+       10
+      ],
+      [
+       "8192",
+       "la_anchor2",
+       "18192",
+       "la_anchor2",
+       "Perfect match, same name",
+       "3ff0000000000000",
+       10,
+       10
+      ],
+      [
+       "9990",
+       "la_anchor3",
+       "19995",
+       "la_anchor3",
+       "Perfect match, same name",
+       "3ff0000000000000",
+       10,
+       10
+      ],
+      [
+       "10010",
+       "la_anchor4",
+       "19990",
+       "la_anchor4",
+       "Perfect match, same name",
+       "3ff0000000000000",
+       10,
+       10
+      ]
+     ],
+     "partial": [
+      [
+       "40970",
+       "sub_40970",
+       "19992",
+       "sub_19992",
+       "Mnemonics",
+       "3fef0a3d70a3d70a",
+       10,
+       10
+      ]
+     ],
+     "unreliable": []
+    },
+    "matched_primary": [
+     [
+      "la_anchor1",
+      "la_anchor1",
+      "3ff0000000000000"
+     ],
+     [
+      "la_anchor2",
+      "la_anchor2",
+      "3ff0000000000000"
+     ],
+     [
+      "la_anchor3",
+      "la_anchor3",
+      "3ff0000000000000"
+     ],
+     [
+      "la_anchor4",
+      "la_anchor4",
+      "3ff0000000000000"
+     ],
+     [
+      "sub_40970",
+      "sub_19992",
+      "3fef0a3d70a3d70a"
+     ]
+    ],
+    "matched_secondary": [
+     [
+      "la_anchor1",
+      "la_anchor1",
+      "3ff0000000000000"
+     ],
+     [
+      "la_anchor2",
+      "la_anchor2",
+      "3ff0000000000000"
+     ],
+     [
+      "la_anchor3",
+      "la_anchor3",
+      "3ff0000000000000"
+     ],
+     [
+      "la_anchor4",
+      "la_anchor4",
+      "3ff0000000000000"
+     ],
+     [
+      "sub_19992",
+      "sub_40970",
+      "3fef0a3d70a3d70a"
+     ]
+    ]
+   },
+   "after": {
+    "schema": "dsig-parity-snapshot/1",
+    "producer": "diaphora",
+    "pair": "fixture",
+    "seq": 0,
+    "point": "after:find_locally_affine_functions:0",
+    "iteration": 0,
+    "flags": {
+     "is_same_processor": true,
+     "is_patch_diff": false,
+     "is_symbols_stripped": false,
+     "hooks_loaded": false,
+     "total_functions1": 23,
+     "total_functions2": 23
+    },
+    "all_matches": {
+     "best": [
+      [
+       "4096",
+       "la_anchor1",
+       "14096",
+       "la_anchor1",
+       "Perfect match, same name",
+       "3ff0000000000000",
+       10,
+       10
+      ],
+      [
+       "8192",
+       "la_anchor2",
+       "18192",
+       "la_anchor2",
+       "Perfect match, same name",
+       "3ff0000000000000",
+       10,
+       10
+      ],
+      [
+       "9990",
+       "la_anchor3",
+       "19995",
+       "la_anchor3",
+       "Perfect match, same name",
+       "3ff0000000000000",
+       10,
+       10
+      ],
+      [
+       "10010",
+       "la_anchor4",
+       "19990",
+       "la_anchor4",
+       "Perfect match, same name",
+       "3ff0000000000000",
+       10,
+       10
+      ]
+     ],
+     "partial": [
+      [
+       "40970",
+       "sub_40970",
+       "19992",
+       "sub_19992",
+       "Mnemonics",
+       "3fef0a3d70a3d70a",
+       10,
+       10
+      ],
+      [
+       "7600",
+       "sub_7600",
+       "15600",
+       "sub_15600",
+       "Local affinity",
+       "3fed2fd9414f55a9",
+       10,
+       10
+      ],
+      [
+       "7500",
+       "sub_7500",
+       "15500",
+       "sub_15500",
+       "Local affinity",
+       "3fed2fd9414f55a9",
+       10,
+       10
+      ],
+      [
+       "5000",
+       "sub_5000",
+       "15100",
+       "sub_15100",
+       "Local affinity",
+       "3fed2fd9414f55a9",
+       10,
+       10
+      ]
+     ],
+     "unreliable": []
+    },
+    "matched_primary": [
+     [
+      "la_anchor1",
+      "la_anchor1",
+      "3ff0000000000000"
+     ],
+     [
+      "la_anchor2",
+      "la_anchor2",
+      "3ff0000000000000"
+     ],
+     [
+      "la_anchor3",
+      "la_anchor3",
+      "3ff0000000000000"
+     ],
+     [
+      "la_anchor4",
+      "la_anchor4",
+      "3ff0000000000000"
+     ],
+     [
+      "sub_40970",
+      "sub_19992",
+      "3fef0a3d70a3d70a"
+     ],
+     [
+      "sub_7600",
+      "sub_15600",
+      "3fed2fd9414f55a9"
+     ],
+     [
+      "sub_7500",
+      "sub_15500",
+      "3fed2fd9414f55a9"
+     ],
+     [
+      "sub_5000",
+      "sub_15100",
+      "3fed2fd9414f55a9"
+     ]
+    ],
+    "matched_secondary": [
+     [
+      "la_anchor1",
+      "la_anchor1",
+      "3ff0000000000000"
+     ],
+     [
+      "la_anchor2",
+      "la_anchor2",
+      "3ff0000000000000"
+     ],
+     [
+      "la_anchor3",
+      "la_anchor3",
+      "3ff0000000000000"
+     ],
+     [
+      "la_anchor4",
+      "la_anchor4",
+      "3ff0000000000000"
+     ],
+     [
+      "sub_19992",
+      "sub_40970",
+      "3fef0a3d70a3d70a"
+     ],
+     [
+      "sub_15600",
+      "sub_7600",
+      "3fed2fd9414f55a9"
+     ],
+     [
+      "sub_15500",
+      "sub_7500",
+      "3fed2fd9414f55a9"
+     ],
+     [
+      "sub_15100",
+      "sub_5000",
+      "3fed2fd9414f55a9"
+     ]
+    ]
+   },
+   "raised": null,
+   "add_match": [
+    [
+     "sub_7600",
+     "sub_15600",
+     "7600",
+     "15600",
+     "Local affinity",
+     "3fed2fd9414f55a9",
+     "partial",
+     "appended"
+    ],
+    [
+     "sub_7500",
+     "sub_15500",
+     "7500",
+     "15500",
+     "Local affinity",
+     "3fed2fd9414f55a9",
+     "partial",
+     "appended"
+    ],
+    [
+     "sub_5000",
+     "sub_15100",
+     "5000",
+     "15100",
+     "Local affinity",
+     "3fed2fd9414f55a9",
+     "partial",
+     "appended"
+    ],
+    [
+     "sub_40970",
+     "sub_16000",
+     "40970",
+     "16000",
+     "Local affinity",
+     "3fed2fd9414f55a9",
+     "partial",
+     "rejected_better"
+    ]
+   ],
+   "rows": []
+  },
+  {
+   "name": "err_count_null",
+   "scenario": "errors",
+   "stage": "find_related_matches",
+   "iteration": 0,
+   "forced_const_order": "main_first_appearance",
+   "before": {
+    "schema": "dsig-parity-snapshot/1",
+    "producer": "diaphora",
+    "pair": "fixture",
+    "seq": 0,
+    "point": "before:find_related_matches:0",
+    "iteration": 0,
+    "flags": {
+     "is_same_processor": true,
+     "is_patch_diff": false,
+     "is_symbols_stripped": false,
+     "hooks_loaded": false,
+     "total_functions1": 12,
+     "total_functions2": 12
+    },
+    "all_matches": {
+     "best": [],
+     "partial": [
+      [
+       "70100",
+       "e_count_null",
+       "80100",
+       "e_count_null",
+       "Same name",
+       "3feccccccccccccd",
+       10,
+       10
+      ]
+     ],
+     "unreliable": []
+    },
+    "matched_primary": [
+     [
+      "e_count_null",
+      "e_count_null",
+      "3ff0000000000000"
+     ]
+    ],
+    "matched_secondary": [
+     [
+      "e_count_null",
+      "e_count_null",
+      "3ff0000000000000"
+     ]
+    ]
+   },
+   "after": null,
+   "raised": {
+    "type": "TypeError",
+    "message": "'>' not supported between instances of 'NoneType' and 'int'"
+   },
+   "add_match": [],
+   "rows": []
+  },
+  {
+   "name": "err_consts_null",
+   "scenario": "errors",
+   "stage": "find_related_matches",
+   "iteration": 0,
+   "forced_const_order": "main_first_appearance",
+   "before": {
+    "schema": "dsig-parity-snapshot/1",
+    "producer": "diaphora",
+    "pair": "fixture",
+    "seq": 0,
+    "point": "before:find_related_matches:0",
+    "iteration": 0,
+    "flags": {
+     "is_same_processor": true,
+     "is_patch_diff": false,
+     "is_symbols_stripped": false,
+     "hooks_loaded": false,
+     "total_functions1": 12,
+     "total_functions2": 12
+    },
+    "all_matches": {
+     "best": [],
+     "partial": [
+      [
+       "70200",
+       "e_consts_null",
+       "80200",
+       "e_consts_null",
+       "Same name",
+       "3feccccccccccccd",
+       10,
+       10
+      ]
+     ],
+     "unreliable": []
+    },
+    "matched_primary": [
+     [
+      "e_consts_null",
+      "e_consts_null",
+      "3ff0000000000000"
+     ]
+    ],
+    "matched_secondary": [
+     [
+      "e_consts_null",
+      "e_consts_null",
+      "3ff0000000000000"
+     ]
+    ]
+   },
+   "after": null,
+   "raised": {
+    "type": "TypeError",
+    "message": "the JSON object must be str, bytes or bytearray, not NoneType"
+   },
+   "add_match": [],
+   "rows": []
+  },
+  {
+   "name": "err_json_bad",
+   "scenario": "errors",
+   "stage": "find_related_matches",
+   "iteration": 0,
+   "forced_const_order": "main_first_appearance",
+   "before": {
+    "schema": "dsig-parity-snapshot/1",
+    "producer": "diaphora",
+    "pair": "fixture",
+    "seq": 0,
+    "point": "before:find_related_matches:0",
+    "iteration": 0,
+    "flags": {
+     "is_same_processor": true,
+     "is_patch_diff": false,
+     "is_symbols_stripped": false,
+     "hooks_loaded": false,
+     "total_functions1": 12,
+     "total_functions2": 12
+    },
+    "all_matches": {
+     "best": [],
+     "partial": [
+      [
+       "70300",
+       "e_json_bad",
+       "80300",
+       "e_json_bad",
+       "Same name",
+       "3feccccccccccccd",
+       10,
+       10
+      ]
+     ],
+     "unreliable": []
+    },
+    "matched_primary": [
+     [
+      "e_json_bad",
+      "e_json_bad",
+      "3ff0000000000000"
+     ]
+    ],
+    "matched_secondary": [
+     [
+      "e_json_bad",
+      "e_json_bad",
+      "3ff0000000000000"
+     ]
+    ]
+   },
+   "after": null,
+   "raised": {
+    "type": "JSONDecodeError",
+    "message": "Expecting value: line 1 column 13 (char 12)"
+   },
+   "add_match": [],
+   "rows": []
+  },
+  {
+   "name": "err_surrogate",
+   "scenario": "errors",
+   "stage": "find_related_matches",
+   "iteration": 0,
+   "forced_const_order": "main_first_appearance",
+   "before": {
+    "schema": "dsig-parity-snapshot/1",
+    "producer": "diaphora",
+    "pair": "fixture",
+    "seq": 0,
+    "point": "before:find_related_matches:0",
+    "iteration": 0,
+    "flags": {
+     "is_same_processor": true,
+     "is_patch_diff": false,
+     "is_symbols_stripped": false,
+     "hooks_loaded": false,
+     "total_functions1": 12,
+     "total_functions2": 12
+    },
+    "all_matches": {
+     "best": [],
+     "partial": [
+      [
+       "70400",
+       "e_surrogate",
+       "80400",
+       "e_surrogate",
+       "Same name",
+       "3feccccccccccccd",
+       10,
+       10
+      ]
+     ],
+     "unreliable": []
+    },
+    "matched_primary": [
+     [
+      "e_surrogate",
+      "e_surrogate",
+      "3ff0000000000000"
+     ]
+    ],
+    "matched_secondary": [
+     [
+      "e_surrogate",
+      "e_surrogate",
+      "3ff0000000000000"
+     ]
+    ]
+   },
+   "after": null,
+   "raised": {
+    "type": "UnicodeEncodeError",
+    "message": "'utf-8' codec can't encode character '\\ud800' in position 0: surrogates not allowed"
+   },
+   "add_match": [],
+   "rows": []
+  },
+  {
+   "name": "err_cu_null",
+   "scenario": "errors",
+   "stage": "find_related_compilation_unit",
+   "iteration": 0,
+   "forced_const_order": "main_first_appearance",
+   "before": {
+    "schema": "dsig-parity-snapshot/1",
+    "producer": "diaphora",
+    "pair": "fixture",
+    "seq": 0,
+    "point": "before:find_related_compilation_unit:0",
+    "iteration": 0,
+    "flags": {
+     "is_same_processor": true,
+     "is_patch_diff": false,
+     "is_symbols_stripped": false,
+     "hooks_loaded": false,
+     "total_functions1": 12,
+     "total_functions2": 12
+    },
+    "all_matches": {
+     "best": [],
+     "partial": [
+      [
+       "70500",
+       "e_cu_null",
+       "80500",
+       "e_cu_null",
+       "Same name",
+       "3feccccccccccccd",
+       10,
+       10
+      ]
+     ],
+     "unreliable": []
+    },
+    "matched_primary": [
+     [
+      "e_cu_null",
+      "e_cu_null",
+      "3ff0000000000000"
+     ]
+    ],
+    "matched_secondary": [
+     [
+      "e_cu_null",
+      "e_cu_null",
+      "3ff0000000000000"
+     ]
+    ]
+   },
+   "after": null,
+   "raised": {
+    "type": "TypeError",
+    "message": "float() argument must be a string or a real number, not 'NoneType'"
+   },
+   "add_match": [],
+   "rows": []
+  },
+  {
+   "name": "err_cu_bad",
+   "scenario": "errors",
+   "stage": "find_related_compilation_unit",
+   "iteration": 0,
+   "forced_const_order": "main_first_appearance",
+   "before": {
+    "schema": "dsig-parity-snapshot/1",
+    "producer": "diaphora",
+    "pair": "fixture",
+    "seq": 0,
+    "point": "before:find_related_compilation_unit:0",
+    "iteration": 0,
+    "flags": {
+     "is_same_processor": true,
+     "is_patch_diff": false,
+     "is_symbols_stripped": false,
+     "hooks_loaded": false,
+     "total_functions1": 12,
+     "total_functions2": 12
+    },
+    "all_matches": {
+     "best": [],
+     "partial": [
+      [
+       "70600",
+       "e_cu_bad",
+       "80600",
+       "e_cu_bad",
+       "Same name",
+       "3feccccccccccccd",
+       10,
+       10
+      ]
+     ],
+     "unreliable": []
+    },
+    "matched_primary": [
+     [
+      "e_cu_bad",
+      "e_cu_bad",
+      "3ff0000000000000"
+     ]
+    ],
+    "matched_secondary": [
+     [
+      "e_cu_bad",
+      "e_cu_bad",
+      "3ff0000000000000"
+     ]
+    ]
+   },
+   "after": null,
+   "raised": {
+    "type": "ValueError",
+    "message": "could not convert string to float: 'zz'"
+   },
+   "add_match": [],
+   "rows": []
+  },
+  {
+   "name": "err_la_lines_null",
+   "scenario": "errors",
+   "stage": "find_locally_affine_functions",
+   "iteration": 0,
+   "forced_const_order": "main_first_appearance",
+   "before": {
+    "schema": "dsig-parity-snapshot/1",
+    "producer": "diaphora",
+    "pair": "fixture",
+    "seq": 0,
+    "point": "before:find_locally_affine_functions:0",
+    "iteration": 0,
+    "flags": {
+     "is_same_processor": true,
+     "is_patch_diff": false,
+     "is_symbols_stripped": false,
+     "hooks_loaded": false,
+     "total_functions1": 12,
+     "total_functions2": 12
+    },
+    "all_matches": {
+     "best": [
+      [
+       "1000",
+       "e_la_a",
+       "11000",
+       "e_la_a",
+       "Same name",
+       "3ff0000000000000",
+       10,
+       10
+      ],
+      [
+       "3000",
+       "e_la_b",
+       "13000",
+       "e_la_b",
+       "Same name",
+       "3ff0000000000000",
+       10,
+       10
+      ]
+     ],
+     "partial": [],
+     "unreliable": []
+    },
+    "matched_primary": [
+     [
+      "e_la_a",
+      "e_la_a",
+      "3ff0000000000000"
+     ],
+     [
+      "e_la_b",
+      "e_la_b",
+      "3ff0000000000000"
+     ]
+    ],
+    "matched_secondary": [
+     [
+      "e_la_a",
+      "e_la_a",
+      "3ff0000000000000"
+     ],
+     [
+      "e_la_b",
+      "e_la_b",
+      "3ff0000000000000"
+     ]
+    ]
+   },
+   "after": null,
+   "raised": {
+    "type": "TypeError",
+    "message": "unsupported operand type(s) for +: 'NoneType' and 'int'"
+   },
+   "add_match": [],
+   "rows": []
+  },
+  {
+   "name": "err_la_name_null",
+   "scenario": "errors",
+   "stage": "find_locally_affine_functions",
+   "iteration": 0,
+   "forced_const_order": "main_first_appearance",
+   "before": {
+    "schema": "dsig-parity-snapshot/1",
+    "producer": "diaphora",
+    "pair": "fixture",
+    "seq": 0,
+    "point": "before:find_locally_affine_functions:0",
+    "iteration": 0,
+    "flags": {
+     "is_same_processor": true,
+     "is_patch_diff": false,
+     "is_symbols_stripped": false,
+     "hooks_loaded": false,
+     "total_functions1": 12,
+     "total_functions2": 12
+    },
+    "all_matches": {
+     "best": [
+      [
+       "4000",
+       "e_la_c",
+       "14000",
+       "e_la_c",
+       "Same name",
+       "3ff0000000000000",
+       10,
+       10
+      ],
+      [
+       "6000",
+       "e_la_d",
+       "16000",
+       "e_la_d",
+       "Same name",
+       "3ff0000000000000",
+       10,
+       10
+      ]
+     ],
+     "partial": [],
+     "unreliable": []
+    },
+    "matched_primary": [
+     [
+      "e_la_c",
+      "e_la_c",
+      "3ff0000000000000"
+     ],
+     [
+      "e_la_d",
+      "e_la_d",
+      "3ff0000000000000"
+     ]
+    ],
+    "matched_secondary": [
+     [
+      "e_la_c",
+      "e_la_c",
+      "3ff0000000000000"
+     ],
+     [
+      "e_la_d",
+      "e_la_d",
+      "3ff0000000000000"
+     ]
+    ]
+   },
+   "after": null,
+   "raised": {
+    "type": "AttributeError",
+    "message": "'NoneType' object has no attribute 'startswith'"
+   },
+   "add_match": [],
+   "rows": []
+  }
+ ]
+}
