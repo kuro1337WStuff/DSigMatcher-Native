@@ -71,7 +71,10 @@ void AddMultimatchesToChooser(DiffSession& S, const MultiDict& Multi, std::unord
         if (Dones.count(Key) == 0) {                                  // D:2742
           Dones.insert(std::move(Key));                               // D:2743
           AddChooserItem(S, S.Final().Multimatch, Match);             // D:2744
-          IgnoreList.insert(Ea);                                      // D:2745
+          // D:2745, inside the `if`: an ea whose items were all added earlier (for multi_diff, by
+          // multi_main through the shared dones) is NOT ignored, so a later item with that ea can
+          // still reach its chooser (vector case final_pass_ignore_only_on_new_add).
+          IgnoreList.insert(Ea);
         }
       }
     }

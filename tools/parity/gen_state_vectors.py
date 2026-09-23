@@ -539,6 +539,19 @@ def NamedCases():
             "unreliable": [I("1", "p", "2", "q", "y", 1.0)]}},
         {"op": "final_pass"},
     ]})
+    # D:2742-2745: ignore_list.add(ea) runs only when an item of multi[ea] is NEWLY added. Here every
+    # item of multi_diff["50"] (A, B) was already added from multi_main (shared dones, D:2905-2912),
+    # so "50" stays out of ignore_diff and Z (partial, 3->50, dones-skipped in the first pass behind
+    # its lower best twin T) reaches the partial chooser. Not reachable under the defaults (best
+    # items are 1.0 there); it pins the literal port of the conditional.
+    Cases.append({"name": "final_pass_ignore_only_on_new_add", "totals": [100, 100], "ops": [
+        {"op": "set_state", "state_py": {
+            "best": [I("1", "a", "50", "e", "hA", 0.5), I("1", "a", "51", "e1", "hA2", 0.5),
+                     I("2", "b", "50", "e", "hB", 0.5), I("2", "b", "52", "e2", "hB2", 0.5),
+                     I("3", "c", "50", "e", "hT", 0.4)],
+            "partial": [I("3", "c2", "50", "e", "hZ", 0.9)]}},
+        {"op": "final_pass"},
+    ]})
     # find_unmatched (D:2323-2356): labels swapped, name membership, None names, empty tables.
     Cases.append({"name": "unmatched_basic", "totals": [3, 3], "ops": [
         AddOp("f", "g", 0.9, I("10", "f", "20", "g", "h", 0.9), "partial"),

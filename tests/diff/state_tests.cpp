@@ -649,6 +649,38 @@ void TestKeyErrorAnalysis() {
   CHECK_NUM_EQ(S.Final().Partial.size(), 1);  // add_item calls before the raise are kept
 }
 
+// D:2742-2745: add_multimatches_to_chooser puts an ea into the ignore list only when one of its items
+// is NEWLY added. multi_diff["50"] = [A, B] holds only items that multi_main already added (one shared
+// dones, D:2905-2912), so "50" is not ignored and Z (3->50, dones-skipped in the first pass behind its
+// lower best twin T, D:2853-2854) reaches the partial chooser. Real Diaphora gives the same result
+// (probes.json "final_pass_ignore_only_on_new_add"); an unconditional ignore_list.add drops Z.
+void TestIgnoreOnlyOnNewAdd() {
+  DSig::Test::Suite("final pass: ignore flag only for newly added multimatch items");
+  DiffSession S;
+  StateSnapshot Snap;
+  Snap.Flags.TotalFunctions1 = Snap.Flags.TotalFunctions2 = 100;
+  Snap.Best = SnapItems(S, {MakeItem(S, "1", "a", "50", "e", "hA", 0.5), MakeItem(S, "1", "a", "51", "e1", "hA2", 0.5),
+                            MakeItem(S, "2", "b", "50", "e", "hB", 0.5), MakeItem(S, "2", "b", "52", "e2", "hB2", 0.5),
+                            MakeItem(S, "3", "c", "50", "e", "hT", 0.4)});
+  Snap.Partial = SnapItems(S, {MakeItem(S, "3", "c2", "50", "e", "hZ", 0.9)});
+  S.State().Import(Snap);
+  StageFinalPass(S);
+  const auto Pairs = [&](const std::vector<Item>& Items) {
+    std::string Out;
+    for (const Item& It : Items) {
+      Out += "(" + std::string(S.Ids().AddrText(It.Ea1)) + "->" + std::string(S.Ids().AddrText(It.Ea2)) + ")";
+    }
+    return Out;
+  };
+  CHECK_TEXT_EQ(Pairs(S.Final().Multimatch), "(1->50)(1->51)(2->50)(2->52)");
+  CHECK(S.Final().Best.empty());  // T fails max_diff["50"] = 0.5
+  CHECK_TEXT_EQ(Pairs(S.Final().Partial), "(3->50)");
+  if (S.Final().Partial.size() == 1) {
+    CHECK_TEXT_EQ(std::string(S.Ids().DescText(S.Final().Partial[0].Desc)), "hZ");
+  }
+  CHECK(S.Final().Unreliable.empty());
+}
+
 void TestPyIntText() {
   DSig::Test::Suite("Python int() of address texts (D:280/D:286/D:288/D:1935)");
   using Detail::PyIntAsciiAccepts;
@@ -1774,6 +1806,7 @@ int main() {
   Run("None names", TestNoneNames);
   Run("E2", TestE2);
   Run("KeyError", TestKeyErrorAnalysis);
+  Run("ignore only on add", TestIgnoreOnlyOnNewAdd);
   Run("int()", TestPyIntText);
   Run("counters", TestCountersAndSorting);
   Run("export/import", TestExportImport);
