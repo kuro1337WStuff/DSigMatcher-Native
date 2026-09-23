@@ -1365,6 +1365,41 @@ allowed to look like passing verification.
 Local state after the three changes: build clean at `/W4 /permissive-`, 5/5 suites, 316 unit checks and
 825 resolve checks, 0 failures.
 
+### The Windows CI job was not testing MSVC
+
+The second CI run passed on Linux and macOS and still segfaulted on Windows. Reading the Windows build
+log rather than just its verdict exposed the reason the failure would not reproduce locally:
+
+```
+[47/60] Linking C static library libdsigmatcher_core.a
+[39/60] Linking C static library _deps/zydis-build/libZydis.a
+```
+
+`.a`, not `.lib`. **The job labelled "Windows / MSVC" was compiling with MinGW GCC.** `cl.exe` is not
+on `PATH` on GitHub's `windows-latest` runner, so CMake with the Ninja generator silently selected
+whatever C compiler it found. Nothing errored; the build succeeded; the job name simply described
+something other than what ran.
+
+Two consequences. First, every statement in this journal about MSVC CI coverage was wrong up to this
+point — the coverage was MinGW/libstdc++ on Windows, which is a *different* configuration from the one
+this project is developed and shipped on. Second, it accidentally produced a fourth useful toolchain:
+Linux/GCC/glibc, macOS/Clang/libc++, Windows/MinGW/libstdc++, and locally Windows/MSVC. The MinGW
+configuration is the only one that crashes in `TestIngestRoundTrip`, so the defect is toolchain- or
+runtime-specific rather than universal — but it is a real crash and is not dismissed as such.
+
+Fixed by adding `ilammy/msvc-dev-cmd@v1` before configure on Windows, and by adding a **Report
+toolchain** step that prints `CMAKE_C_COMPILER`, `CMAKE_CXX_COMPILER_ID` from the cache plus the static
+library filenames. That step exists specifically so this cannot silently regress again: a build system
+that picks a compiler by searching `PATH` will happily pick a different one than intended, and the
+only reliable defence is to print which one it chose.
+
+The general lesson, which is the same one the stale-binary incident produced: **a green or red result
+is meaningless until you have confirmed what actually ran.** Here the confirmation is one line of
+output showing `.lib` versus `.a`.
+
+Separately, the `resolve` failures on Linux and macOS were fixed by the `memcmp`-over-padding change,
+which is strong evidence that diagnosis was correct: both platforms went green with no other change.
+
 ### Not yet done
 
 - 38 remaining heuristics: 4 `Best`, 26 `Partial`, 8 `Unreliable`
