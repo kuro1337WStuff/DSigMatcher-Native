@@ -788,6 +788,134 @@ std::string HexAddress(uint64_t Value) {
   return std::string(Buffer);
 }
 
+void TestPortPathSafety() {
+  Suite("Port refuses to overwrite its own inputs");
+
+  const std::filesystem::path Directory = ScratchDirectory();
+  const std::string Reference = (Directory / "safety_ref.sqlite").string();
+  const std::string Target = (Directory / "safety_target.sqlite").string();
+
+  std::vector<TestFunction> ReferenceRows;
+  std::vector<TestFunction> TargetRows;
+  for (int Index = 0; Index < 4; ++Index) {
+    TestFunction Row;
+    Row.Id = Index + 1;
+    Row.Name = "Real_Named_" + std::to_string(Index);
+    Row.Address = HexAddress(0x140001000ull + Index * 0x40ull);
+    Row.Rva = std::to_string(0x1000ull + Index * 0x40ull);
+    Row.BytesHash = "safety-bytes-" + std::to_string(Index);
+    Row.FunctionHash = "safety-fh-" + std::to_string(Index);
+    Row.CleanAssembly = "safety-asm-" + std::to_string(Index);
+    Row.CleanPseudo = "safety-pseudo-" + std::to_string(Index);
+    Row.CleanMicrocode = "safety-micro-" + std::to_string(Index);
+    Row.Mnemonics = "push mov call ret";
+    Row.Instructions = 20;
+    Row.Nodes = 4;
+    Row.PseudocodeLines = 9;
+    ReferenceRows.push_back(Row);
+
+    TestFunction TargetRow = Row;
+    if (Index != 0) {
+      TargetRow.Name = "sub_200" + std::to_string(Index);
+    }
+    TargetRows.push_back(TargetRow);
+  }
+
+  CHECK(CreateExport(Reference, ReferenceRows, "metapc"));
+  CHECK(CreateExport(Target, TargetRows, "metapc"));
+
+  bool HashOk = false;
+  const std::string TargetBefore = Sha256::FileHex(Target, HashOk);
+  CHECK(HashOk);
+  const uintmax_t TargetSizeBefore = std::filesystem::file_size(Target);
+
+  PortOptions InPlace;
+  InPlace.ReferencePath = Reference;
+  InPlace.TargetPath = Target;
+  InPlace.OutputPath = Target;
+  InPlace.Diff.SameProcessor = true;
+  InPlace.Diff.ThreadCount = 1;
+  const PortResult InPlaceResult = PortSymbols(InPlace);
+
+  CHECK(!InPlaceResult.Ok);
+  std::printf("  output == target     : rejected with '%s'\n", InPlaceResult.Error.c_str());
+
+  bool StillReadable = false;
+  const std::string TargetAfter = Sha256::FileHex(Target, StillReadable);
+  CHECK(StillReadable);
+  CHECK_EQ(TargetAfter, TargetBefore);
+  CHECK_EQ(std::filesystem::file_size(Target), TargetSizeBefore);
+
+  FunctionTable Survivor;
+  ProgramInfo SurvivorProgram;
+  ExportDatabase Loader;
+  const LoadResult Reload = Loader.Load(Target, Survivor, SurvivorProgram);
+  CHECK(Reload.Ok);
+  CHECK_EQ(Survivor.Count(), static_cast<size_t>(4));
+
+  PortOptions OntoReference;
+  OntoReference.ReferencePath = Reference;
+  OntoReference.TargetPath = Target;
+  OntoReference.OutputPath = Reference;
+  OntoReference.Diff.SameProcessor = true;
+  OntoReference.Diff.ThreadCount = 1;
+  const PortResult OntoReferenceResult = PortSymbols(OntoReference);
+  CHECK(!OntoReferenceResult.Ok);
+  std::printf("  output == reference  : rejected with '%s'\n",
+              OntoReferenceResult.Error.c_str());
+
+  FunctionTable ReferenceSurvivor;
+  ProgramInfo ReferenceSurvivorProgram;
+  const LoadResult ReferenceReload =
+      Loader.Load(Reference, ReferenceSurvivor, ReferenceSurvivorProgram);
+  CHECK(ReferenceReload.Ok);
+  CHECK_EQ(ReferenceSurvivor.Count(), static_cast<size_t>(4));
+
+  PortOptions EquivalentPath;
+  EquivalentPath.ReferencePath = Reference;
+  EquivalentPath.TargetPath = Target;
+  EquivalentPath.OutputPath = (Directory / "." / "safety_target.sqlite").string();
+  EquivalentPath.Diff.SameProcessor = true;
+  EquivalentPath.Diff.ThreadCount = 1;
+  const PortResult EquivalentResult = PortSymbols(EquivalentPath);
+  CHECK(!EquivalentResult.Ok);
+  std::printf("  output via .\\ alias  : rejected with '%s'\n", EquivalentResult.Error.c_str());
+
+  bool AliasStillReadable = false;
+  const std::string TargetAfterAlias = Sha256::FileHex(Target, AliasStillReadable);
+  CHECK(AliasStillReadable);
+  CHECK_EQ(TargetAfterAlias, TargetBefore);
+
+  PortOptions MissingDirectory;
+  MissingDirectory.ReferencePath = Reference;
+  MissingDirectory.TargetPath = Target;
+  MissingDirectory.OutputPath = (Directory / "no_such_subdir" / "out.sqlite").string();
+  MissingDirectory.Diff.SameProcessor = true;
+  MissingDirectory.Diff.ThreadCount = 1;
+  const PortResult MissingResult = PortSymbols(MissingDirectory);
+  CHECK(!MissingResult.Ok);
+  std::printf("  output dir missing   : rejected with '%s'\n", MissingResult.Error.c_str());
+
+  const std::string GoodOutput = (Directory / "safety_out.sqlite").string();
+  PortOptions Valid;
+  Valid.ReferencePath = Reference;
+  Valid.TargetPath = Target;
+  Valid.OutputPath = GoodOutput;
+  Valid.Diff.SameProcessor = true;
+  Valid.Diff.ThreadCount = 1;
+  const PortResult ValidResult = PortSymbols(Valid);
+  CHECK(ValidResult.Ok);
+  CHECK_EQ(ValidResult.Matches, static_cast<int64_t>(4));
+  CHECK_EQ(ValidResult.NamesApplied, static_cast<int64_t>(3));
+  CHECK_EQ(ValidResult.NamesConfirmed, static_cast<int64_t>(1));
+  CHECK_EQ(ReadNameAtAddress(GoodOutput, HexAddress(0x140001040ull)),
+           std::string("Real_Named_1"));
+
+  bool TargetUntouched = false;
+  CHECK_EQ(Sha256::FileHex(Target, TargetUntouched), TargetBefore);
+  CHECK(TargetUntouched);
+}
+
 void TestProvenanceChain() {
   Suite("Provenance chain across two hops");
 
@@ -959,6 +1087,7 @@ int main() {
   TestNaming();
   TestMatchStore();
   TestIngestRoundTrip();
+  TestPortPathSafety();
   TestSyntheticAccuracy();
   TestProvenanceChain();
 

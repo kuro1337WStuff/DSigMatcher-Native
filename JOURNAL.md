@@ -1110,6 +1110,64 @@ Unit suite now **293 checks, 0 failed**.
 - No measurement of memory high-water mark. The realistic corpus interns 73 MiB per side at 19,000
   functions; at 200,000 functions that scales to roughly 770 MiB per side and has not been tested.
 
+### Bug fix: in-place `port` destroyed the target database and reported success
+
+`PortSymbols` begins by copying the target database to the output path:
+
+```cpp
+CopyFileBinary(Options.TargetPath, Options.OutputPath)
+```
+
+`CopyFileBinary` opens the destination with `std::ios::trunc`. When the output path **is** the target
+path — `dsigmatcher port ref.sqlite target.sqlite -o target.sqlite` — the destination is truncated to
+zero before the source is read. The copy "succeeds", the subsequent `sqlite3_open_v2` with
+`SQLITE_OPEN_CREATE` creates a fresh empty database, the provenance tables are added to it, the
+transaction commits, and `PortSymbols` returns `Ok = true`.
+
+**Net effect: the user's target database is destroyed and the tool exits 0.** In-place porting is an
+entirely natural thing to try — "update this database with the new labels" — so this was reachable by
+ordinary use, not by adversarial input.
+
+Confirmed by test before fixing, not inferred. The failing run showed:
+
+```
+FAIL  !InPlaceResult.Ok
+FAIL  TargetAfter == TargetBefore
+FAIL  std::filesystem::file_size(Target) == TargetSizeBefore
+FAIL  Reload.Ok
+FAIL  Survivor.Count() == 4
+```
+
+`InPlaceResult.Ok` was **true** and the target was left unparseable. Every later case in the suite then
+cascaded into `table 'functions' is missing`, including the valid-port case, which is how one
+destructive alias turned into nine failures.
+
+**Fix.** All three paths are canonicalised with `std::filesystem::weakly_canonical` and compared before
+any I/O; the operation is rejected with a specific error if the output resolves to either input.
+`weakly_canonical` is what makes this robust — it resolves `.\` segments, so the alias
+`dir\.\safety_target.sqlite` is caught as the same file as `dir\safety_target.sqlite`. A purely textual
+comparison would have missed it. `CopyFileBinary` also gained a defensive same-file check so the
+primitive cannot be misused by a future caller.
+
+Covered by `TestPortPathSafety`, which asserts the rejection *and* that the target survives bit-for-bit
+(SHA-256 and file size before and after) *and* that it still loads with the right row count. Four cases:
+output equals target, output equals reference, output equals target through a `.\` alias, and output in
+a nonexistent directory (which already failed cleanly, now asserted rather than assumed).
+
+A fixture bug surfaced while writing that test: reference and target were built from the same row set,
+so every name matched exactly and `NamesApplied` was legitimately 0 while the assertion expected
+positive. The fixture now gives the reference real names and the target `sub_` names for three of four
+functions, leaving one identical to exercise the confirmation path. Assertions are now exact:
+`Matches == 4`, `NamesApplied == 3`, `NamesConfirmed == 1`, and the ported name is read back out of the
+output database to confirm it actually landed.
+
+Unit suite **316 checks, 0 failed**; 4/4 ctest suites pass.
+
+**Still unguarded, noted rather than fixed:** `diff -o <path>` where the path equals one of the inputs
+will add `matches` and `symbols_to_port` tables to that input. It does not truncate or destroy anything
+— the existing `functions` rows survive — so it is a surprise rather than data loss, but it does mutate
+a file the user passed as read-only input. Same canonicalisation should be applied there.
+
 ### Not yet done
 
 - 38 remaining heuristics: 4 `Best`, 26 `Partial`, 8 `Unreliable`
