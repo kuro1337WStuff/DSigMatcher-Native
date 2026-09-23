@@ -48,10 +48,10 @@ call "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\v
 set "DEPS=<dsig-tools>\deps"
 if not exist "%BLD%\CMakeCache.txt" (
   cmake -S "%SRC%" -B "%BLD%" -G Ninja -DCMAKE_BUILD_TYPE=Release ^
-    -DCMAKE_PREFIX_PATH=<conda>/Library ^
     -DDSIG_CORPUS_ROOT=<corpus> ^
     -DFETCHCONTENT_SOURCE_DIR_ZYDIS=%DEPS%\zydis-src ^
     -DFETCHCONTENT_SOURCE_DIR_ZYCORE=%DEPS%\zycore-src ^
+    -DFETCHCONTENT_SOURCE_DIR_SQLITE3=%DEPS%\sqlite3-src ^
     -DFETCHCONTENT_FULLY_DISCONNECTED=ON || (echo CONFIGURE_FAILED & exit /b 1)
 )
 cmake --build "%BLD%" || (echo BUILD_FAILED & exit /b 1)
@@ -64,7 +64,7 @@ if /i "%~3"=="test" (
 ```
 
 - The script configures only once, when `CMakeCache.txt` is absent. Ninja reruns CMake by itself whenever `CMakeLists.txt` changes, so adding files is safe.
-- `PATH` is prefixed with `miniconda3\Library\bin` so that the tests load **the same `sqlite3.dll` (3.51.1)** that the Python oracle uses. That DLL is the only one allowed in parity runs (see Section 11.2).
+- `PATH` is prefixed with `miniconda3\Library\bin` so that the tests load **the same `sqlite3.dll` (3.51.1)** that the Python oracle uses. That DLL is the only one allowed in parity runs (see Section 11.2). Since SQLite 3.51.1 is bundled and linked statically (lane V1), the native build no longer loads any `sqlite3.dll` and the conda `CMAKE_PREFIX_PATH` was dropped from the script; the `PATH` prefix only matters for a `-DDSIG_VENDORED_SQLITE=OFF` build.
 - Check counts per executable, OBSERVED by running each exe:
 
   | Executable | Last line of output |

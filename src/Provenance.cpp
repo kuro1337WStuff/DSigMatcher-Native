@@ -18,6 +18,7 @@
 #include "dsigmatcher/ExportDatabase.h"
 #include "dsigmatcher/Naming.h"
 #include "dsigmatcher/Sha256.h"
+#include "dsigmatcher/Version.h"
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -27,10 +28,6 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
-#endif
-
-#ifndef DSIG_VERSION
-#define DSIG_VERSION "0.0.0"
 #endif
 
 namespace DSig {
