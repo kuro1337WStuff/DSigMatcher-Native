@@ -1,0 +1,64 @@
+DSigMatcher Native
+Copyright (C) 2026 kuro1337WStuff
+
+This program is free software: you can redistribute it and/or modify it
+under the terms of the GNU Affero General Public License as published by the
+Free Software Foundation, either version 3 of the License, or (at your option)
+any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
+details. The full licence text is in the file LICENSE.
+
+Corresponding source: https://github.com/kuro1337WStuff/DSigMatcher-Native
+The source of every release is the git tag of the same name (for example,
+v1.0.0), and the release page offers it as a source archive next to the
+binaries.
+
+SPDX-License-Identifier: AGPL-3.0-or-later
+
+
+Diaphora
+========
+
+DSigMatcher's diff engine is a C++ port of the diffing logic of Diaphora:
+
+    Diaphora, a binary diffing tool
+    Copyright (c) 2015-2026 Joxean Koret
+    Licensed under the GNU Affero General Public License, version 3 or
+    (at your option) any later version.
+    https://github.com/joxeankoret/diaphora
+
+Ported revision: 3.4.2-4-g621ec26
+(commit 621ec2699255fa709b2ee422cd919b38f088f16b).
+
+What was taken from Diaphora and how it was modified (AGPL-3.0 section 5(a)).
+The work was done in September 2026, for the v1.0.0 release.
+
+  * The diff engine (src/diff/ and include/dsigmatcher/diff/) translates
+    Diaphora's CBinDiff.diff() pipeline from Python into C++20: the match
+    bookkeeping, the ratio computation, the pre-loop passes, the heuristic
+    tiers, callee diffing, related constants, related compilation units, local
+    affinity, the final multimatch pass and the writer of the .diaphora
+    results file. Comments of the form "D:<line>" cite the diaphora.py line
+    each piece of code was translated from.
+  * src/diff/RegistrySql.inc and src/diff/StageSql.inc embed Diaphora's SQL
+    verbatim: the 50 heuristic queries of diaphora_heuristics.py and the stage
+    queries of diaphora.py. They are generated from an unmodified Diaphora
+    checkout by tools/parity/gen_registry.py.
+  * The result-porting command (src/cli/PortResults.cpp) reads Diaphora's
+    results-file layout.
+  * The design documents under docs/parity/ quote Diaphora's source code.
+
+Diaphora itself is not included in the source tree or in any release
+archive. The extract, ingest and update commands run an unmodified Diaphora
+checkout that the user supplies (see README.md).
+
+
+Other third-party components
+============================
+
+See THIRD_PARTY_NOTICES.md for the licences of the other code this program
+contains or is derived from: CPython's difflib (PSF License Version 2),
+Zydis and Zycore (MIT) and SQLite (public domain).
