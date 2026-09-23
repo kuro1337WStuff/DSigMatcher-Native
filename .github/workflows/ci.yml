@@ -26,6 +26,11 @@ jobs:
             os: windows-latest
           - name: macOS / Clang
             os: macos-latest
+          # DSIG_VENDORED_SQLITE=OFF: the distribution's SQLite, so the fallback build keeps working and
+          # the order-insensitive (L1) comparisons and the SQLite-mismatch warning stay exercised.
+          - name: Linux / GCC / system SQLite
+            os: ubuntu-latest
+            sqlite: system
 
     steps:
       - name: Checkout
@@ -35,31 +40,19 @@ jobs:
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Install SQLite3 development files (Linux)
-        if: runner.os == 'Linux'
+      # SQLite 3.51.1 (the parity oracle's) is bundled and built by CMake by default; only the
+      # system-SQLite job installs one.
+      - name: Install SQLite3 development files (system SQLite job)
+        if: matrix.sqlite == 'system'
         run: |
           sudo apt-get update
           sudo apt-get install -y libsqlite3-dev
 
-      - name: Install SQLite3 development files (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          brew install sqlite3
-          echo "SQLITE_PREFIX=$(brew --prefix sqlite3)" >> "$GITHUB_ENV"
-
-      - name: Install SQLite3 development files (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          vcpkg install sqlite3:x64-windows
-          $Prefix = ($env:VCPKG_INSTALLATION_ROOT -replace '\\', '/') + '/installed/x64-windows'
-          "SQLITE_PREFIX=$Prefix" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-
       - name: Configure
         shell: bash
         run: |
-          if [ -n "$SQLITE_PREFIX" ]; then
-            cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$SQLITE_PREFIX"
+          if [ "${{ matrix.sqlite }}" = "system" ]; then
+            cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DDSIG_VENDORED_SQLITE=OFF
           else
             cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
           fi
@@ -76,25 +69,13 @@ jobs:
       - name: Build
         run: cmake --build build
 
-      - name: Stage SQLite DLL beside the executables (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          Copy-Item "$env:SQLITE_PREFIX/bin/sqlite3.dll" -Destination build/ -Force
-          $Staged = Get-Item build/sqlite3.dll
-          Write-Output ("staged {0} ({1} bytes) from {2}" -f $Staged.Name, $Staged.Length, $env:SQLITE_PREFIX)
-          $System = "C:\Windows\System32\sqlite3.dll"
-          if (Test-Path $System) {
-            Write-Output ("system sqlite3.dll also present: {0} bytes - the staged copy wins because the exe directory precedes System32 in the search order" -f (Get-Item $System).Length)
-          }
+      - name: Report SQLite
+        shell: bash
+        run: ./build/dsig_sqlite_info
 
       - name: Test
         shell: bash
-        run: |
-          if [ -n "$SQLITE_PREFIX" ]; then
-            export PATH="$SQLITE_PREFIX/bin:$PATH"
-          fi
-          ctest --test-dir build --output-on-failure
+        run: ctest --test-dir build --output-on-failure
 
       - name: Report test binaries
         shell: bash

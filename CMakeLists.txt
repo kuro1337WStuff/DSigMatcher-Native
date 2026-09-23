@@ -13,10 +13,22 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "" FORCE)
 endif()
 
-find_package(SQLite3 REQUIRED)
 find_package(Threads REQUIRED)
 
 include(FetchContent)
+
+# SQLite. ON (default): the bundled SQLite 3.51.1 amalgamation, compiled with the parity oracle's options
+# (cmake/VendoredSqlite.cmake), so Path A reproduces the oracle's row order on every platform and the
+# order-sensitive (L2) checks run everywhere. OFF: the system SQLite via find_package(SQLite3); results
+# then compare at L1 (order-insensitive) unless that SQLite happens to be the oracle's 3.51.1.
+option(DSIG_VENDORED_SQLITE "Build the bundled SQLite 3.51.1 (the parity oracle's) instead of the system SQLite" ON)
+if(DSIG_VENDORED_SQLITE)
+  include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/VendoredSqlite.cmake)
+  set(DSIG_SQLITE_TARGET dsig_sqlite3)
+else()
+  find_package(SQLite3 REQUIRED)
+  set(DSIG_SQLITE_TARGET SQLite::SQLite3)
+endif()
 
 set(ZYCORE_BUILD_SHARED_LIB OFF CACHE BOOL "" FORCE)
 set(ZYDIS_BUILD_SHARED_LIB OFF CACHE BOOL "" FORCE)
@@ -69,7 +81,7 @@ add_library(dsigmatcher_core STATIC
   src/ThreadPool.cpp)
 
 target_include_directories(dsigmatcher_core PUBLIC include)
-target_link_libraries(dsigmatcher_core PUBLIC SQLite::SQLite3 Threads::Threads Zydis)
+target_link_libraries(dsigmatcher_core PUBLIC ${DSIG_SQLITE_TARGET} Threads::Threads Zydis)
 target_compile_definitions(dsigmatcher_core PUBLIC DSIG_VERSION="${PROJECT_VERSION}")
 dsig_apply_warnings(dsigmatcher_core)
 
@@ -106,7 +118,7 @@ add_library(dsigmatcher_diff STATIC
   src/diff/stages/RelatedCompilationUnit.cpp
   src/diff/stages/LocalAffinity.cpp)
 target_include_directories(dsigmatcher_diff PUBLIC include PRIVATE src/diff)
-target_link_libraries(dsigmatcher_diff PUBLIC dsigmatcher_core SQLite::SQLite3)
+target_link_libraries(dsigmatcher_diff PUBLIC dsigmatcher_core ${DSIG_SQLITE_TARGET})
 dsig_apply_warnings(dsigmatcher_diff)
 
 # Floating point must follow Python's evaluation exactly (plan §3.12, 03a Hard parts 2): no
@@ -140,14 +152,15 @@ if(WIN32)
   endif()
 endif()
 
-# Stage the sqlite3.dll that sits next to the linked import library beside the executables, so manual
-# runs load the same SQLite the tests use (plan §3.4; 07 §11.2). Windows only.
-if(WIN32)
+# System SQLite only (DSIG_VENDORED_SQLITE=OFF; the bundled one is linked statically): stage the
+# sqlite3.dll that sits next to the linked import library beside the executables, so manual runs load the
+# same SQLite the tests use (plan §3.4; 07 §11.2). Windows only.
+set(DSIG_SQLITE_DLL "")
+if(WIN32 AND NOT DSIG_VENDORED_SQLITE)
   set(_dsig_sqlite_lib "${SQLite3_LIBRARY}")
   if(NOT _dsig_sqlite_lib)
     get_target_property(_dsig_sqlite_lib SQLite::SQLite3 IMPORTED_LOCATION)
   endif()
-  set(DSIG_SQLITE_DLL "")
   if(_dsig_sqlite_lib)
     get_filename_component(_dsig_sqlite_dir "${_dsig_sqlite_lib}" DIRECTORY)
     foreach(_dsig_candidate "${_dsig_sqlite_dir}/../bin/sqlite3.dll" "${_dsig_sqlite_dir}/sqlite3.dll")
@@ -178,7 +191,7 @@ set_property(TARGET dsigmatcher APPEND PROPERTY LINK_DEPENDS "${DSIG_EXPORT_SCRI
 # `cmake --install <build> --prefix <prefix> [--component dsigmatcher]`: <prefix>/bin/dsigmatcher and
 # <prefix>/share/dsigmatcher/tools/export/dsig_export.py, the two places FindExportScript pairs
 # (literal paths, not GNUInstallDirs variables, because the bridge searches exactly these). On Windows
-# the staged sqlite3.dll goes beside the executable as well.
+# the staged sqlite3.dll (system SQLite only) goes beside the executable as well.
 install(TARGETS dsigmatcher RUNTIME DESTINATION bin COMPONENT dsigmatcher)
 install(FILES "${DSIG_EXPORT_SCRIPT}" DESTINATION share/dsigmatcher/tools/export COMPONENT dsigmatcher)
 if(WIN32 AND DSIG_SQLITE_DLL)
@@ -191,6 +204,16 @@ add_executable(dsigmatcher_tests tests/dsigmatcher_tests.cpp)
 target_link_libraries(dsigmatcher_tests PRIVATE dsigmatcher_core)
 dsig_apply_warnings(dsigmatcher_tests)
 add_test(NAME unit COMMAND dsigmatcher_tests)
+
+# Prints the linked SQLite's version, source id and compile options into the test log; with the bundled
+# SQLite it also checks them against the parity oracle's (tests/sqlite_info.cpp).
+add_executable(dsig_sqlite_info tests/sqlite_info.cpp)
+target_link_libraries(dsig_sqlite_info PRIVATE ${DSIG_SQLITE_TARGET})
+if(DSIG_VENDORED_SQLITE)
+  target_compile_definitions(dsig_sqlite_info PRIVATE DSIG_VENDORED_SQLITE=1)
+endif()
+dsig_apply_warnings(dsig_sqlite_info)
+add_test(NAME sqlite_info COMMAND dsig_sqlite_info)
 
 add_executable(dsigmatcher_bench bench/dsigmatcher_bench.cpp)
 target_link_libraries(dsigmatcher_bench PRIVATE dsigmatcher_core)

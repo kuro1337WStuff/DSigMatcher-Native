@@ -133,14 +133,18 @@ Note also that the pipeline described above is the *target* design. The current 
 
 ## Build
 
-Requires a C++20 compiler, CMake 3.20+, Ninja, and the SQLite development headers and library. Verified with MSVC 19.51 (VS 2026) on Windows x64.
+Requires a C++20 compiler (plus a C compiler for SQLite), CMake 3.20+ and Ninja. Verified with MSVC 19.51 (VS 2026) on Windows x64; CI also builds with GCC on Linux and Clang on macOS.
 
 ```
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=<prefix containing include/sqlite3.h and lib/sqlite3.lib>
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
 On Windows with Visual Studio, run `vcvars64.bat` first; CMake and Ninja ship with the IDE.
+
+SQLite 3.51.1 is bundled by default: CMake downloads the official amalgamation from sqlite.org (hash-pinned, `cmake/VendoredSqlite.cmake`) and links it statically, compiled with the same options as the SQLite the Diaphora reference runs used. Diaphora's results depend on the order in which SQLite's query planner returns rows, so the bundled copy gives the reference row order on every platform, and the order-sensitive (L2) parity checks run everywhere. `build/dsig_sqlite_info` prints the linked SQLite's version and compile options. For offline builds, unpack the amalgamation zip and pass `-DFETCHCONTENT_SOURCE_DIR_SQLITE3=<dir>`.
+
+`-DDSIG_VENDORED_SQLITE=OFF` uses the system SQLite instead (`find_package(SQLite3)`; add `-DCMAKE_PREFIX_PATH=<prefix>` if CMake does not find it; on Windows CMake copies the `sqlite3.dll` it finds next to the import library beside the executables). Unless that SQLite is also 3.51.1, row order can differ from Diaphora's, so results match only at the order-insensitive L1 level (same rows, any order) and `diff` prints a warning.
 
 ## Usage
 
@@ -221,4 +225,4 @@ DSigMatcher-Native is a clean-room reimplementation of the binary diffing approa
 
 No Diaphora source code is incorporated, copied, or translated. What is reused is the *observable interface*: the SQLite schema that Diaphora's exporters emit, and the taxonomy of matching heuristics it applies. Consuming a documented file format and reimplementing an algorithmic approach independently does not create a derivative work, so Diaphora's AGPLv3 does not propagate to this project. Licensing for DSigMatcher-Native has not yet been chosen.
 
-SQLite is located with CMake's `find_package(SQLite3)` and linked as `SQLite::SQLite3`; nothing is vendored. SQLite itself is public domain.
+SQLite 3.51.1 is bundled by default (downloaded at configure time, not committed); `-DDSIG_VENDORED_SQLITE=OFF` links the system SQLite via `find_package(SQLite3)` instead. SQLite itself is public domain.
