@@ -36,9 +36,9 @@ struct SmallRow {
 
 // result_iter(cur) (D:139-146, called at D:2110): `cursor.fetchmany(1000)` in a loop. Python 3.13's
 // sqlite3 converts a row (decoding every TEXT column, db.text_factory = str at D:346) when it fetches
-// that row, and steps to the NEXT row before returning it (Modules/_sqlite/cursor.c
-// pysqlite_cursor_iternext: _pysqlite_fetch_one_row, then stmt_step). fetchmany collects up to 1000
-// rows and returns nothing when any of those calls raises. Measured on the oracle's Python 3.13.12 /
+// that row, and steps to the NEXT row before returning it; fetchmany collects up to 1000 rows and
+// returns nothing when any of those calls raises. (CPython's Modules/_sqlite/cursor.c was not read
+// for this port: the behaviour below is what was measured.) Measured on the oracle's Python 3.13.12 /
 // SQLite 3.51.1 (lane L6 probe on a 2100-row cursor, scratch only; diff_tiers pins the same counts):
 //   * invalid UTF-8 in row 5, 1000, 1001, 2001 or 2100: 0, 0, 1000, 2000 and 2000 rows reach the loop;
 //   * a step error (integer overflow) positioning row 5, 1000, 1001, 1002, 2001 or 2100: 0, 0, 0, 1000,

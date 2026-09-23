@@ -1369,7 +1369,16 @@ void TestDataTouched(const std::string& Scratch) {
                        " queries: descriptor columns equal SQLite's authorizer reads");
     }
   }
-  // the fusion view: conjunctive join keys shared by two or more heuristics
+  // the fusion view: each heuristic's key signature, then the conjunctive join keys shared by two or
+  // more heuristics
+  for (const HeuristicSpec& Spec : Heuristics()) {
+    const Tiers::DataTouched D = Tiers::HeuristicDataTouched(Spec.Id);
+    DSig::Test::Note("H" + std::to_string(Spec.Id) + " [" + std::to_string(D.Tables.size()) + " tables, " +
+                     std::to_string(D.Columns.size()) + " columns" + (D.Ctes.empty() ? "" : ", CTEs") +
+                     (D.Union ? ", UNION" : "") + (D.Distinct ? ", DISTINCT" : "") +
+                     (D.OrderByPresent ? ", ORDER BY" : "") + "] " +
+                     (D.KeySignature.empty() ? std::string("(no conjunctive equi-join key)") : D.KeySignature));
+  }
   std::map<std::string, std::vector<int>> ByKey;
   for (const HeuristicSpec& Spec : Heuristics()) {
     for (const auto& [L, R] : Tiers::HeuristicDataTouched(Spec.Id).JoinKeys) {
