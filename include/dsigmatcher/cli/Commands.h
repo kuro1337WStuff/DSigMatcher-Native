@@ -31,6 +31,8 @@ struct ExportToolOptions {
   std::string TempDir;      // --temp-dir    (else the system temp directory)
   bool KeepTemp = false;    // --keep-temp
   int TimeoutSeconds = 0;   // --timeout (0: none)
+  std::string ExportScript; // --export-script (else DSIG_EXPORT_SCRIPT, else found relative to the
+                            // executable). Added by lane L10 (additive).
 };
 
 // `extract`: export an existing IDA database, keeping the user's labels. The input .i64/.idb is always

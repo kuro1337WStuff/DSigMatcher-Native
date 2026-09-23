@@ -75,7 +75,8 @@ void PrintUsage() {
   std::printf("\n");
   std::printf("extract / ingest tool options: --python <exe>, --ida-dir <dir>, --diaphora-dir <dir>\n");
   std::printf("  (else DSIG_PYTHON, DSIG_IDADIR, DSIG_DIAPHORA_DIR), --temp-dir <dir>, --keep-temp,\n");
-  std::printf("  --timeout <seconds>\n");
+  std::printf("  --timeout <seconds>, --export-script <dsig_export.py> (else DSIG_EXPORT_SCRIPT, else\n");
+  std::printf("  tools/export/dsig_export.py found beside the executable or in a parent directory)\n");
   std::printf("\n");
   std::printf("The port output is itself a Diaphora-schema database, so it can be used as the\n");
   std::printf("reference for the next release without going back through IDA.\n");
@@ -112,7 +113,8 @@ const std::vector<OptionSpec>& OptionsFor(const std::string& Command) {
   static const std::vector<OptionSpec> Export = {
       {"--output", "-o", true},    {"--python", nullptr, true},   {"--ida-dir", nullptr, true},
       {"--diaphora-dir", nullptr, true}, {"--temp-dir", nullptr, true}, {"--keep-temp", nullptr, false},
-      {"--timeout", nullptr, true}, {"--pdb", nullptr, true},     {"--no-pdb", nullptr, false}};
+      {"--timeout", nullptr, true}, {"--pdb", nullptr, true},     {"--no-pdb", nullptr, false},
+      {"--export-script", nullptr, true}};
   static const std::vector<OptionSpec> None = {};
   if (Command == "diff") {
     return Diff;
@@ -607,6 +609,7 @@ Cli::ExportToolOptions ToolOptions(const Parsed& Arguments, bool& Ok) {
   Tools.DiaphoraDir = Arguments.Value("--diaphora-dir");
   Tools.TempDir = Arguments.Value("--temp-dir");
   Tools.KeepTemp = Arguments.Has("--keep-temp");
+  Tools.ExportScript = Arguments.Value("--export-script");
   Ok = true;
   if (Arguments.Has("--timeout")) {
     const auto Value = ParseLong(Arguments.Value("--timeout"));
