@@ -1198,7 +1198,7 @@ locally by configuring with `-DDSIG_CORPUS_ROOT` pointing at a nonexistent direc
 `198 checks run, 0 failed, 2 suites skipped`.
 
 That corpus path also drove a small design change. The test originally hardcoded
-`C:\Users\Loki\dsig-corpus\...` — a personal absolute path in published source, which both leaked a
+`<corpus>\...` — a personal absolute path in published source, which both leaked a
 username and made the real-binary tests unrunnable for anyone else. It is now a CMake cache option
 `DSIG_CORPUS_ROOT` defaulting to the repo-relative `corpus/`, which `.gitignore` already excludes. An
 environment variable was the first attempt and was rejected: MSVC flags `getenv` as C4996, and this
@@ -1506,3 +1506,143 @@ against serial and prove nothing about the parallel path.
   — the opposite of what these timings measure.
 - No comparison against Diaphora itself has been run. No claim of parity is yet supported by
   measurement.
+
+
+## 2026-09-23: Parity restart, measured against real Diaphora
+
+### Why the approach changed
+
+Everything before this entry was checked against Diaphora's SQL *as we transcribed it*,
+on synthetic data. This round measures against Diaphora itself:
+
+- IDA 9.4's headless library (idalib) runs Diaphora's **unmodified** exporter on real
+  binaries.
+- `python diaphora.py db1 db2 -o out` produces the reference result for the same two
+  exports.
+
+The parity target is now "our `diff` output equals Diaphora's output on the same
+exports", row for row. A second, separate check scores matches against the real PDB
+names of each build (ground truth).
+
+### Oracle (reference results)
+
+| Pair | Diaphora mode | Result | Deterministic |
+|---|---|---|---|
+| ls-old → ls (Diaphora's own test samples) | normal | Best 139 / Partial 113 / Multi 26 | yes, run1 = run2 |
+| ls → ls-old | normal | 139 / 113 / 34 | yes |
+| userenv 9168 (PDB) → 9278 (PDB) | patch-diff | 635 / 8 / 0 | yes |
+| win32u 9168 (user-saved `.i64`) → 9444 (no PDB) | stripped-binary | finished | yes |
+| cryptbase 1 (PDB) → 8875 (no PDB) | normal | finished | yes |
+| cryptbase 8875 (PDB) → 9444 (no PDB) | stripped-binary | finished | yes |
+| userenv 9168 (PDB) → 9278 (no PDB) | normal | **still running** (hours) | pending |
+| sechost 9168 (PDB) → 9444 (no PDB) | normal | **still running** (~1 day) | pending |
+
+Findings that shaped the design:
+
+- **Standalone Diaphora is single-threaded** (`cpu_count = 1` when not inside IDA), so
+  its output order is reproducible, and exact row-level parity is a real target.
+- **Row order comes from SQLite's query planner.** In 31 of 43 default queries the plan
+  changes between pairs, and Diaphora's matching is order-sensitive (first writer wins,
+  ties become multimatches). So the parity engine runs Diaphora's own SQL through the
+  SQLite C API ("Path A"). Native hash joins and **fusion** come after parity, as
+  accelerators that must reproduce Path A's rows exactly.
+- The slow part of Diaphora is "Related compilation unit": about 300k-700k rows per
+  query on userenv/sechost, 2+ hours per iteration in Python. That is where the native
+  engine has the most to gain.
+- **Diaphora's tester expectations are stale.** `tester/samples/*.cfg` (2023) expect 3
+  multimatches, while current Diaphora gives 26/34. This is engine evolution, not an
+  oracle defect.
+- The old headless exporter dropped every `sub_*` function (`ida_subs=False`). The
+  oracle's fixed copy (`tools/oracle/diaphora_export.py`) includes them.
+- The user's win32u `.i64` exports 1510 rows, not 1516: Diaphora's default excludes
+  1 library and 5 thunk functions.
+- win32u's no-PDB export still names 1511/1512 functions, because the DLL exports nearly
+  everything. userenv, sechost and cryptbase are the truly unlabelled targets.
+
+### Wave 0 (merged)
+
+- **L0 foundation.**
+  - The new engine lives under `src/diff/` with frozen headers: ingest of all 49
+    columns, Path A SQL execution, a registry of all 50 heuristics generated from
+    unmodified Diaphora (sha256 per SQL string), a literal port of `diff()`, snapshot
+    and trace I/O, and the CLI.
+  - Path A reproduces Python's `sqlite3` row sequence on all 270 query × pair checks.
+  - 17/17 suites, 0 warnings.
+- **L0b oracle instrumentation.**
+  - Wraps Diaphora at run time and records its match state at every stage, so each C++
+    stage can be proven in isolation.
+  - Instrumented runs reproduce the oracle byte for byte.
+  - Finding: one stage (`find_related_matches`) depends on Python's string-hash seed,
+    because it iterates a `set`. It is documented as a separately reported tolerated
+    class, never a silent one.
+- **O1 oracle extension.**
+  - Adds the win32u pair (from a copy of the user's `.i64`; the original's sha256 is
+    unchanged) and the cryptbase 3-build chain.
+  - Adds ground-truth tables for every no-PDB build.
+
+Process:
+
+- Each lane was implemented in its own worktree, then rebuilt and checked by an
+  independent verifier before merge. All three passed round 1.
+- Repo hooks enforce kuro-only authorship and reject AI attribution.
+
+
+### Wave 1a (merged)
+
+| Lane | What | Evidence |
+|---|---|---|
+| R0 | Native trace and snapshot format aligned byte for byte with the oracle; Windows non-ASCII and UNC paths (`wmain` + UTF-8 manifest, UTF-8 file helpers); missing side tables refused with exit 4; `--quiet` no longer hides the SQLite-version warning | All 171 oracle snapshots and 185,761 trace events round-trip byte for byte through the C++ reader and writer. diff_foundation 3620 → 5165 checks. |
+| L2 | Ratio engine (`check_ratio`, `deep_ratio`, `quick_ratio`, 7-decimal rounding, first-writer ratio cache) and Python value semantics (`float()`, `json.loads`, set intersection, `repr`) | **Bit-identical to real Diaphora on 167,902 corpus pairs** across all 8 oracle pairs, on the full seed set (86,800 pairs) and on 5,440 committed synthetic pairs. 11 of 11 planted mutations are caught. |
+| L3 | Literal port of CPython 3.13 `difflib` (`SequenceMatcher` with autojunk, `unified_diff`), `splitlines`, and the C++-name scanner | Identical to Python on all 5,377 oracle result diffs, 2,402 cross-pair diffs and 12,000 random cases. diff_textdiff: 71,949 checks. |
+| L10 | `dsigmatcher extract` and `dsigmatcher ingest`, through `tools/export/dsig_export.py` (IDA idalib + unmodified Diaphora exporter) | Extracting the user's win32u `.i64` gives tables **identical** to the oracle export (1510 rows; the `.i64`'s sha256 is unchanged). `ingest --no-pdb` of 9444 and `ingest --pdb` of cryptbase are also identical. |
+| L11 | `port --results <x.diaphora>`, ground-truth scorer (alias-aware), baseline and chain runners | Diaphora's baseline is scored on every finished pair. The cryptbase 3-build chain runs end to end. Legacy port tests are unchanged. |
+
+**Diaphora baseline against the PDB ground truth** (the bar the native engine must reproduce):
+
+- **userenv 9168 (PDB) → 9278 (no PDB):** of 622 functions, 482 get the correct name, 35 a wrong name, and 104 are missed. Multimatch rows are 73 correct / 1580 wrong, so porting keeps multimatch opt-in.
+- **cryptbase chain:** hop 2 scores 26/3/14, against 42/1/0 when the hop-2 reference is a real PDB export. A function left unmatched at hop 1 never gets its name back later in the chain.
+- **win32u:** Diaphora's "stripped binary" shortcut pairs functions by address. Since 76% of functions moved, **1172 of 1329** of those best rows are wrong. Porting never overwrites a real name, which kept all of them out. A future guard should refuse those rows outright.
+
+**Process lessons:**
+
+- Several lanes opened oracle exports with `mode=ro`. That creates empty `-wal`/`-shm` sidecar files, though the exports' content and sha256 are unchanged. Readers now use `immutable=1`, and F1 makes the product's read-only open do the same.
+- Every lane passed its verifier in round 1. The verifiers' non-blocking findings go to fix lane F1, including a real data-safety bug: `port`'s temp path could alias an input.
+- A full instrumented capture of the userenv no-PDB pair was started for the integration lane.
+
+
+### Wave 1b (merged)
+
+| Lane | What | Evidence |
+|---|---|---|
+| L1 | Literal ports of Diaphora's match state machine (`add_match`, `has_best_match`, `has_better_match`, `cleanup_matches`), row consumers (`check_match`, `add_matches_internal` with the 1M row cap), final pass (multimatch detection) and `find_unmatched` | Oracle replays: **cleanup 90/90, final_pass 6/6, find_unmatched 6/6, heuristic consumers 117/117, CLI replays 102/102 identical**. Also 41 probes and 200 random vectors, all regenerated from unmodified Diaphora. |
+| L4 | Results writer (`save_results` and `CChooser.add_item` formatting) and parity harness (`compare_results.py`, `run_parity.py --score`) | Feeding the oracle's final chooser dumps into the writer rebuilds the `.diaphora` file **identical to oracle run1 on all 6 complete pairs**. `FormatRatio7` agrees with `Round7` on 10^6 random doubles and 369,392 tie values. |
+| F1 | Fixes from the wave-1a verifiers | See below |
+
+F1 fixes:
+
+- **Data safety.** `port` now refuses, with exit 2 and nothing touched, any case where the output, its `.dsig-tmp` temp file, or any `-wal`/`-shm`/`-journal` sidecar aliases an input. Before, a verifier could make the target get deleted.
+- **Input opens.** Read-only inputs open `immutable=1` when no WAL frames exist, so nothing appears next to a user's export.
+- **Ratio clamp vectors.** New vectors pin the 0.99 clamp boundary, so `<` vs `<=` is now caught.
+- **Export script.** A non-Diaphora checkout is reported as unusable, and sidecars are kept until the atomic replace succeeds.
+- **Install layout.** The export script is copied next to the executable, and install rules were added.
+
+L1 needed three verification rounds. The only blocker was merge order: alone, its foundation tests hit L4's writer stub, and merged after L4 everything is green. Along the way it found and pinned a real divergence: CPython's `int()` does **not** strip the control characters 0x1c-0x1f, and the first port did.
+
+### Incident: detached oracle jobs killed
+
+At 08:26 every "detached" oracle process died together (exit `0xC000013A`):
+
+- both sechost reference diffs, after about 8 hours;
+- the userenv full capture;
+- the sechost prefix capture;
+- the manifest keeper.
+
+They had been started through WMI `Win32_Process.Create`. Those processes live in the WMI provider host's job object, and that host was recycled.
+
+The jobs were relaunched as Windows scheduled tasks (`\dsig\`: Interactive logon, `conhost --headless`, frozen copies of the scripts, logs under `<corpus>/oracle/jobs/`). The sechost reference diff restarted from zero, about a day of work.
+
+Lesson: never launch long jobs through WMI on this machine.
+
+Still to fix (for L9):
+
+- `diff --trace <input>` can overwrite an input export. `diff`'s output and trace paths need the same alias guard that `port` now has.

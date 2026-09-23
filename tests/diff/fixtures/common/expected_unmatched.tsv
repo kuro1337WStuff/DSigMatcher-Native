@@ -1,0 +1,6 @@
+type	line	address	name
+primary	00000	180002400	sub_180002400
+primary	00001	180002500	only_in_diff
+primary	00002	18000a000	\N
+secondary	00000	180001400	sub_180001400
+secondary	00001	180001500	only_in_main_ü

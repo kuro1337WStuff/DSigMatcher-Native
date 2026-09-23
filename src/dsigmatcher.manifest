@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- Merged into dsigmatcher.exe by the MSVC linker (CMakeLists.txt). activeCodePage UTF-8 (Windows 10
+     1903 and later) makes the process ANSI code page UTF-8, so code that still hands narrow strings to
+     the C runtime or to std::filesystem (the legacy engine, port) sees the UTF-8 command-line arguments
+     correctly. The parity engine does not rely on it: it converts UTF-8 to wide paths itself. -->
+<assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
+  <application xmlns="urn:schemas-microsoft-com:asm.v3">
+    <windowsSettings>
+      <activeCodePage xmlns="http://schemas.microsoft.com/SMI/2019/WindowsSettings">UTF-8</activeCodePage>
+    </windowsSettings>
+  </application>
+</assembly>

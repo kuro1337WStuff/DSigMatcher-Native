@@ -1,0 +1,5 @@
+type	line	address	name	address2	name2	ratio	nodes1	nodes2	description
+best	00000	180001000	?Bar@Foo@@QEAAXH@Z	180001000	?Bar@Foo@@QEAAXH@Z	1.0000000	5	5	100% equal
+best	00002	180001200	sub_180001200	180002200	sub_180002200	1.0000000	4	4	Equal assembly
+best	00003	180001300	sub_180001300	180002300	sub_180002300	1.0000000	2	2	Equal assembly
+partial	00000	180001100	named_fn	180002100	named_fn	0.9041765	3	3	Perfect match, same name

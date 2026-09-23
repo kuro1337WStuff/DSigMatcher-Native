@@ -10,7 +10,7 @@ oracle rather than against a reimplementation of the same idea.
 import os
 import sys
 
-DIAPHORA_REF = r"C:\Users\Loki\diaphora-ref"
+DIAPHORA_REF = os.environ.get("DSIG_DIAPHORA_DIR", "diaphora-ref")  # unmodified Diaphora checkout
 
 TABLES = [
     ("Pseudocode", 4096),

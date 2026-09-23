@@ -276,7 +276,7 @@ def Audit(Label, DumpPath, DllPath):
 
 
 def main():
-    Corpus = r"C:\Users\Loki\dsig-corpus\win32u"
+    Corpus = os.path.join(os.environ.get("DSIG_CORPUS_ROOT", "corpus"), "win32u")
     Verify = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                           "build", "verify")
 
