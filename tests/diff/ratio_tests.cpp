@@ -6,6 +6,8 @@
 //     repr, json.loads + set, quick_ratio), four 03a-harness databases and the hand-made
 //     targeted.json, each run through BOTH md paths (check_match's SQL cast and
 //     compare_function_rows' float());
+//   * the 0.99 clamp boundary (lane F1): clamp-boundary-{same,other}.json from
+//     tools/parity/gen_ratio_clamp_vectors.py, pairs whose r + deep_ratio score is exactly 1.0;
 //   * the mutation self-test: every mutation of the 03a §13 table must change at least one vector;
 //   * corpus vectors (<corpus>/oracle/vectors/ratio, never committed, skipped when absent): the 03a
 //     seed set, the big values file and, per oracle pair, the trace/cache pairs plus a 20k sample.
@@ -748,6 +750,80 @@ void TestMutations() {
 }
 
 // ---------------------------------------------------------------------------------------------
+// the 0.99 clamp boundary (lane F1): `if r + score < 1.0: r += score` / `else: r = 0.99`
+// (D:1766-1771). clamp-boundary-{same,other}.json (tools/parity/gen_ratio_clamp_vectors.py, real
+// Diaphora) hold pairs whose r and deep_ratio score add up to exactly 1.0 in IEEE doubles, so the
+// expected ratio is 0.99; a port that tested `<=` would return 1.0 for each of them. The generic
+// synthetic-vector and mutation checks read these files too (SyntheticFiles).
+
+void TestClampBoundary() {
+  DSig::Test::Suite("clamp boundary: r + score == 1.0 exactly gives 0.99 (D:1766-1771)");
+  const double Clamp = 0.99;  // D:1771
+  const std::string Scratch = DSig::Test::ScratchDir("diff_ratio_clamp");
+  size_t Cases = 0;
+  for (const char* File : {"clamp-boundary-same.json", "clamp-boundary-other.json"}) {
+    const auto Doc = ReadJson((fs::path(CommittedDir()) / File).string());
+    CHECK(Doc.has_value());
+    if (!Doc) {
+      continue;
+    }
+    const std::string Name = Doc->At("name").AsString();
+    const std::string MainPath = (fs::path(Scratch) / (Name + "-main.sqlite")).string();
+    const std::string DiffPath = (fs::path(Scratch) / (Name + "-diff.sqlite")).string();
+    CHECK_TEXT_EQ(BuildSide(*Doc, "main", MainPath), "");
+    CHECK_TEXT_EQ(BuildSide(*Doc, "diff", DiffPath), "");
+    DiffSession S;
+    S.Open(MainPath, DiffPath);
+    S.Flags().IsSameProcessor = Doc->At("same_processor").AsBool();
+    RatioEngine& E = S.Engine();
+    E.Prepare();
+    const FunctionTable& M = S.Main().Functions;
+    const FunctionTable& D = S.Diff().Functions;
+    const auto& Boundary = Doc->At("boundary").Items();
+    CHECK(Boundary.size() >= 5);
+    for (const JsonValue& Case : Boundary) {
+      const std::string Label = Case.At("label").AsString();
+      const uint32_t I = static_cast<uint32_t>(Case.At("main").AsInt64());
+      const uint32_t J = static_cast<uint32_t>(Case.At("diff").AsInt64());
+      const double R = FromHex(Case.At("r").AsString());
+      const double Score = FromHex(Case.At("score").AsString());
+      // the case really is on the boundary: below 1.0 on its own, exactly 1.0 with the score
+      volatile double Sum = R + Score;  // one rounded double addition, as Python's r + score
+      CHECK(R < 1.0 && Score > 0.0);
+      CHECK(Sum == 1.0);
+      CHECK_TEXT_EQ(Case.At("expected").AsString(), Hex(Clamp));
+      CHECK(I < M.Count() && J < D.Count());
+      if (I >= M.Count() || J >= D.Count()) {
+        continue;
+      }
+      // the native deep_ratio gives the same score, and both ratio paths clamp
+      CHECK_TEXT_EQ(Hex(E.DeepRatio(I, J)), Case.At("score").AsString());
+      HeuristicRow Row;
+      Row.Ea1 = M.AddrIdOf[I];
+      Row.Ea2 = D.AddrIdOf[J];
+      Row.Row1 = I;
+      Row.Row2 = J;
+      Row.Md1 = MdFromVector(Doc->At("main_md_sql").Items()[I]);
+      Row.Md2 = MdFromVector(Doc->At("diff_md_sql").Items()[J]);
+      E.ClearCache();
+      const std::string Sql = Outcome([&] { return E.CheckRatio(Row, MdSource::Sql); });
+      E.ClearCache();
+      const std::string Py = Outcome([&] { return E.CompareFunctionRows(I, J); });
+      E.ClearCache();
+      CHECK_TEXT_EQ(Sql, Hex(Clamp));
+      CHECK_TEXT_EQ(Py, Hex(Clamp));
+      if (Sql != Hex(Clamp) || Py != Hex(Clamp)) {
+        DSig::Test::Note(Name + ": " + Label + ": sql " + Sql + ", compare_function_rows " + Py);
+      }
+      ++Cases;
+    }
+  }
+  DSig::Test::Note(std::to_string(Cases) + " boundary pairs checked on both ratio paths");
+  CHECK(Cases >= 13);
+  DSig::Test::RemoveScratchDir(Scratch);
+}
+
+// ---------------------------------------------------------------------------------------------
 // ratios_cache (03a §8) and deep_ratio order (03a §7.2) on the targeted databases
 
 std::optional<uint32_t> LabelIndex(const JsonValue& Doc, std::string_view Label) {
@@ -1113,6 +1189,7 @@ int main() {
   CheckValuesFile((fs::path(CommittedDir()) / "values.json").string(), "values.json: CPython value semantics");
   CheckSyntheticDir(CommittedDir(), "committed synthetic ratio vectors: real check_ratio / compare_function_rows", 5);
   TestCacheAndDeep();
+  TestClampBoundary();
   TestMutations();
   TestCorpusVectors();
   return DSig::Test::Finish();
