@@ -1,0 +1,6 @@
+# Generated and fixture text must reach the working tree byte-exact, whatever core.autocrlf says:
+# SQL fixtures carry newlines inside string literals, and the generated includes are hashed.
+tests/diff/fixtures/** text eol=lf
+tests/diff/generated/** text eol=lf
+tests/diff/vectors/** text eol=lf
+src/diff/*.inc text eol=lf
