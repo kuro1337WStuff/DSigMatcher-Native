@@ -1224,7 +1224,14 @@ def CommandStatus(Args):
         except Exception as Exc:
             Rows.append((os.path.relpath(Root, Traces), "unreadable run.json: %s" % Exc, "", "", ""))
             continue
-        Progress = Info.get("progress", {})
+        Progress = dict(Info.get("progress", {}))
+        try:
+            # index.json is rewritten at every point; run.json only every 10.
+            Index = Snap.ReadJson(os.path.join(Root, "index.json"))
+            if Index:
+                Progress.update(points=len(Index), last_point=Index[-1][1])
+        except Exception:
+            pass
         Alive = ProcessAlive(Info.get("pid")) if Info.get("status") in (STATUS_RUNNING, "preparing") else False
         Status = Info.get("status", "?")
         if Status in (STATUS_RUNNING, "preparing") and not Alive:
