@@ -1,5 +1,7 @@
 # 04a: Heuristic runner, Best heuristics and the first Partial heuristics
 
+> **Historical spec.** Written on 2026-09-23 against an earlier revision (`34ed418`), before the port existed; its status remarks ("not implemented", test counts, runs "still running", open questions) are historical. See [README.md](README.md) in this directory for how to read it; quoted Diaphora code is (c) Joxean Koret, AGPL-3.0-or-later, and quoted CPython `difflib` code is under the PSF License Version 2.
+
 ## Summary
 
 - **Scope.** This spec covers `run_heuristics_for_category` (`diaphora.py:1461-1553`) and everything it calls to turn SQL rows into matches: the dispatch functions, `check_match`, `add_match`, `cleanup_matches` and the `threads_apply` scheduler. It also covers the heuristic record format and all 28 heuristics from **Same RVA and hash** (H01) through **Mnemonics small-primes-product** (H28), which is 12 Best and 16 Partial. The last section compares our `src/Heuristics.cpp`, which implements 12 of them, against Diaphora.

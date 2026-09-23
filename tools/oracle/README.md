@@ -51,7 +51,8 @@ comparison, and per-heuristic row counts.
 pdb-to-pdb diffs take seconds. The no-PDB userenv and sechost diffs take hours
 to about a day, because Diaphora's "Related compilation unit" heuristic
 dominates (see `docs/parity/09-oracle.md`). Launch those detached if the
-launching shell may exit.
+launching shell may exit, and prefer a Windows scheduled task for them (see
+"Detached jobs" below).
 
 ## What each stage guarantees
 
@@ -142,6 +143,10 @@ Guarantees:
   (`Win32_Process.Create`), so they outlive the launching shell. They run from
   a snapshot of these scripts under `<root>/extension/tools/<stamp>/`, so a
   later edit or removal of the checkout cannot affect them.
+  Caveat: WMI-created processes belong to the WMI provider host, and all of
+  them die together when Windows recycles that host. This ended several oracle
+  runs that had been going for hours. For runs of many hours, start the same
+  command as a Windows scheduled task instead.
 - **The keeper.** It re-runs `oracle_extend.py summary` whenever
   `manifest.json` lacks the extension or is older than a pair's results. A
   plain `build_oracle.py summary` (run by the base long jobs when they finish)

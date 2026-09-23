@@ -40,7 +40,8 @@ The results file is Diaphora's `save_results` layout (`D:2374-2429`, 01 §11, 09
 line, address, name, address2, name2, ratio, nodes1, nodes2, description)`, addresses `"%08x"`
 of `int(ea)`, ratio `"%.7f"`. It may come from Diaphora or from our `diff`. Every row is read,
 checked and logged; best and partial rows are applied by default, unreliable and multimatch rows
-only when asked. Without `--results`, `port` keeps its legacy engine until lane L9.
+only when asked. This README covers `port --results`; `dsigmatcher port --help` describes `port`
+without it.
 
 **Refusals (nothing is written).** An output that resolves to the reference, the target or the
 results file (exit 2). A results row whose `address`/`address2` is not a function of the given

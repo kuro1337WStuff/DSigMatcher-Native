@@ -1,5 +1,7 @@
 # 02: Match bookkeeping and heuristic SQL execution
 
+> **Historical spec.** Written on 2026-09-23 against an earlier revision (`34ed418`), before the port existed; its status remarks ("not implemented", test counts, runs "still running", open questions) are historical. See [README.md](README.md) in this directory for how to read it; quoted Diaphora code is (c) Joxean Koret, AGPL-3.0-or-later, and quoted CPython `difflib` code is under the PSF License Version 2.
+
 Porting spec. The reference is Diaphora at `<diaphora-ref>`, commit `621ec26` (`git describe` gives `3.4.2-4-g621ec26`), run standalone as `python diaphora.py db1.sqlite db2.sqlite -o out.diaphora` with `<conda>/python.exe`: CPython 3.13.12, `sqlite3` module linked against SQLite 3.51.1, and `idaapi` not importable, so `IS_IDA = False`. Unless another file is named, every line number refers to `diaphora.py`. `config:N` means `diaphora_config.py:N`, `heur:N` means `diaphora_heuristics.py:N` and `threads.py:N` means `jkutils/threads.py:N`.
 
 ## Summary

@@ -1,5 +1,7 @@
 # 09 — The parity oracle
 
+> **Historical spec.** Written on 2026-09-23 against an earlier revision (`34ed418`), before the port existed; its status remarks ("not implemented", test counts, runs "still running", open questions) are historical. See [README.md](README.md) in this directory for how to read it; quoted Diaphora code is (c) Joxean Koret, AGPL-3.0-or-later, and quoted CPython `difflib` code is under the PSF License Version 2.
+
 Parity with Diaphora is measured, not assumed. The **oracle** is a set of real
 Diaphora exports of real binaries, plus the results that unmodified Diaphora
 produces when it diffs them. Our native `diff` must reproduce those results on

@@ -1,5 +1,7 @@
 # 03a: Similarity ratio computation (Diaphora 3.4.2 porting spec)
 
+> **Historical spec.** Written on 2026-09-23 against an earlier revision (`34ed418`), before the port existed; its status remarks ("not implemented", test counts, runs "still running", open questions) are historical. See [README.md](README.md) in this directory for how to read it; quoted Diaphora code is (c) Joxean Koret, AGPL-3.0-or-later, and quoted CPython `difflib` code is under the PSF License Version 2.
+
 **Summary.** Every *computed* similarity ratio comes from `CBinDiff.check_ratio` (`diaphora.py:1645-1775`). Not every *printed* ratio is a `check_ratio` value. Some items store a literal `1`: `find_equal_matches` (`diaphora.py:1439`), `add_matches_from_query`, the NO_FPS path (`diaphora.py:2074`), and the best branch of `find_same_name` (`diaphora.py:2200`). Two callers also add +0.01 after the call (§11). `check_ratio` is a memoised function of one `(main address, diff address)` pair. Here is what it does under the default standalone config (relaxed ratio off, ML off):
 
 1. It returns `1.0` at once when the two `bytes_hash` values are equal. `NULL == NULL` counts as equal.

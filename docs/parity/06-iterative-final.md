@@ -1,5 +1,7 @@
 # 06: Iterative passes and final pass (Diaphora 3.4.2 porting spec)
 
+> **Historical spec.** Written on 2026-09-23 against an earlier revision (`34ed418`), before the port existed; its status remarks ("not implemented", test counts, runs "still running", open questions) are historical. See [README.md](README.md) in this directory for how to read it; quoted Diaphora code is (c) Joxean Koret, AGPL-3.0-or-later, and quoted CPython `difflib` code is under the PSF License Version 2.
+
 **Scope:** `diaphora.py` post-heuristic iteration loop in `diff()`, callee diffing (`find_matches_diffing*`, `find_one_match_diffing`), `find_related_matches` / `find_related_constants`, `find_related_compilation_unit`, `find_locally_affine_functions` / `find_functions_between`, the final pass (`final_pass`, `find_multimatches`, `find_unresolved_multimatches`, `add_multimatches_to_chooser`, `add_final_chooser_items`, `itemize_for_chooser`) and the helpers `same_processor_both_databases`, `functions_exists`, `get_row_for_items`, `call_on_match_hook`, `get_callers_callees`.
 
 ## Summary

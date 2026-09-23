@@ -1,5 +1,7 @@
 # 03b: Text normalisation, difflib and graph comparison (porting spec)
 
+> **Historical spec.** Written on 2026-09-23 against an earlier revision (`34ed418`), before the port existed; its status remarks ("not implemented", test counts, runs "still running", open questions) are historical. See [README.md](README.md) in this directory for how to read it; quoted Diaphora code is (c) Joxean Koret, AGPL-3.0-or-later, and quoted CPython `difflib` code is under the PSF License Version 2.
+
 **Summary**
 
 1. **The diff never normalises text.** `get_cmp_asm`, `get_cmp_asm_lines` and `get_cmp_pseudo_lines` run only at export time, from `diaphora_ida.py`. Their output is stored in `functions.clean_assembly`, `clean_pseudo` and `clean_microcode`. The native `diff` must read those columns byte for byte. Section 3 matters only when DSigMatcher writes its own exports.

@@ -1,18 +1,53 @@
 # Parity tools (Python)
 
-Python helpers for the Diaphora-parity work in `docs/parity/00-plan.md`. They
-instrument **unmodified** Diaphora, write the trace and snapshot files the
-native engine is compared against, and compare them. Nothing here computes a
-diff result, and `ctest` never runs Python (plan §0.6, §2.7).
+Python tools for the Diaphora-parity work planned in `docs/parity/00-plan.md`. They run
+**unmodified** Diaphora, record what it does, compare the native engine with it, and regenerate
+the test data committed under `tests/diff/`. None of them computes a diff result for the product,
+and `ctest` never runs Python (plan §0.6, §2.7). They are not needed to use `dsigmatcher`.
+
+There are three groups:
+
+- **Trace tools** record Diaphora's internal match state and compare it stage by stage:
+  `oracle_trace.py`, `snapshot.py`, `compare_traces.py`.
+- **Result-parity tools** compare complete `.diaphora` results files: `run_parity.py` (the
+  release evidence), `compare_results.py`, and `make_fixture.py` for small synthetic pairs.
+- **Generators** rebuild committed files from an unmodified Diaphora checkout (and, for
+  `gen_corpus_census.py`, from the oracle corpus): `gen_registry.py`, `gen_corpus_census.py`,
+  `gen_foundation_fixture.py`, `gen_ratio_vectors.py`, `gen_ratio_clamp_vectors.py`,
+  `gen_state_vectors.py`, `gen_textdiff_vectors.py`.
 
 | File | Purpose |
 |---|---|
+| `run_parity.py` | Runs `dsigmatcher diff` on every valid oracle pair and compares it with Diaphora's output at L0/L1/L2; with `--score`, also ports both result sets and scores them against the PDB ground truth. Produces the parity evidence quoted in the top-level README. See [`run_parity.py`](#run_paritypy-the-release-evidence) below. |
+| `compare_results.py` | Compares two `.diaphora` files at L0, L1 and L2, with a per-heuristic agreement table. Has a `--self-test`. |
+| `make_fixture.py` | Builds a synthetic Diaphora-schema database pair from a scenario file, has real Diaphora diff it twice, and writes the pair and Diaphora's expected results as committed test fixtures. |
 | `oracle_trace.py` | Instrumented Diaphora run of one oracle pair (`run`), the lane self-test (`selftest`), and a list of captures (`status`). Plan §2.3. |
 | `snapshot.py` | Library for the trace and snapshot schema of plan Appendix B: writing, reading, S-L2 comparison, and rebuilding `.diaphora` rows from the chooser dumps. |
 | `compare_traces.py` | First divergence between two traces, or first differing point between two captures. Plan §2.5. Has a planted-divergence `--self-test`. |
+| `gen_registry.py` | Generates the verbatim Diaphora SQL the engine embeds (`src/diff/RegistrySql.inc`, `src/diff/StageSql.inc`) and its checksums (`tests/diff/generated/registry_expected.inc`). `--check` verifies the committed files instead. |
+| `gen_corpus_census.py` | Generates `tests/diff/generated/corpus_census.inc`: counts and hashes (never names) of every oracle export and of every default query's row stream per pair. Needs the corpus. |
+| `gen_foundation_fixture.py` | Generates `tests/diff/fixtures/foundation/{main,diff}.sql`, the synthetic pair of `diff_foundation`. |
+| `gen_ratio_vectors.py` | Ratio and Python value-semantics vectors from real Diaphora: the committed suite in `tests/diff/vectors/ratio/`, plus larger sets and corpus vectors outside the repository. |
+| `gen_ratio_clamp_vectors.py` | Ratio vectors that sit exactly on the 0.99 clamp boundary (`tests/diff/vectors/ratio/clamp-boundary-*.json`). |
+| `gen_state_vectors.py` | Match-state-machine vectors (`add_match`, `cleanup_matches`, `final_pass`, `find_unmatched`, ...) from real Diaphora (`tests/diff/vectors/state/`). |
+| `gen_textdiff_vectors.py` | `difflib`, `splitlines` and name-scanner vectors (`tests/diff/vectors/textdiff/`); with `--corpus`, acceptance vectors from the oracle results, outside the repository. |
 
-Nothing is written into the repository. Captures go under
-`<corpus>/oracle/traces/<pair>/`.
+Each script's docstring has its full usage, and `python -B <script> --help` prints its flags.
+
+## What is written where
+
+- **Trace tools** write only under `<corpus>/oracle/traces/<pair>/`.
+- **`run_parity.py`** writes to `<corpus>/parity-reports/<timestamp>/`, or to `--out`, which must
+  be outside the repository. Its reports contain names from the corpus and are never committed.
+- **`compare_results.py`** writes only the `--json` / `--markdown` files you name.
+- **Generators** rewrite committed files in this repository (the table above lists them), or,
+  in their corpus and large modes, write under `<corpus>/oracle/vectors/`. Only synthetic data,
+  counts and hashes are committed, never data taken from a real binary.
+- **`make_fixture.py`** writes into the `<outdir>` you give it, normally a directory under
+  `tests/diff/fixtures/`.
+
+The oracle exports themselves are never modified: every tool opens them read-only
+(`immutable=1`) or works on copies, because Diaphora opens its first database read/write.
 
 ## Paths
 
@@ -34,6 +69,124 @@ results compare at L2 (exact order, `line`, ratios) on every platform. A build
 with `-DDSIG_VENDORED_SQLITE=OFF` uses the system SQLite: unless that is also
 3.51.1, `dsigmatcher diff` warns and only L1 (same rows, any order) is
 meaningful.
+
+## `run_parity.py`: the release evidence
+
+```
+python -B run_parity.py [--corpus <root>] [--dsigmatcher <exe>] [--pairs <pair> ...] [--long]
+                        [--score] [--run 1] [--out <dir>] [--diaphora-dir <dir>] [--limit 20]
+                        [--native-arg=<arg> ...] [--generate-aliases]
+python -B run_parity.py --self-test [--dsigmatcher <exe>]
+```
+
+The v1.0.0 parity table was produced with:
+
+```
+python -B tools/parity/run_parity.py --corpus <corpus> --dsigmatcher <build>/dsigmatcher --long --score
+```
+
+For every pair in `<corpus>/oracle/manifest.json` (or `--pairs`), in manifest order:
+
+1. **Oracle status** (plan §1.6). `PENDING` when the oracle run has not finished;
+   `SKIPPED_LONG` for a pair whose oracle run took more than an hour, unless `--long`;
+   `ORACLE_INVALID` when the oracle run fails a validity rule (non-zero exit, missing output or
+   log lines, a heuristic that hit Diaphora's 300 s timeout, changed export hashes, `cdifflib`
+   present, any `DIAPHORA_*` variable). Such pairs are reported but never count as native
+   failures.
+2. **Native diff** of the same two exports, given as the same path strings the oracle was given,
+   so `config.main_db` / `config.diff_db` compare too. Both exports are hashed before and after.
+3. **Comparison** with `compare_results.py`: L0, L1, L2, the DDL, a per-(type, description)
+   table and the `unmatched` rows.
+4. **With `--score`**: `dsigmatcher port --results` for both the native and the oracle results,
+   each scored by `tools/e2e/score_ground_truth.py` against the PDB ground truth of the target
+   build, so parity and ground truth appear side by side. `--generate-aliases` lets
+   `tools/e2e/pdb_aliases.py` build missing alias lists.
+
+The levels (plan §1.3): **L0**, the detected mode and Diaphora's `Final results` counts agree;
+**L1**, `results` and `unmatched` are equal as multisets; **L2**, L1 plus identical `line` values
+and stored row order. L2 is the parity gate.
+
+Output: `report.md` and `report.json`, and per pair `native.diaphora`, `native.log`,
+`compare.json`, `compare.md` and, with `--score`, the ported databases, port logs and
+`score.json` / `score.md`.
+
+Exit status: 1 when a compared pair fails L2, the native diff fails, or an export changed; 2 on a
+usage error; 0 otherwise.
+
+Flags and environment: `--corpus` (`DSIG_CORPUS_ROOT`), `--dsigmatcher` (`DSIG_EXE`; default
+`<repo>/build/dsigmatcher[.exe]`), `--diaphora-dir` (`DSIG_DIAPHORA_DIR`; optional, only read to
+record `git describe` and that the checkout is clean).
+
+## `compare_results.py`
+
+```
+python -B compare_results.py <oracle.diaphora> <native.diaphora> [--oracle-log <log>]
+                             [--native-log <log>] [--compare-config-paths] [--json <out>]
+                             [--markdown <out>] [--limit 20] [--quiet]
+python -B compare_results.py --self-test [--file <any .diaphora>]
+```
+
+L0 needs both logs; without them it is reported as not evaluated. Rows are paired per
+(type, description) group by their `(address, address2)` key, and each group counts matched
+rows, rows found in only one file, and differences in ratio, category, description, names,
+nodes, `line` and order. Differences confined to "Same constants related matches" rows, which
+depend on Python's set order (plan §5 R3), are reported as the separate tolerated class
+`r3_only`; the L1/L2 verdicts are never relaxed for them. Both files are opened read-only with
+`immutable=1`. Exit status: 0 when L2 holds and the DDL is equal, 1 otherwise, 2 on a usage or
+read error.
+
+## `make_fixture.py`
+
+```
+python -B make_fixture.py <scenario.py> <outdir> [--diaphora-dir <dir>] [--python <exe>]
+                          [--hash-seed 0] [--keep-work <dir>]
+```
+
+The scenario file defines `MAIN` and `DIFF`, one dict of synthetic rows per database. Each is
+built like a real export (Diaphora's own schema, indices and `analyze`), and copies are diffed
+twice by the unmodified Diaphora checkout: once with the oracle command line and once as an
+in-process replay that records the raw chooser items. Both outputs must agree, or nothing is
+written. `<outdir>` receives `main.sql` / `diff.sql` (the fixture databases as SQL dumps),
+`expected_results.tsv`, `expected_unmatched.tsv`, two state snapshots and `oracle.json`. The
+repository ignores `*.tsv`, so add the fixture files with `git add -f`. The fixtures under
+`tests/diff/fixtures/` were made this way; some directories there have their own `gen_*.py` or
+`generate.py`, which drive it for a set of scenarios.
+
+## Regenerating committed data
+
+Run the generators with the oracle's Python (CPython 3.13.12 with `sqlite3` 3.51.1 and without
+`cdifflib`) and an unmodified Diaphora checkout at 3.4.2-4-g621ec26. Each records its environment
+in its output, and the C++ suites fail when the committed data and the engine disagree.
+
+```
+set DSIG_DIAPHORA_DIR=<diaphora-ref>
+set DSIG_CORPUS_ROOT=<corpus>
+python -B tools/parity/gen_registry.py
+python -B tools/parity/gen_corpus_census.py
+python -B tools/parity/gen_foundation_fixture.py
+python -B tools/parity/gen_ratio_vectors.py synthetic --set committed
+python -B tools/parity/gen_ratio_vectors.py values
+python -B tools/parity/gen_ratio_clamp_vectors.py
+python -B tools/parity/gen_state_vectors.py
+python -B tools/parity/gen_textdiff_vectors.py --synthetic
+```
+
+| Command | Rewrites |
+|---|---|
+| `gen_registry.py` (`--check` only verifies) | `src/diff/RegistrySql.inc`, `src/diff/StageSql.inc`, `tests/diff/generated/registry_expected.inc` |
+| `gen_corpus_census.py` (needs the corpus) | `tests/diff/generated/corpus_census.inc` |
+| `gen_foundation_fixture.py` | `tests/diff/fixtures/foundation/main.sql`, `diff.sql` |
+| `gen_ratio_vectors.py synthetic --set committed` | `tests/diff/vectors/ratio/h03a-*.json`, `targeted.json` |
+| `gen_ratio_vectors.py values` | `tests/diff/vectors/ratio/values.json` |
+| `gen_ratio_clamp_vectors.py` | `tests/diff/vectors/ratio/clamp-boundary-*.json` |
+| `gen_state_vectors.py` | `tests/diff/vectors/state/probes.json`, `random.json` |
+| `gen_textdiff_vectors.py --synthetic` | `tests/diff/vectors/textdiff/*` |
+
+The corpus and large modes (`gen_ratio_vectors.py synthetic --set 03a`,
+`gen_ratio_vectors.py values --big`, `gen_ratio_vectors.py corpus`,
+`gen_textdiff_vectors.py --corpus <corpus>`) write under `<corpus>/oracle/vectors/` and are never
+committed. `gen_textdiff_vectors.py` refuses to run unless the Python's `difflib.py` is the exact
+3.13.12 file the port follows.
 
 ## `oracle_trace.py run`
 
@@ -107,6 +260,10 @@ Options:
   session and returns at once. On Windows this goes through WMI
   (`Win32_Process.Create`), so the process is outside the launcher's job object.
   On POSIX it uses a new session.
+  Caveat: a WMI-created process belongs to the WMI provider host, and all such
+  processes die together when Windows recycles that host. This ended several
+  oracle runs that had been going for hours. For runs of many hours, start the
+  command as a Windows scheduled task instead.
 
 ### What is wrapped
 
