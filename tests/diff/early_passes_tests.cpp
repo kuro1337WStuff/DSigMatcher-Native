@@ -27,6 +27,7 @@
 #include <functional>
 #include <map>
 #include <optional>
+#include <set>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -708,6 +709,17 @@ void TestVectors(const std::string& Scratch) {
   }
   DSig::Test::Note(std::to_string(Passed) + "/" + std::to_string(Run) + " vectors passed (" + std::to_string(Raising) +
                    " where Diaphora raises, " + std::to_string(Refused) + " refused as not ported)");
+  // find_remaining_functions' gates (D:2639-2716) each have a real-Diaphora vector above: only_sub
+  // (D:2690-2692), the None name (D:2691), the matched filter (D:2662), sub_ names left to it by
+  // find_same_name (D:2179), and is_patch_diff (D:2708, stripped mode builds the lists but never searches).
+  {
+    std::set<std::string> Gates = {"remaining_non_sub_leftover", "remaining_null_name", "remaining_matched_excluded",
+                                   "remaining_same_sub_name", "remaining_stripped_mode"};
+    for (const JsonValue& V : File.At("vectors").Items()) {
+      Gates.erase(V.At("name").AsString());
+    }
+    CHECK(Gates.empty());
+  }
   // The empty-result path through the CLI entry point (plan §3.10, 01 §5.1): no diff.version table ->
   // diff() returns False, save_results still writes the config row and empty tables. Audit F06 (v1.0.0
   // product decision): the file stays Diaphora's, byte for byte, but RunDiff reports Unsupported (exit 4)

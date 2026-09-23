@@ -188,6 +188,36 @@ VECTORS = [
     {"name": "hook_remaining_added_empty_line", "base": "patch",
      "diff_sql": "UPDATE functions SET assembly = replace(assembly, 'nop', char(10) || 'nop') "
                  "WHERE name = 'renamed_fn';"},
+    # --- find_remaining_functions gates (D:2639-2716) ------------------------------------------------
+    # only_sub (D:2690-2692): a main leftover whose name does not start with "sub_" is never searched, so
+    # renamed_fn stays unmatched although it is similar to it.
+    {"name": "remaining_non_sub_leftover", "base": "patch",
+     "main_sql": "UPDATE functions SET name = 'named_leftover', mangled_function = 'named_leftover' "
+                 "WHERE name = 'sub_180004000';"},
+    # name1.startswith on a NULL name (D:2691): AttributeError, no output.
+    {"name": "remaining_null_name", "base": "patch",
+     "main_sql": "UPDATE functions SET name = NULL WHERE name = 'sub_180004000';"},
+    # `if name not in d` (D:2662): a sub_ function already matched is not a leftover. find_same_name skips
+    # sub_ names (ignore_sub_names, D:2179), so the diff twin gets the main function's id, address, name,
+    # nodes, edges, size and bytes hash and find_equal_matches pairs them ("100% equal", D:1426-1440).
+    {"name": "remaining_matched_excluded", "base": "patch",
+     "main_sql": "UPDATE functions SET edges = 9, size = 99, bytes_hash = 'eq' WHERE name = 'sub_180004000';",
+     "diff_sql": "UPDATE functions SET name = 'sub_180004000', mangled_function = 'sub_180004000', "
+                 "address = '6442467328', nodes = 5, edges = 9, size = 99, bytes_hash = 'eq' "
+                 "WHERE name = 'renamed_fn';"},
+    # A diff function with the main leftover's sub_ name but another address: find_same_name leaves sub_
+    # names alone, so the remaining search pairs them.
+    {"name": "remaining_same_sub_name", "base": "patch",
+     "diff_sql": "UPDATE functions SET name = 'sub_180004000', mangled_function = 'sub_180004000' "
+                 "WHERE name = 'renamed_fn';"},
+    # `if self.is_patch_diff` (D:2708): in stripped mode the leftover lists are built but never searched,
+    # so a main sub_ copy of Worker_2 and a diff copy of its stripped twin, at different addresses, stay
+    # unmatched. 100 more address-sharing pairs keep the stripped test (C:160, >= 99%) satisfied.
+    {"name": "remaining_stripped_mode", "base": "stripped",
+     "main_sql": ExtraFunctions(100, 1000, 0x190000000, "extra_", "Worker_2") + " " +
+                 CopiesOf("Worker_2", 1, 3000, 0x1A0000000, "'sub_1A0000000'", "'sub_1A0000000'"),
+     "diff_sql": ExtraFunctions(100, 1000, 0x190000000, "sub_extra_", "sub_180001200") + " " +
+                 CopiesOf("sub_180001200", 1, 3000, 0x1A0000100, "'sub_1A0000100'", "'sub_1A0000100'")},
     # --- the dirty-heuristic thresholds (C:160 >= 99.0, C:166 > 90.0) ------------------------------
     {"name": "stripped_exactly_99", "base": "stripped",
      "main_sql": ExtraFunctions(80, 1000, 0x190000000, "extra_", "Worker_2"),

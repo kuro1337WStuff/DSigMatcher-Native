@@ -1,0 +1,13 @@
+{"ev":"point","name":"before:cleanup:3217:1","best":2,"partial":0,"unreliable":0}
+{"ev":"cleanup","site":3217,"n":1,"best":2,"partial":0,"unreliable":0}
+{"ev":"point","name":"after:cleanup:3217:1","best":2,"partial":0,"unreliable":0}
+{"ev":"point","name":"before:cleanup:3185:1","best":2,"partial":0,"unreliable":0}
+{"ev":"cleanup","site":3185,"n":1,"best":2,"partial":0,"unreliable":0}
+{"ev":"point","name":"after:cleanup:3185:1","best":2,"partial":0,"unreliable":0}
+{"ev":"add_match","seq":2,"ctx":"find_matches_diffing:0","name1":"leaf_old_fn","name2":"leaf_new_fn","ea1":"12288","ea2":"12544","desc":"Callee found diffing matches pseudo-code (iteration #1)","ratio_bits":"3fecd414f55a8a90","chooser":"partial","result":"appended"}
+{"ev":"point","name":"before:cleanup:3185:2","best":2,"partial":1,"unreliable":0}
+{"ev":"cleanup","site":3185,"n":2,"best":2,"partial":1,"unreliable":0}
+{"ev":"point","name":"after:cleanup:3185:2","best":2,"partial":1,"unreliable":0}
+{"ev":"point","name":"before:cleanup:3185:3","best":2,"partial":1,"unreliable":0}
+{"ev":"cleanup","site":3185,"n":3,"best":2,"partial":1,"unreliable":0}
+{"ev":"point","name":"after:cleanup:3185:3","best":2,"partial":1,"unreliable":0}

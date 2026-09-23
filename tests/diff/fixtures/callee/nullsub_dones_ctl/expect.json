@@ -1,0 +1,36 @@
+{
+ "generator": "tests/diff/fixtures/callee/gen_callee_fixtures.py",
+ "scenario": "nullsub_dones_ctl",
+ "diaphora": "3.4.2-4-g621ec26",
+ "python": "3.13.12",
+ "sqlite_version": "3.51.1",
+ "has_cdifflib": false,
+ "pythonhashseed": "0",
+ "mode": "N",
+ "iterations": [
+  0,
+  1
+ ],
+ "after_present": [
+  0,
+  1
+ ],
+ "find_one_match_diffing": {
+  "assembly:outer0:inner1": 2,
+  "assembly:outer1:inner1": 3,
+  "pseudocode:outer0:inner1": 2,
+  "pseudocode:outer1:inner1": 2
+ },
+ "cleanup_sites": {
+  "1551": 2,
+  "2945": 1,
+  "3185": 5,
+  "3217": 2,
+  "3340": 2,
+  "3413": 2,
+  "3471": 2,
+  "3655": 2,
+  "3671": 2
+ },
+ "exception": null
+}

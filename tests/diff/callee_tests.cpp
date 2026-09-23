@@ -539,6 +539,24 @@ void TestFixtureScenarios(const std::string& Scratch) {
     // hub_fn and emptypseudo_fn ("" is processed); nopseudo_fn (NULL on the diff side) is skipped.
     CHECK(R0.Calls.count("pseudocode:outer0:inner1") == 1 && R0.Calls.at("pseudocode:outer0:inner1") == 2);
   }
+  // The dones test comes before the nullsub filter (D:3067-3074), and dones also holds the walked matches'
+  // keys (D:3168-3171): hub_fn's candidate (nullsub_7, nullsub_7) is dropped as a nullsub AFTER its key
+  // entered dones, so the "100% equal" seed nullsub_7 -> nullsub_7 is skipped by the pseudo-code pass and
+  // its callee pair leaf_old_fn -> leaf_new_fn is never found. The control scenario (hub_fn calls other_fn
+  // instead) walks nullsub_7 and finds that pair, so the order alone decides it. Real Diaphora recorded both.
+  if (auto Run = ReplayScenario("nullsub_dones", Scratch)) {
+    const auto& R0 = Run->Replays.at(0);
+    CHECK(R0.Calls.count("pseudocode:outer0:inner1") == 1 && R0.Calls.at("pseudocode:outer0:inner1") == 1);
+    CHECK(R0.Calls.count("assembly:outer0:inner1") == 1 && R0.Calls.at("assembly:outer0:inner1") == 2);
+    CHECK(R0.After && !MentionsName(*R0.After, "leaf_old_fn") && !MentionsName(*R0.After, "leaf_new_fn"));
+  }
+  if (auto Run = ReplayScenario("nullsub_dones_ctl", Scratch)) {
+    const auto& R0 = Run->Replays.at(0);
+    CHECK(R0.Calls.count("pseudocode:outer0:inner1") == 1 && R0.Calls.at("pseudocode:outer0:inner1") == 2);
+    if (R0.After) {
+      CHECK(Joined(CalleeItems(*R0.After)).find("partial leaf_old_fn -> leaf_new_fn ") != std::string::npos);
+    }
+  }
   // Different processors: no assembly pass (D:3219-3224).
   if (auto Run = ReplayScenario("other_cpu", Scratch)) {
     for (const auto& [K, R] : Run->Replays) {
