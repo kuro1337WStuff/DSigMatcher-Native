@@ -683,6 +683,45 @@ same generator it is testing can pass for the wrong reason in both directions** 
 imperfect. Assertions that bound the *shape* of the result (`precision < 0.999`) catch what assertions
 on the value alone do not.
 
+### MD5, and a stale-binary trap worth recording
+
+Diaphora computes `bytes_hash` and `function_hash` as MD5 digests (`diaphora_ida.py:2977-2978`), so
+exact replication requires an MD5 implementation. Added `include/dsigmatcher/Md5.h` and `src/Md5.cpp`,
+self-contained like the existing SHA-256, no external dependency.
+
+Verified two independent ways:
+
+- All eight **RFC 1321** vectors, including the empty string, the 62-character mixed-case alphanumeric
+  case, the 80-digit case, and 1,000,000 x `'a'`.
+- Cross-checked against Python's `hashlib.md5` on five inputs; all five agree exactly.
+
+The padding logic gets its own coverage because that is where streaming hash implementations break:
+99 chunked-versus-single-shot comparisons across 11 input lengths chosen to straddle the 55/56/64-byte
+padding boundaries (54, 55, 56, 57, 63, 64, 65, 119, 120, 127, 128) at 9 different chunk sizes. A
+separate assertion confirms 56-byte and 64-byte inputs of identical content hash differently, which is
+what proves the bit length is actually encoded into the padding. Note MD5 appends the length
+**little-endian**, unlike SHA-256's big-endian — an easy place to silently diverge.
+
+The unit suite is now **192 checks, 0 failed**, up from 82.
+
+**Process failure caught during this increment.** A build failed on a compile error, but the chained
+command used `&` rather than `&&`, so `ctest` and the test executable still ran — against the
+**stale binaries from the previous successful build**. Output read `100% tests passed, 0 tests failed
+out of 4` and `82 checks, 0 failed`, i.e. an unambiguously green result on a tree that did not compile.
+
+Only the `FAILED:` line from the build step revealed it. Had that line been filtered out, a broken
+commit would have been reported as passing. Two rules follow and are now applied:
+
+1. Chain build and test with `&&`, never `&`, so a failed build cannot reach the test step.
+2. Treat a check count that does not move as a signal. The suite had grown by 110 checks; seeing 82
+   was the tell that an old binary had run. **A test run whose assertion count does not match
+   expectation is evidence about the build, not about the code.**
+
+The underlying compile error was `std::string(1000, "abcdefghij")` — the `(count, char)` constructor
+cannot take a `const char*`. This is the second time this exact mistake pattern appeared in test code
+in this session (the first was in a SHA-256 chunked-update test), which suggests it is worth being
+suspicious of any `std::string(count, literal)` construction on review.
+
 ### Not yet done
 
 - 38 remaining heuristics (`Partial`, `Unreliable` categories)

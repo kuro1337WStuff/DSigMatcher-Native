@@ -53,6 +53,7 @@ add_library(dsigmatcher_core STATIC
   src/ExportDatabase.cpp
   src/Heuristics.cpp
   src/MatchStore.cpp
+  src/Md5.cpp
   src/PeImage.cpp
   src/Provenance.cpp
   src/Sha256.cpp
