@@ -18,7 +18,7 @@
 // "find_locally_affine_functions:<k>", "final_pass", "find_unmatched"; outside every one of them
 // (Context() == "diff") it is written as null, as the oracle writes Python None. "ratio_bits" in
 // add_match is the `ratio` ARGUMENT of add_match, i.e. before its name1 == name2 forcing to 1.0
-// (D:1349-1350); the stored item keeps its own ratio.
+// (D:1350-1351); the stored item keeps its own ratio.
 //
 // Summary lines are Diaphora's own log texts without timestamps, one per line on stderr:
 //   "Current results: ..." / "Matched ..." (D:1622-1635), "Symbols stripped detected: ...",
