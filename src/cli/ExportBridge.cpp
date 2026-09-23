@@ -4,9 +4,12 @@
 // exporter (diaphora_ida._diff_or_export(use_ui=False, file_out=...)). The exporter's feature
 // definitions are the parity contract, so nothing here re-implements them. This file only:
 //   * validates the arguments and finds the tools (flags, else DSIG_PYTHON / DSIG_IDADIR /
-//     DSIG_DIAPHORA_DIR / DSIG_EXPORT_SCRIPT, else PATH and the executable's location);
-//   * starts the script with UTF-8-safe arguments (CreateProcessW with MSVC-CRT quoting; posix_spawn),
-//     streams its output to stderr, and enforces a backstop timeout on the whole process tree;
+//     DSIG_DIAPHORA_DIR / DSIG_EXPORT_SCRIPT, else PATH and the executable's location), refusing an
+//     interpreter that is a batch file and any output whose files would alias the input or the PDB;
+//   * starts the script with UTF-8-safe arguments (CreateProcessW with MSVC-CRT quoting; posix_spawn
+//     into its own process group) as `python -E`, in the script's directory, with no program lookup in
+//     the current directory, streams its output to stderr, and enforces a backstop timeout on the whole
+//     process tree;
 //   * checks, independently of the script, that the input's sha256 did not change;
 //   * maps the script's exit codes to the CLI's (Commands.h, plan §2.1) with a clear message, and
 //     reads the <output stem>.export.json sidecar for the summary.
@@ -73,6 +76,13 @@ void AppendTail(std::string& Tail, const char* Data, size_t Size) {
   if (Tail.size() > 2 * kTailBytes) {
     Tail.erase(0, Tail.size() - kTailBytes);
   }
+}
+
+// A timeout in seconds that steady_clock arithmetic can hold (its nanosecond count ends near 292 years):
+// negative becomes 0, anything above about 31 years is capped there, which is forever for a process.
+int64_t ClampTimeout(int64_t Seconds) {
+  constexpr int64_t kLongest = 1000000000;
+  return Seconds <= 0 ? 0 : std::min(Seconds, kLongest);
 }
 
 bool IsDirectory(const std::filesystem::path& Path) {
@@ -199,6 +209,48 @@ Setting FlagOrEnv(const std::string& Flag, const char* FlagName, const char* Env
   }
   return {std::nullopt, std::string()};
 }
+
+// Weakly canonical (symbolic links, "." and "..", and the stored spelling of the part that exists), or
+// the absolute, lexically normal path when that fails.
+std::filesystem::path CanonicalOrAbsolute(const std::filesystem::path& Path) {
+  std::error_code Error;
+  const std::filesystem::path Canonical = std::filesystem::weakly_canonical(Path, Error);
+  return (Error || Canonical.empty()) ? Absolute(Path) : Canonical;
+}
+
+// Two spellings compared the way the platform's default file system compares names: NTFS through its
+// upper-case table (CompareStringOrdinal with bIgnoreCase), APFS/HFS+ ignoring ASCII case, others bytes.
+bool SameSpelling(const std::filesystem::path& A, const std::filesystem::path& B) {
+#if defined(_WIN32)
+  const std::wstring& X = A.native();
+  const std::wstring& Y = B.native();
+  if (X.size() > 0x7FFFFFFFu || Y.size() > 0x7FFFFFFFu) {
+    return X == Y;
+  }
+  return CompareStringOrdinal(X.data(), static_cast<int>(X.size()), Y.data(), static_cast<int>(Y.size()), TRUE) ==
+         CSTR_EQUAL;
+#elif defined(__APPLE__)
+  return ToLowerAscii(A.native()) == ToLowerAscii(B.native());
+#else
+  return A.native() == B.native();
+#endif
+}
+
+// Name starts with Prefix, compared as SameSpelling compares (file names only, no separators).
+bool NameStartsWith(const std::string& Name, const std::string& Prefix) {
+  if (Name.size() < Prefix.size()) {
+    return false;
+  }
+#if defined(_WIN32) || defined(__APPLE__)
+  return SameSpelling(PathFromUtf8(Name.substr(0, Prefix.size())), PathFromUtf8(Prefix));
+#else
+  return Name.compare(0, Prefix.size(), Prefix) == 0;
+#endif
+}
+
+// SQLite's -wal, -shm and -journal files and Diaphora's -crash marker: dsig_export.py OUTPUT_SIDECARS,
+// which PublishOutput renames aside and deletes when it replaces an output.
+constexpr const char* kOutputSidecars[] = {"-wal", "-shm", "-journal", "-crash"};
 
 std::optional<std::string> ReadTextFile(const std::filesystem::path& Path) {
   std::ifstream Stream(Path, std::ios::binary);
@@ -536,18 +588,128 @@ std::optional<std::string> FileSha256(const std::filesystem::path& Path) {
   return Hash.FinishHex();
 }
 
+std::string ToolErrorLine(const std::string& Tail) {
+  constexpr std::string_view Prefix = "dsig_export: error: ";
+  size_t Position = Tail.rfind(Prefix);
+  // Only a prefix at the start of a line counts; the guard keeps Position > 0 inside the loop.
+  while (Position != std::string::npos && Position != 0 && Tail[Position - 1] != '\n') {
+    Position = Tail.rfind(Prefix, Position - 1);
+  }
+  if (Position == std::string::npos) {
+    return std::string();
+  }
+  const size_t Start = Position + Prefix.size();
+  const size_t End = Tail.find_first_of("\r\n", Start);
+  return Tail.substr(Start, End == std::string::npos ? std::string::npos : End - Start);
+}
+
+bool SameFile(const std::filesystem::path& A, const std::filesystem::path& B) {
+  if (A.empty() || B.empty()) {
+    return false;
+  }
+  std::error_code Error;
+  const bool ExistsA = std::filesystem::exists(A, Error);
+  Error.clear();
+  const bool ExistsB = std::filesystem::exists(B, Error);
+  if (ExistsA && ExistsB) {
+    // One file under two names: a hard link, an 8.3 short name, a case variant, a share of a local drive.
+    Error.clear();
+    if (std::filesystem::equivalent(A, B, Error) && !Error) {
+      return true;
+    }
+  }
+  return SameSpelling(CanonicalOrAbsolute(A), CanonicalOrAbsolute(B));
+}
+
+std::optional<std::string> WrittenPathAlias(const std::filesystem::path& Output, const std::filesystem::path& Sidecar,
+                                            const std::vector<std::pair<std::string, std::filesystem::path>>& Protected) {
+  const std::string OutputText = PathToUtf8(Output);
+  std::vector<std::pair<std::string, std::filesystem::path>> Written = {{"the output", Output}};
+  for (const char* Suffix : kOutputSidecars) {
+    Written.push_back({std::string("the output's ") + Suffix + " file", PathFromUtf8(OutputText + Suffix)});
+  }
+  Written.push_back({"the sidecar", Sidecar});
+  const std::string Refusal = "; refusing to overwrite an input (nothing was changed)";
+  for (const auto& [WrittenRole, WrittenPath] : Written) {
+    for (const auto& [Role, Path] : Protected) {
+      if (SameFile(WrittenPath, Path)) {
+        return WrittenRole + " '" + PathToUtf8(WrittenPath) + "' is " + Role + " '" + PathToUtf8(Path) + "'" + Refusal;
+      }
+    }
+  }
+  // dsig_export.py also writes names that carry its pid, unknown here: the staging copy
+  // (<output>.dsig-tmp-<pid>), a previous output's sidecars renamed aside (<output>-wal.dsig-old-<pid>, ...)
+  // and the sidecar's temporary file (<sidecar>.tmp-<pid>). Any input so named could be one of them.
+  const std::string OutputName = PathToUtf8(Output.filename());
+  std::vector<std::pair<std::string, std::string>> Prefixes = {{"the output's staging copy", OutputName + ".dsig-tmp-"}};
+  for (const char* Suffix : kOutputSidecars) {
+    Prefixes.push_back({std::string("the previous output's ") + Suffix + " file moved aside",
+                        OutputName + Suffix + ".dsig-old-"});
+  }
+  Prefixes.push_back({"the sidecar's temporary file", PathToUtf8(Sidecar.filename()) + ".tmp-"});
+  for (const auto& [Role, Path] : Protected) {
+    if (Path.empty() || !SameFile(Path.parent_path(), Output.parent_path())) {
+      continue;
+    }
+    const std::string Name = PathToUtf8(Path.filename());
+    for (const auto& [WrittenRole, Prefix] : Prefixes) {
+      if (NameStartsWith(Name, Prefix)) {
+        return Role + " '" + PathToUtf8(Path) + "' has the name of " + WrittenRole + " ('" + Prefix + "<pid>')" +
+               Refusal;
+      }
+    }
+  }
+  return std::nullopt;
+}
+
+std::string InterpreterProblem(const std::filesystem::path& Path) {
+#ifdef _WIN32
+  // Windows ignores trailing dots and spaces in a file name, so "python.bat." is a batch file too.
+  std::string Name = ToLowerAscii(PathToUtf8(Path.filename()));
+  while (!Name.empty() && (Name.back() == '.' || Name.back() == ' ')) {
+    Name.pop_back();
+  }
+  const auto EndsWith = [&Name](std::string_view Suffix) {
+    return Name.size() >= Suffix.size() && Name.compare(Name.size() - Suffix.size(), Suffix.size(), Suffix) == 0;
+  };
+  for (const char* Script : {".bat", ".cmd", ".btm"}) {
+    if (EndsWith(Script)) {
+      return "is a batch file, not an executable";
+    }
+  }
+  std::ifstream Stream(Path, std::ios::binary);
+  if (!Stream) {
+    // The Store's python.exe is an app-execution alias that cannot be opened for reading.
+    return (EndsWith(".exe") || EndsWith(".com")) ? std::string() : std::string("cannot be read");
+  }
+  char Head[2] = {0, 0};
+  Stream.read(Head, 2);
+  if (Stream.gcount() != 2 || Head[0] != 'M' || Head[1] != 'Z') {
+    return "is not a Windows executable (no MZ header; a script shim?)";
+  }
+  return std::string();
+#else
+  (void)Path;
+  return std::string();
+#endif
+}
+
 Located FindPython(const std::string& Flag) {
   Located Result;
   const Setting Chosen = FlagOrEnv(Flag, "--python", "DSIG_PYTHON");
+  std::string Shown;
   if (Chosen.Value) {
     Result.Source = Chosen.Source;
+    Shown = *Chosen.Value;
     const std::filesystem::path Candidate = PathFromUtf8(*Chosen.Value);
     if (!Candidate.has_parent_path()) {
-      // A bare name such as "python3": look it up on PATH like a shell would.
+      // A bare name such as "python3": look it up on PATH like a shell would. On Windows a name without
+      // an extension means name.exe, as for CreateProcess; an extension-less file of that name (a
+      // pyenv-win shell shim) is not a program Windows can start.
       std::vector<std::filesystem::path> Names = {Candidate};
 #ifdef _WIN32
       if (!Candidate.has_extension()) {
-        Names.push_back(std::filesystem::path(Candidate).replace_extension(".exe"));
+        Names = {std::filesystem::path(Candidate).replace_extension(".exe")};
       }
 #endif
       if (auto Found = SearchPath(Names)) {
@@ -561,18 +723,30 @@ Located FindPython(const std::string& Flag) {
       Result.Error = "Python not found: " + Chosen.Source + " '" + *Chosen.Value + "' does not exist" +
                      (IsDirectory(Candidate) ? " as a file (it is a directory)" : "");
     }
-    return Result;
-  }
-  Result.Source = "PATH";
-#ifdef _WIN32
-  const std::vector<std::filesystem::path> Names = {"python.exe", "python3.exe"};
-#else
-  const std::vector<std::filesystem::path> Names = {"python3", "python"};
-#endif
-  if (auto Found = SearchPath(Names)) {
-    Result.Path = *Found;
   } else {
-    Result.Error = "Python not found: no python on PATH (pass --python <python executable> or set DSIG_PYTHON)";
+    Result.Source = "PATH";
+#ifdef _WIN32
+    const std::vector<std::filesystem::path> Names = {"python.exe", "python3.exe"};
+#else
+    const std::vector<std::filesystem::path> Names = {"python3", "python"};
+#endif
+    if (auto Found = SearchPath(Names)) {
+      Result.Path = *Found;
+      Shown = PathToUtf8(Result.Path);
+    } else {
+      Result.Error = "Python not found: no python on PATH (pass --python <python executable> or set DSIG_PYTHON)";
+    }
+  }
+  // Never start a batch file: cmd.exe would re-parse the arguments, and '&' or '%' in a sample's file
+  // name would run commands (audit F15). Escaping for cmd is not attempted; it cannot be done reliably.
+  if (!Result.Path.empty()) {
+    const std::string Problem = InterpreterProblem(Result.Path);
+    if (!Problem.empty()) {
+      Result.Error = "Python not found: " + Result.Source + " '" + Shown + "' " + Problem +
+                     "; point --python at python.exe itself (pyenv-win and conda shims are batch files; use the "
+                     "interpreter inside the environment)";
+      Result.Path.clear();
+    }
   }
   return Result;
 }
@@ -590,34 +764,35 @@ Located FindExportScript(const std::string& Flag) {
     }
     return Result;
   }
-  // Beside the executable (an install), in <prefix>/share, or in the source tree above a build directory.
+  // Beside the executable (a build directory, where CMake copies it, or a zip), or in <prefix>/share.
   Result.Source = "beside the executable";
   const std::filesystem::path Executable = SelfExecutablePath();
-  const std::filesystem::path Script = std::filesystem::path("tools") / "export" / "dsig_export.py";
-  std::vector<std::filesystem::path> Candidates;
-  if (!Executable.empty()) {
-    const std::filesystem::path Directory = Executable.parent_path();
-    Candidates.push_back(Directory / "dsig_export.py");
-    Candidates.push_back(Directory / "share" / "dsigmatcher" / Script);
-    Candidates.push_back(Directory.parent_path() / "share" / "dsigmatcher" / Script);
-    std::filesystem::path Ancestor = Directory;
-    for (int Level = 0; Level < 8 && !Ancestor.empty(); ++Level) {
-      Candidates.push_back(Ancestor / Script);
-      if (Ancestor.parent_path() == Ancestor) {
-        break;
-      }
-      Ancestor = Ancestor.parent_path();
-    }
-  }
+  const std::vector<std::filesystem::path> Candidates = ExportScriptCandidates(Executable);
+  std::string Searched;
   for (const std::filesystem::path& Candidate : Candidates) {
     if (IsFile(Candidate)) {
       Result.Path = Absolute(Candidate);
       return Result;
     }
+    Searched += (Searched.empty() ? "'" : ", '") + PathToUtf8(Candidate) + "'";
   }
-  Result.Error = "export script not found: no tools/export/dsig_export.py beside '" + PathToUtf8(Executable) +
-                 "' or in a parent directory (pass --export-script <path> or set DSIG_EXPORT_SCRIPT)";
+  Result.Error = "export script not found: no dsig_export.py at " +
+                 (Searched.empty() ? std::string("the executable's location (unknown on this platform)") : Searched) +
+                 " (pass --export-script <path> or set DSIG_EXPORT_SCRIPT)";
   return Result;
+}
+
+std::vector<std::filesystem::path> ExportScriptCandidates(const std::filesystem::path& Executable) {
+  std::vector<std::filesystem::path> Candidates;
+  if (Executable.empty()) {
+    return Candidates;
+  }
+  const std::filesystem::path Script = std::filesystem::path("tools") / "export" / "dsig_export.py";
+  const std::filesystem::path Directory = Executable.parent_path();
+  Candidates.push_back(Directory / "dsig_export.py");
+  Candidates.push_back(Directory / "share" / "dsigmatcher" / Script);
+  Candidates.push_back(Directory.parent_path() / "share" / "dsigmatcher" / Script);
+  return Candidates;
 }
 
 Located FindIdaDir(const std::string& Flag) {
@@ -670,11 +845,16 @@ Located FindDiaphoraDir(const std::string& Flag) {
 #ifdef _WIN32
 
 ProcessResult RunProcess(const std::vector<std::string>& Arguments,
-                         const std::vector<std::pair<std::string, std::string>>& Overrides, int TimeoutSeconds,
-                         std::FILE* Forward) {
+                         const std::vector<std::pair<std::string, std::string>>& Overrides, int64_t TimeoutSeconds,
+                         std::FILE* Forward, const std::filesystem::path& WorkingDirectory) {
   ProcessResult Result;
   if (Arguments.empty()) {
     Result.Error = "no program given";
+    return Result;
+  }
+  if (InterpreterProblem(PathFromUtf8(Arguments[0])).rfind("is a batch file", 0) == 0) {
+    // Defence in depth for later callers: CreateProcess would run a batch file through cmd.exe.
+    Result.Error = "refusing to start a batch file: " + Arguments[0];
     return Result;
   }
   SECURITY_ATTRIBUTES Inheritable{};
@@ -726,8 +906,10 @@ ProcessResult RunProcess(const std::vector<std::string>& Arguments,
     Flags |= CREATE_NO_WINDOW;  // no console of our own: do not pop one up for the child
   }
   PROCESS_INFORMATION Process{};
-  const BOOL Created = CreateProcessW(Application.c_str(), CommandLine.data(), nullptr, nullptr, TRUE, Flags,
-                                      Environment.data(), nullptr, &Startup.StartupInfo, &Process);
+  const std::wstring Directory = WorkingDirectory.empty() ? std::wstring() : WorkingDirectory.native();
+  const BOOL Created =
+      CreateProcessW(Application.c_str(), CommandLine.data(), nullptr, nullptr, TRUE, Flags, Environment.data(),
+                     Directory.empty() ? nullptr : Directory.c_str(), &Startup.StartupInfo, &Process);
   const DWORD CreateError = GetLastError();
   if (AttributesOk) {
     DeleteProcThreadAttributeList(Attributes);
@@ -770,9 +952,25 @@ ProcessResult RunProcess(const std::vector<std::string>& Arguments,
     }
   });
 
-  const DWORD WaitMs = TimeoutSeconds > 0 ? static_cast<DWORD>(TimeoutSeconds) * 1000u : INFINITE;
-  if (WaitForSingleObject(Process.hProcess, WaitMs) == WAIT_TIMEOUT) {
-    Result.TimedOut = true;
+  // The deadline is kept on the steady clock and waited for in chunks below INFINITE: a DWORD of
+  // milliseconds wraps after 49.7 days, which used to turn a long timeout into a sub-second one (audit F42).
+  const auto Deadline = std::chrono::steady_clock::now() + std::chrono::seconds(ClampTimeout(TimeoutSeconds));
+  for (;;) {
+    DWORD Chunk = INFINITE;
+    if (TimeoutSeconds > 0) {
+      const auto Left = std::chrono::duration_cast<std::chrono::milliseconds>(Deadline - std::chrono::steady_clock::now());
+      if (Left.count() <= 0) {
+        Result.TimedOut = true;
+        break;
+      }
+      Chunk = static_cast<DWORD>(std::min<int64_t>(Left.count(), 0x7FFFFFFF));
+    }
+    const DWORD Waited = WaitForSingleObject(Process.hProcess, Chunk);
+    if (Waited != WAIT_TIMEOUT) {
+      break;  // exited (or the wait failed; the exit code below tells)
+    }
+  }
+  if (Result.TimedOut) {
     if (Job != nullptr) {
       TerminateJobObject(Job, 1);
     } else {
@@ -799,9 +997,22 @@ ProcessResult RunProcess(const std::vector<std::string>& Arguments,
 
 #else
 
+// Signals that arrive while the script runs. The script lives in its own process group (so a timeout
+// can kill the whole tree), which also takes it out of the terminal's foreground group: a Ctrl-C at the
+// terminal reaches only this process, so it is recorded here and forwarded to the group by the wait
+// loop (dsig_export.py then stops IDA, removes its work directory and exits 130).
+namespace {
+
+volatile sig_atomic_t PendingSignal = 0;
+
+void RecordSignal(int Signal) { PendingSignal = static_cast<sig_atomic_t>(Signal); }
+
+}  // namespace
+
 ProcessResult RunProcess(const std::vector<std::string>& Arguments,
-                         const std::vector<std::pair<std::string, std::string>>& Overrides, int TimeoutSeconds,
-                         std::FILE* Forward) {
+                         const std::vector<std::pair<std::string, std::string>>& Overrides, int64_t TimeoutSeconds,
+                         std::FILE* Forward, const std::filesystem::path& WorkingDirectory) {
+  (void)WorkingDirectory;  // posix_spawn has no portable chdir; POSIX never searches the cwd for programs
   ProcessResult Result;
   if (Arguments.empty()) {
     Result.Error = "no program given";
@@ -822,6 +1033,18 @@ ProcessResult RunProcess(const std::vector<std::string>& Arguments,
   if (Pipe[1] > 2) {
     posix_spawn_file_actions_addclose(&Actions, Pipe[1]);
   }
+  // A new process group led by the script: Python's subprocess keeps the IDA worker in it, so a
+  // signal to -Pid reaches both (audit F44). The forwarded signals get their default action back.
+  posix_spawnattr_t Attributes;
+  posix_spawnattr_init(&Attributes);
+  sigset_t Defaults;
+  sigemptyset(&Defaults);
+  for (const int Signal : {SIGINT, SIGTERM, SIGHUP}) {
+    sigaddset(&Defaults, Signal);
+  }
+  posix_spawnattr_setsigdefault(&Attributes, &Defaults);
+  posix_spawnattr_setpgroup(&Attributes, 0);
+  posix_spawnattr_setflags(&Attributes, static_cast<short>(POSIX_SPAWN_SETPGROUP | POSIX_SPAWN_SETSIGDEF));
 
   std::vector<std::string> Environment;
   for (char** Entry = environ; Entry != nullptr && *Entry != nullptr; ++Entry) {
@@ -848,11 +1071,35 @@ ProcessResult RunProcess(const std::vector<std::string>& Arguments,
   }
   Argv.push_back(nullptr);
 
+  // Installed before the spawn, so no signal falls between the spawn and the wait loop.
+  PendingSignal = 0;
+  struct sigaction Record {};
+  Record.sa_handler = RecordSignal;
+  sigemptyset(&Record.sa_mask);
+  // A signal this process ignores (SIGINT in a background job) stays ignored and is not forwarded.
+  const int Forwarded[] = {SIGINT, SIGTERM, SIGHUP};
+  struct sigaction Previous[3] {};
+  bool Installed[3] = {false, false, false};
+  for (size_t Index = 0; Index < 3; ++Index) {
+    if (sigaction(Forwarded[Index], nullptr, &Previous[Index]) == 0 && Previous[Index].sa_handler != SIG_IGN) {
+      Installed[Index] = sigaction(Forwarded[Index], &Record, nullptr) == 0;
+    }
+  }
+  const auto RestoreSignals = [&] {
+    for (size_t Index = 0; Index < 3; ++Index) {
+      if (Installed[Index]) {
+        sigaction(Forwarded[Index], &Previous[Index], nullptr);
+      }
+    }
+  };
+
   pid_t Pid = 0;
-  const int SpawnError = posix_spawn(&Pid, Arguments[0].c_str(), &Actions, nullptr, Argv.data(), Envp.data());
+  const int SpawnError = posix_spawn(&Pid, Arguments[0].c_str(), &Actions, &Attributes, Argv.data(), Envp.data());
   posix_spawn_file_actions_destroy(&Actions);
+  posix_spawnattr_destroy(&Attributes);
   close(Pipe[1]);
   if (SpawnError != 0) {
+    RestoreSignals();
     close(Pipe[0]);
     Result.Error = std::strerror(SpawnError);
     return Result;
@@ -878,42 +1125,41 @@ ProcessResult RunProcess(const std::vector<std::string>& Arguments,
     }
   });
 
-  int Status = 0;
-  const auto WaitBlocking = [&] {
-    while (waitpid(Pid, &Status, 0) < 0 && errno == EINTR) {
+  // Polls with WNOWAIT: the exited script stays a zombie, so its pid, which is also the group id,
+  // cannot be reused before the stragglers in the group are killed below.
+  const auto HasExited = [&] {
+    siginfo_t Info{};
+    const int Code = waitid(P_PID, static_cast<id_t>(Pid), &Info, WEXITED | WNOHANG | WNOWAIT);
+    return (Code == 0 && Info.si_pid == Pid) || (Code < 0 && errno != EINTR);
+  };
+  const auto ForwardPending = [&] {
+    if (const int Signal = PendingSignal) {
+      PendingSignal = 0;
+      kill(-Pid, Signal);
     }
   };
-  if (TimeoutSeconds <= 0) {
-    WaitBlocking();
-  } else {
-    const auto Deadline = std::chrono::steady_clock::now() + std::chrono::seconds(TimeoutSeconds);
-    for (;;) {
-      const pid_t Done = waitpid(Pid, &Status, WNOHANG);
-      if (Done == Pid || (Done < 0 && errno != EINTR)) {
-        break;
+  const auto Deadline = std::chrono::steady_clock::now() + std::chrono::seconds(ClampTimeout(TimeoutSeconds));
+  while (!HasExited()) {
+    ForwardPending();
+    if (TimeoutSeconds > 0 && std::chrono::steady_clock::now() >= Deadline) {
+      // SIGTERM first: dsig_export.py stops its IDA worker and removes its work directory.
+      Result.TimedOut = true;
+      kill(-Pid, SIGTERM);
+      const auto Grace = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+      while (!HasExited() && std::chrono::steady_clock::now() < Grace) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
       }
-      if (std::chrono::steady_clock::now() >= Deadline) {
-        // SIGTERM first: dsig_export.py stops its IDA worker and removes its work directory.
-        Result.TimedOut = true;
-        kill(Pid, SIGTERM);
-        const auto Grace = std::chrono::steady_clock::now() + std::chrono::seconds(30);
-        bool Exited = false;
-        while (std::chrono::steady_clock::now() < Grace) {
-          if (waitpid(Pid, &Status, WNOHANG) == Pid) {
-            Exited = true;
-            break;
-          }
-          std::this_thread::sleep_for(std::chrono::milliseconds(50));
-        }
-        if (!Exited) {
-          kill(Pid, SIGKILL);
-          WaitBlocking();
-        }
-        break;
-      }
-      std::this_thread::sleep_for(std::chrono::milliseconds(50));
+      break;
     }
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
   }
+  // Whatever is left of the tree (a hung script after the grace period, or an orphaned worker) dies with
+  // the group, as the job object does on Windows.
+  kill(-Pid, SIGKILL);
+  int Status = 0;
+  while (waitpid(Pid, &Status, 0) < 0 && errno == EINTR) {
+  }
+  RestoreSignals();
   if (WIFEXITED(Status)) {
     Result.ExitCode = WEXITSTATUS(Status);
   } else if (WIFSIGNALED(Status)) {
@@ -939,7 +1185,6 @@ namespace {
 using namespace ExportBridge;
 
 constexpr std::string_view kSidecarSchema = "dsig-export/1";
-constexpr std::string_view kToolErrorPrefix = "dsig_export: error: ";
 
 CommandOutcome Fail(int ExitCode, std::string Message) {
   CommandOutcome Outcome;
@@ -959,19 +1204,8 @@ bool HasIdaExtension(const std::filesystem::path& Path) {
   return false;
 }
 
-// The last "dsig_export: error: ..." line the script printed, without the prefix.
-std::string ToolErrorLine(const std::string& Tail) {
-  size_t Position = Tail.rfind(kToolErrorPrefix);
-  while (Position != std::string::npos && Position != 0 && Tail[Position - 1] != '\n') {
-    Position = Position == 0 ? std::string::npos : Tail.rfind(kToolErrorPrefix, Position - 1);
-  }
-  if (Position == std::string::npos) {
-    return std::string();
-  }
-  const size_t Start = Position + kToolErrorPrefix.size();
-  const size_t End = Tail.find_first_of("\r\n", Start);
-  return Tail.substr(Start, End == std::string::npos ? std::string::npos : End - Start);
-}
+// A .pdb is never a valid export name, and `-o x.pdb --pdb x.pdb` used to replace the PDB (audit F02).
+bool HasPdbExtension(const std::filesystem::path& Path) { return ToLowerAscii(PathToUtf8(Path.extension())) == ".pdb"; }
 
 const Diff::JsonValue* Member(const Diff::JsonValue* Object, std::string_view Key) {
   return (Object != nullptr && Object->IsObject()) ? Object->Find(Key) : nullptr;
@@ -1010,6 +1244,10 @@ CommandOutcome RunExport(std::string_view Command, std::string_view Mode, const 
   if (OutputText.empty()) {
     return Fail(kExitUsage, Name + ": -o <out.sqlite> is required");
   }
+  if (Tools.TimeoutSeconds < 0 || Tools.TimeoutSeconds > kMaxTimeoutSeconds) {
+    return Fail(kExitUsage, Name + ": --timeout must be between 0 and " + std::to_string(kMaxTimeoutSeconds) +
+                                " seconds (30 days), got " + std::to_string(Tools.TimeoutSeconds));
+  }
 
   // ---- the input
   const std::filesystem::path Input = Absolute(PathFromUtf8(InputText));
@@ -1036,8 +1274,10 @@ CommandOutcome RunExport(std::string_view Command, std::string_view Mode, const 
     return Fail(kExitUsage, Name + ": the output must not have an IDA extension (.idb .i64 .til .id0 .id1 .nam): " +
                                 PathToUtf8(Output));
   }
-  std::error_code Error;
-  if (Output == Input || (IsFile(Output) && std::filesystem::equivalent(Output, Input, Error))) {
+  if (HasPdbExtension(Output)) {
+    return Fail(kExitUsage, Name + ": the output must not have the .pdb extension: " + PathToUtf8(Output));
+  }
+  if (SameFile(Output, Input)) {
     return Fail(kExitUsage, Name + ": the output is the input: " + PathToUtf8(Output));
   }
   if (IsDirectory(Output)) {
@@ -1047,8 +1287,8 @@ CommandOutcome RunExport(std::string_view Command, std::string_view Mode, const 
     return Fail(kExitIo, Name + ": the output directory does not exist: " + PathToUtf8(Output.parent_path()));
   }
   const std::filesystem::path Sidecar = SidecarPathFor(Output);
-  if (Sidecar == Input) {
-    return Fail(kExitUsage, Name + ": the sidecar " + PathToUtf8(Sidecar) + " would overwrite the input");
+  if (SameFile(Sidecar, Output)) {
+    return Fail(kExitUsage, Name + ": the sidecar " + PathToUtf8(Sidecar) + " is the output");
   }
 
   // ---- the PDB (ingest only)
@@ -1061,6 +1301,15 @@ CommandOutcome RunExport(std::string_view Command, std::string_view Mode, const 
     if (!IsFile(Pdb) || IsDirectory(Pdb)) {
       return Fail(kExitIo, Name + ": PDB not found: " + PathToUtf8(Pdb));
     }
+  }
+  // Nothing the script writes, replaces or moves aside may be the input or the PDB (audit F02); checked
+  // before anything runs or is read, so a refusal leaves every file as it was.
+  std::vector<std::pair<std::string, std::filesystem::path>> Protected = {{"the input", Input}};
+  if (!Pdb.empty()) {
+    Protected.push_back({"the PDB", Pdb});
+  }
+  if (const std::optional<std::string> Alias = WrittenPathAlias(Output, Sidecar, Protected)) {
+    return Fail(kExitUsage, Name + ": " + *Alias);
   }
   std::filesystem::path TempDir;
   if (!Tools.TempDir.empty()) {
@@ -1090,9 +1339,13 @@ CommandOutcome RunExport(std::string_view Command, std::string_view Mode, const 
     return Fail(kExitIo, Name + ": cannot read the input: " + PathToUtf8(Input));
   }
 
-  std::vector<std::string> Arguments = {PathToUtf8(Python.Path), "-B", "-u", PathToUtf8(Script.Path),
-                                        std::string(Mode), PathToUtf8(Input), "-o", PathToUtf8(Output),
-                                        "--sidecar", PathToUtf8(Sidecar)};
+  // -E: the interpreter ignores PYTHONPATH, PYTHONHOME, PYTHONSTARTUP and the like, so a module planted
+  // through the caller's environment cannot shadow the driver's (audit F66; dsig_export.py CleanEnv drops
+  // them for the IDA worker too). -X utf8 replaces PYTHONUTF8/PYTHONIOENCODING, which -E ignores. -I and
+  // -s are not used: the idapro wheel may live in the user's site-packages.
+  std::vector<std::string> Arguments = {PathToUtf8(Python.Path), "-E", "-X", "utf8", "-B", "-u",
+                                        PathToUtf8(Script.Path), std::string(Mode), PathToUtf8(Input), "-o",
+                                        PathToUtf8(Output), "--sidecar", PathToUtf8(Sidecar)};
   if (!Ida.Path.empty()) {
     Arguments.insert(Arguments.end(), {"--ida-dir", PathToUtf8(Ida.Path)});
   }
@@ -1113,12 +1366,20 @@ CommandOutcome RunExport(std::string_view Command, std::string_view Mode, const 
       Arguments.push_back("--no-pdb");
     }
   }
+  // NoDefaultCurrentDirectoryInExePath: no program the script or IDA starts by a bare name (git, for
+  // one) is looked up in the current directory, which is often the sample's own folder (audit F16). The
+  // script also starts in its own directory rather than the caller's, for the same reason (Windows
+  // searches the current directory for DLLs as well). Every path passed to it is absolute.
   const std::vector<std::pair<std::string, std::string>> Overrides = {
-      {"PYTHONIOENCODING", "utf-8"}, {"PYTHONUTF8", "1"}, {"PYTHONDONTWRITEBYTECODE", "1"}, {"PYTHONUNBUFFERED", "1"}};
+      {"PYTHONIOENCODING", "utf-8"},       {"PYTHONUTF8", "1"},
+      {"PYTHONDONTWRITEBYTECODE", "1"},    {"PYTHONUNBUFFERED", "1"},
+      {"NoDefaultCurrentDirectoryInExePath", "1"}};
 
   // dsig_export.py enforces --timeout itself and cleans up; this is only a backstop for a hung script.
-  const int Backstop = Tools.TimeoutSeconds > 0 ? Tools.TimeoutSeconds + 120 : 0;
-  const ProcessResult Run = RunProcess(Arguments, Overrides, Backstop, stderr);
+  // 64-bit, so the grace period cannot overflow (audit F42).
+  const int64_t Backstop =
+      Tools.TimeoutSeconds > 0 ? static_cast<int64_t>(Tools.TimeoutSeconds) + kBackstopGraceSeconds : 0;
+  const ProcessResult Run = RunProcess(Arguments, Overrides, Backstop, stderr, Script.Path.parent_path());
   if (!Run.Started) {
     return Fail(kExitUnsupported, Name + ": cannot start Python '" + PathToUtf8(Python.Path) + "' (from " +
                                       Python.Source + "): " + Run.Error);
@@ -1148,6 +1409,11 @@ CommandOutcome RunExport(std::string_view Command, std::string_view Mode, const 
     const std::string Detail = ToolErrorLine(Run.Tail);
     if (!Detail.empty()) {
       Message += ": " + Detail;
+    }
+    if (Run.ExitCode == kToolHexRays) {
+      // The script's own --allow-no-decompiler is not a dsigmatcher option; its variable reaches the script.
+      Message += " [to export anyway, set DSIG_EXPORT_ALLOW_NO_DECOMPILER=1; such an export must not be diffed "
+                 "against one made with Hex-Rays]";
     }
     return Fail(Mapped.ExitCode, Message);
   }
