@@ -77,7 +77,13 @@ jobs:
         run: cmake --build build
 
       - name: Test
-        run: ctest --test-dir build --output-on-failure
+        shell: bash
+        run: |
+          if [ -n "$SQLITE_PREFIX" ]; then
+            export PATH="$SQLITE_PREFIX/bin:$PATH"
+            echo "prefixed PATH with $SQLITE_PREFIX/bin so the vcpkg sqlite3.dll wins over any other on PATH"
+          fi
+          ctest --test-dir build --output-on-failure
 
       - name: Report test binaries
         shell: bash
