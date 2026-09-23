@@ -1,0 +1,688 @@
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\n", "splitlines": [""], "split_nl": ["", ""]}
+{"s": "a", "splitlines": ["a"], "split_nl": ["a"]}
+{"s": "a\n", "splitlines": ["a"], "split_nl": ["a", ""]}
+{"s": "a\n\n", "splitlines": ["a", ""], "split_nl": ["a", "", ""]}
+{"s": "a\n\r", "splitlines": ["a", ""], "split_nl": ["a", "\r"]}
+{"s": "a\r\r\n", "splitlines": ["a", ""], "split_nl": ["a\r\r", ""]}
+{"s": "a\r\nb", "splitlines": ["a", "b"], "split_nl": ["a\r", "b"]}
+{"s": "\r\n", "splitlines": [""], "split_nl": ["\r", ""]}
+{"s": "\n\r", "splitlines": ["", ""], "split_nl": ["", "\r"]}
+{"s": "\r\r", "splitlines": ["", ""], "split_nl": ["\r\r"]}
+{"s": "a\u000bb\u001cc\u2028d\r\ne", "splitlines": ["a", "b", "c", "d", "e"], "split_nl": ["a\u000bb\u001cc\u2028d\r", "e"]}
+{"s": "xyz\u000bq\u001cr\u2028s", "splitlines": ["xyz", "q", "r", "s"], "split_nl": ["xyz\u000bq\u001cr\u2028s"]}
+{"s": "a\u0085b", "splitlines": ["a", "b"], "split_nl": ["a\u0085b"]}
+{"s": "a\u2029", "splitlines": ["a"], "split_nl": ["a\u2029"]}
+{"s": "a\u2027b", "splitlines": ["a\u2027b"], "split_nl": ["a\u2027b"]}
+{"s": "a\u001fb", "splitlines": ["a\u001fb"], "split_nl": ["a\u001fb"]}
+{"s": "a\u0084b\u0086c", "splitlines": ["a\u0084b\u0086c"], "split_nl": ["a\u0084b\u0086c"]}
+{"s": "\n\n\n", "splitlines": ["", "", ""], "split_nl": ["", "", "", ""]}
+{"s": "x\ry\nz\r\n", "splitlines": ["x", "y", "z"], "split_nl": ["x\ry", "z\r", ""]}
+{"s": "\u2028\u2029\u0085", "splitlines": ["", "", ""], "split_nl": ["\u2028\u2029\u0085"]}
+{"s": "a\n\u00e9\r\n\u4e2d", "splitlines": ["a", "\u00e9", "\u4e2d"], "split_nl": ["a", "\u00e9\r", "\u4e2d"]}
+{"s": "\n", "splitlines": [""], "split_nl": ["", ""]}
+{"s": "a\n", "splitlines": ["a"], "split_nl": ["a", ""]}
+{"s": "\na", "splitlines": ["", "a"], "split_nl": ["", "a"]}
+{"s": "a\nb", "splitlines": ["a", "b"], "split_nl": ["a", "b"]}
+{"s": "a\n\nb", "splitlines": ["a", "", "b"], "split_nl": ["a", "", "b"]}
+{"s": "\n\n\n", "splitlines": ["", "", ""], "split_nl": ["", "", "", ""]}
+{"s": "\u000b", "splitlines": [""], "split_nl": ["\u000b"]}
+{"s": "a\u000b", "splitlines": ["a"], "split_nl": ["a\u000b"]}
+{"s": "\u000ba", "splitlines": ["", "a"], "split_nl": ["\u000ba"]}
+{"s": "a\u000bb", "splitlines": ["a", "b"], "split_nl": ["a\u000bb"]}
+{"s": "a\u000b\u000bb", "splitlines": ["a", "", "b"], "split_nl": ["a\u000b\u000bb"]}
+{"s": "\u000b\u000b\u000b", "splitlines": ["", "", ""], "split_nl": ["\u000b\u000b\u000b"]}
+{"s": "\f", "splitlines": [""], "split_nl": ["\f"]}
+{"s": "a\f", "splitlines": ["a"], "split_nl": ["a\f"]}
+{"s": "\fa", "splitlines": ["", "a"], "split_nl": ["\fa"]}
+{"s": "a\fb", "splitlines": ["a", "b"], "split_nl": ["a\fb"]}
+{"s": "a\f\fb", "splitlines": ["a", "", "b"], "split_nl": ["a\f\fb"]}
+{"s": "\f\f\f", "splitlines": ["", "", ""], "split_nl": ["\f\f\f"]}
+{"s": "\r", "splitlines": [""], "split_nl": ["\r"]}
+{"s": "a\r", "splitlines": ["a"], "split_nl": ["a\r"]}
+{"s": "\ra", "splitlines": ["", "a"], "split_nl": ["\ra"]}
+{"s": "a\rb", "splitlines": ["a", "b"], "split_nl": ["a\rb"]}
+{"s": "a\r\rb", "splitlines": ["a", "", "b"], "split_nl": ["a\r\rb"]}
+{"s": "\r\r\r", "splitlines": ["", "", ""], "split_nl": ["\r\r\r"]}
+{"s": "\u001c", "splitlines": [""], "split_nl": ["\u001c"]}
+{"s": "a\u001c", "splitlines": ["a"], "split_nl": ["a\u001c"]}
+{"s": "\u001ca", "splitlines": ["", "a"], "split_nl": ["\u001ca"]}
+{"s": "a\u001cb", "splitlines": ["a", "b"], "split_nl": ["a\u001cb"]}
+{"s": "a\u001c\u001cb", "splitlines": ["a", "", "b"], "split_nl": ["a\u001c\u001cb"]}
+{"s": "\u001c\u001c\u001c", "splitlines": ["", "", ""], "split_nl": ["\u001c\u001c\u001c"]}
+{"s": "\u001d", "splitlines": [""], "split_nl": ["\u001d"]}
+{"s": "a\u001d", "splitlines": ["a"], "split_nl": ["a\u001d"]}
+{"s": "\u001da", "splitlines": ["", "a"], "split_nl": ["\u001da"]}
+{"s": "a\u001db", "splitlines": ["a", "b"], "split_nl": ["a\u001db"]}
+{"s": "a\u001d\u001db", "splitlines": ["a", "", "b"], "split_nl": ["a\u001d\u001db"]}
+{"s": "\u001d\u001d\u001d", "splitlines": ["", "", ""], "split_nl": ["\u001d\u001d\u001d"]}
+{"s": "\u001e", "splitlines": [""], "split_nl": ["\u001e"]}
+{"s": "a\u001e", "splitlines": ["a"], "split_nl": ["a\u001e"]}
+{"s": "\u001ea", "splitlines": ["", "a"], "split_nl": ["\u001ea"]}
+{"s": "a\u001eb", "splitlines": ["a", "b"], "split_nl": ["a\u001eb"]}
+{"s": "a\u001e\u001eb", "splitlines": ["a", "", "b"], "split_nl": ["a\u001e\u001eb"]}
+{"s": "\u001e\u001e\u001e", "splitlines": ["", "", ""], "split_nl": ["\u001e\u001e\u001e"]}
+{"s": "\u0085", "splitlines": [""], "split_nl": ["\u0085"]}
+{"s": "a\u0085", "splitlines": ["a"], "split_nl": ["a\u0085"]}
+{"s": "\u0085a", "splitlines": ["", "a"], "split_nl": ["\u0085a"]}
+{"s": "a\u0085b", "splitlines": ["a", "b"], "split_nl": ["a\u0085b"]}
+{"s": "a\u0085\u0085b", "splitlines": ["a", "", "b"], "split_nl": ["a\u0085\u0085b"]}
+{"s": "\u0085\u0085\u0085", "splitlines": ["", "", ""], "split_nl": ["\u0085\u0085\u0085"]}
+{"s": "\u2028", "splitlines": [""], "split_nl": ["\u2028"]}
+{"s": "a\u2028", "splitlines": ["a"], "split_nl": ["a\u2028"]}
+{"s": "\u2028a", "splitlines": ["", "a"], "split_nl": ["\u2028a"]}
+{"s": "a\u2028b", "splitlines": ["a", "b"], "split_nl": ["a\u2028b"]}
+{"s": "a\u2028\u2028b", "splitlines": ["a", "", "b"], "split_nl": ["a\u2028\u2028b"]}
+{"s": "\u2028\u2028\u2028", "splitlines": ["", "", ""], "split_nl": ["\u2028\u2028\u2028"]}
+{"s": "\u2029", "splitlines": [""], "split_nl": ["\u2029"]}
+{"s": "a\u2029", "splitlines": ["a"], "split_nl": ["a\u2029"]}
+{"s": "\u2029a", "splitlines": ["", "a"], "split_nl": ["\u2029a"]}
+{"s": "a\u2029b", "splitlines": ["a", "b"], "split_nl": ["a\u2029b"]}
+{"s": "a\u2029\u2029b", "splitlines": ["a", "", "b"], "split_nl": ["a\u2029\u2029b"]}
+{"s": "\u2029\u2029\u2029", "splitlines": ["", "", ""], "split_nl": ["\u2029\u2029\u2029"]}
+{"s": "\r\n", "splitlines": [""], "split_nl": ["\r", ""]}
+{"s": "a\r\n", "splitlines": ["a"], "split_nl": ["a\r", ""]}
+{"s": "\r\na", "splitlines": ["", "a"], "split_nl": ["\r", "a"]}
+{"s": "a\r\nb", "splitlines": ["a", "b"], "split_nl": ["a\r", "b"]}
+{"s": "a\r\n\r\nb", "splitlines": ["a", "", "b"], "split_nl": ["a\r", "\r", "b"]}
+{"s": "\r\n\r\n\r\n", "splitlines": ["", "", ""], "split_nl": ["\r", "\r", "\r", ""]}
+{"s": "\u001e\u2027", "splitlines": ["", "\u2027"], "split_nl": ["\u001e\u2027"]}
+{"s": "\u2029", "splitlines": [""], "split_nl": ["\u2029"]}
+{"s": "\u2028\u001e\u2027a\u4e2d\u2027\u4e2d\n\r", "splitlines": ["", "", "\u2027a\u4e2d\u2027\u4e2d", ""], "split_nl": ["\u2028\u001e\u2027a\u4e2d\u2027\u4e2d", "\r"]}
+{"s": "\u202a  \u00e9\u001f\tcall sub_401000\r\u20a8\u001e\u2029\u001e", "splitlines": ["\u202a  \u00e9\u001f\tcall sub_401000", "\u20a8", "", ""], "split_nl": ["\u202a  \u00e9\u001f\tcall sub_401000\r\u20a8\u001e\u2029\u001e"]}
+{"s": "a\u2029\u2027\u202a\n\r\u001e\u2080\u2080\n\u0130\u4e2d\u00c2", "splitlines": ["a", "\u2027\u202a", "", "", "\u2080\u2080", "\u0130\u4e2d\u00c2"], "split_nl": ["a\u2029\u2027\u202a", "\r\u001e\u2080\u2080", "\u0130\u4e2d\u00c2"]}
+{"s": "\u001c\u000b\u001e\u001d\u20a8\u0000\u2029\u000ba\u00e9\r\n\u000b", "splitlines": ["", "", "", "", "\u20a8\u0000", "", "a\u00e9", ""], "split_nl": ["\u001c\u000b\u001e\u001d\u20a8\u0000\u2029\u000ba\u00e9\r", "\u000b"]}
+{"s": "\r\n\ud83d\ude00\n\r", "splitlines": ["", "\ud83d\ude00", ""], "split_nl": ["\r", "\ud83d\ude00", "\r"]}
+{"s": "\u20a8call sub_401000\u001c", "splitlines": ["\u20a8call sub_401000"], "split_nl": ["\u20a8call sub_401000\u001c"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\u4e2d\u0130bc\u001e", "splitlines": ["\u4e2d\u0130bc"], "split_nl": ["\u4e2d\u0130bc\u001e"]}
+{"s": "\u001f\u4e2d\f\u2080\u2028\u0086", "splitlines": ["\u001f\u4e2d", "\u2080", "\u0086"], "split_nl": ["\u001f\u4e2d\f\u2080\u2028\u0086"]}
+{"s": "\n\r\u0084\u2029\ud83d\ude00\r\r\n\r\u2029\u000b", "splitlines": ["", "", "\u0084", "\ud83d\ude00", "", "", "", ""], "split_nl": ["", "\r\u0084\u2029\ud83d\ude00\r\r", "\r\u2029\u000b"]}
+{"s": "\u0000\u2080\u00e2\ud83d\ude00 \u0130\u2028\u001b\u00e9", "splitlines": ["\u0000\u2080\u00e2\ud83d\ude00 \u0130", "\u001b\u00e9"], "split_nl": ["\u0000\u2080\u00e2\ud83d\ude00 \u0130\u2028\u001b\u00e9"]}
+{"s": "\r\n\n\rcall sub_401000bc\n\u001b", "splitlines": ["", "", "", "call sub_401000bc", "\u001b"], "split_nl": ["\r", "", "\rcall sub_401000bc", "\u001b"]}
+{"s": "\u000b\u001b\u0000", "splitlines": ["", "\u001b\u0000"], "split_nl": ["\u000b\u001b\u0000"]}
+{"s": "call sub_401000", "splitlines": ["call sub_401000"], "split_nl": ["call sub_401000"]}
+{"s": "\u00e2\u001d", "splitlines": ["\u00e2"], "split_nl": ["\u00e2\u001d"]}
+{"s": "\u4e2d \u20a8\u001c\u00e2\u2027\u2080\u0130\u4e2d\u00c2", "splitlines": ["\u4e2d \u20a8", "\u00e2\u2027\u2080\u0130\u4e2d\u00c2"], "split_nl": ["\u4e2d \u20a8\u001c\u00e2\u2027\u2080\u0130\u4e2d\u00c2"]}
+{"s": "\u2080", "splitlines": ["\u2080"], "split_nl": ["\u2080"]}
+{"s": "bc\u0130", "splitlines": ["bc\u0130"], "split_nl": ["bc\u0130"]}
+{"s": "\u0086\u202a\f\f", "splitlines": ["\u0086\u202a", ""], "split_nl": ["\u0086\u202a\f\f"]}
+{"s": "\u20a8x\u202a\u2080\r", "splitlines": ["\u20a8x\u202a\u2080"], "split_nl": ["\u20a8x\u202a\u2080\r"]}
+{"s": " \u2027\u001d\u001d\u0084\u0084", "splitlines": [" \u2027", "", "\u0084\u0084"], "split_nl": [" \u2027\u001d\u001d\u0084\u0084"]}
+{"s": "\u4e2d\u4e2d\n\r\u20a8\u20a8", "splitlines": ["\u4e2d\u4e2d", "", "\u20a8\u20a8"], "split_nl": ["\u4e2d\u4e2d", "\r\u20a8\u20a8"]}
+{"s": "\u0000\u20a8\u20a8\u000b", "splitlines": ["\u0000\u20a8\u20a8"], "split_nl": ["\u0000\u20a8\u20a8\u000b"]}
+{"s": "\u2029\u0084\f\u0086\t\u001bbcx", "splitlines": ["", "\u0084", "\u0086\t\u001bbcx"], "split_nl": ["\u2029\u0084\f\u0086\t\u001bbcx"]}
+{"s": "\u001c\u2027\u00e2\n\rbc\u0000\u001e\n\r\u001d", "splitlines": ["", "\u2027\u00e2", "", "bc\u0000", "", "", ""], "split_nl": ["\u001c\u2027\u00e2", "\rbc\u0000\u001e", "\r\u001d"]}
+{"s": "\u2029call sub_401000\u00e9\u001f", "splitlines": ["", "call sub_401000\u00e9\u001f"], "split_nl": ["\u2029call sub_401000\u00e9\u001f"]}
+{"s": "\u0086\u2029\u001d\u001d\u0130", "splitlines": ["\u0086", "", "", "\u0130"], "split_nl": ["\u0086\u2029\u001d\u001d\u0130"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\fbc\u0130\f\u0084a\t\u001e\u0086", "splitlines": ["", "bc\u0130", "\u0084a\t", "\u0086"], "split_nl": ["\fbc\u0130\f\u0084a\t\u001e\u0086"]}
+{"s": "\u001d\u0130\u00e9\ud83d\ude00\u202a\u001b", "splitlines": ["", "\u0130\u00e9\ud83d\ude00\u202a\u001b"], "split_nl": ["\u001d\u0130\u00e9\ud83d\ude00\u202a\u001b"]}
+{"s": "\u4e2d\u001b\u2028\u202a", "splitlines": ["\u4e2d\u001b", "\u202a"], "split_nl": ["\u4e2d\u001b\u2028\u202a"]}
+{"s": "\u0086\u0130\n\r\u2029\rx", "splitlines": ["\u0086\u0130", "", "", "", "x"], "split_nl": ["\u0086\u0130", "\r\u2029\rx"]}
+{"s": "\u2080\u0085\u001c\u00e9", "splitlines": ["\u2080", "", "\u00e9"], "split_nl": ["\u2080\u0085\u001c\u00e9"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\f\u20a8\n\r\u0084\u000b\u4e2d\n\r", "splitlines": ["", "\u20a8", "", "\u0084", "\u4e2d", ""], "split_nl": ["\f\u20a8", "\r\u0084\u000b\u4e2d", "\r"]}
+{"s": "\u4e2d\u00c2\u00e2\u00e9\f\u2028x\u001f\u00c2\u0000", "splitlines": ["\u4e2d\u00c2\u00e2\u00e9", "", "x\u001f\u00c2\u0000"], "split_nl": ["\u4e2d\u00c2\u00e2\u00e9\f\u2028x\u001f\u00c2\u0000"]}
+{"s": "\u2029\u001b\u001e\f\u20a8call sub_401000\u0086 \u20a8", "splitlines": ["", "\u001b", "", "\u20a8call sub_401000\u0086 \u20a8"], "split_nl": ["\u2029\u001b\u001e\f\u20a8call sub_401000\u0086 \u20a8"]}
+{"s": "\u20a8 x\u0000", "splitlines": ["\u20a8 x\u0000"], "split_nl": ["\u20a8 x\u0000"]}
+{"s": "\u2029", "splitlines": [""], "split_nl": ["\u2029"]}
+{"s": "bc\u202a\n \u00e9bc", "splitlines": ["bc\u202a", " \u00e9bc"], "split_nl": ["bc\u202a", " \u00e9bc"]}
+{"s": "bc\u001f", "splitlines": ["bc\u001f"], "split_nl": ["bc\u001f"]}
+{"s": "\n\r\u000b\u2027\u2027\r\n", "splitlines": ["", "", "", "\u2027\u2027"], "split_nl": ["", "\r\u000b\u2027\u2027\r", ""]}
+{"s": "\u2028\u2029 call sub_401000\u001d\u2080\ud83d\ude00\u001f\u20a8\u00e9\u0086", "splitlines": ["", "", " call sub_401000", "\u2080\ud83d\ude00\u001f\u20a8\u00e9\u0086"], "split_nl": ["\u2028\u2029 call sub_401000\u001d\u2080\ud83d\ude00\u001f\u20a8\u00e9\u0086"]}
+{"s": "\u000b", "splitlines": [""], "split_nl": ["\u000b"]}
+{"s": "\u202a\u001c\n\r\u000b\u00e9\u001f\u20a8\u0086", "splitlines": ["\u202a", "", "", "", "\u00e9\u001f\u20a8\u0086"], "split_nl": ["\u202a\u001c", "\r\u000b\u00e9\u001f\u20a8\u0086"]}
+{"s": "bc\u00c2", "splitlines": ["bc\u00c2"], "split_nl": ["bc\u00c2"]}
+{"s": "\u001d", "splitlines": [""], "split_nl": ["\u001d"]}
+{"s": " ", "splitlines": [" "], "split_nl": [" "]}
+{"s": "call sub_401000\n\r\u00e2\u001d\u0086a\n\r\u0085\u00c2 ", "splitlines": ["call sub_401000", "", "\u00e2", "\u0086a", "", "", "\u00c2 "], "split_nl": ["call sub_401000", "\r\u00e2\u001d\u0086a", "\r\u0085\u00c2 "]}
+{"s": "\u001e\u00e9\u001e\u00e9a\u001b", "splitlines": ["", "\u00e9", "\u00e9a\u001b"], "split_nl": ["\u001e\u00e9\u001e\u00e9a\u001b"]}
+{"s": "\u001c\u20a8", "splitlines": ["", "\u20a8"], "split_nl": ["\u001c\u20a8"]}
+{"s": "\r\n\r\u000b", "splitlines": ["", "", ""], "split_nl": ["\r", "\r\u000b"]}
+{"s": "\u20a8\n", "splitlines": ["\u20a8"], "split_nl": ["\u20a8", ""]}
+{"s": "\ud83d\ude00\u4e2d\n\u001f", "splitlines": ["\ud83d\ude00\u4e2d", "\u001f"], "split_nl": ["\ud83d\ude00\u4e2d", "\u001f"]}
+{"s": "\u2028\u000b\u0085\u4e2d\u001b\u2029x\f\u2029\u2080\f", "splitlines": ["", "", "", "\u4e2d\u001b", "x", "", "\u2080"], "split_nl": ["\u2028\u000b\u0085\u4e2d\u001b\u2029x\f\u2029\u2080\f"]}
+{"s": "bc\u2028\u2080", "splitlines": ["bc", "\u2080"], "split_nl": ["bc\u2028\u2080"]}
+{"s": "\u0130\r\u001e\u0085", "splitlines": ["\u0130", "", ""], "split_nl": ["\u0130\r\u001e\u0085"]}
+{"s": "\u2027\f\u2029", "splitlines": ["\u2027", ""], "split_nl": ["\u2027\f\u2029"]}
+{"s": "\u001f\u00e9\u2028\u0130\r\u0130", "splitlines": ["\u001f\u00e9", "\u0130", "\u0130"], "split_nl": ["\u001f\u00e9\u2028\u0130\r\u0130"]}
+{"s": "\u00e9call sub_401000\r\n\n\u001b\u00c2\r\u001f", "splitlines": ["\u00e9call sub_401000", "", "\u001b\u00c2", "\u001f"], "split_nl": ["\u00e9call sub_401000\r", "", "\u001b\u00c2\r\u001f"]}
+{"s": "\u0086\u0000\r\n\n\rx\u001b\u2028\u4e2d\u001b \u001f\r", "splitlines": ["\u0086\u0000", "", "", "x\u001b", "\u4e2d\u001b \u001f"], "split_nl": ["\u0086\u0000\r", "", "\rx\u001b\u2028\u4e2d\u001b \u001f\r"]}
+{"s": "\r\n\u0000\u000b\u4e2d\u001c\u0084", "splitlines": ["", "\u0000", "\u4e2d", "\u0084"], "split_nl": ["\r", "\u0000\u000b\u4e2d\u001c\u0084"]}
+{"s": "\u0130\u00c2", "splitlines": ["\u0130\u00c2"], "split_nl": ["\u0130\u00c2"]}
+{"s": "\f\u000b\u2080", "splitlines": ["", "", "\u2080"], "split_nl": ["\f\u000b\u2080"]}
+{"s": "\r", "splitlines": [""], "split_nl": ["\r"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\u0086\u001c\u00e2", "splitlines": ["\u0086", "\u00e2"], "split_nl": ["\u0086\u001c\u00e2"]}
+{"s": "\u001d", "splitlines": [""], "split_nl": ["\u001d"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\u00c2\u0085\u00e2 \u00e2\u0084\nx\u2029\u001f\n\r\r\n", "splitlines": ["\u00c2", "\u00e2 \u00e2\u0084", "x", "\u001f", "", ""], "split_nl": ["\u00c2\u0085\u00e2 \u00e2\u0084", "x\u2029\u001f", "\r\r", ""]}
+{"s": "\u0000\r\na\u001c\t\u4e2da\t\ud83d\ude00a", "splitlines": ["\u0000", "a", "\t\u4e2da\t\ud83d\ude00a"], "split_nl": ["\u0000\r", "a\u001c\t\u4e2da\t\ud83d\ude00a"]}
+{"s": " \u0000\u0085\u001c\r\u4e2d\u0000\u001c\u001e\u2028bcbc", "splitlines": [" \u0000", "", "", "\u4e2d\u0000", "", "", "bcbc"], "split_nl": [" \u0000\u0085\u001c\r\u4e2d\u0000\u001c\u001e\u2028bcbc"]}
+{"s": "\u001f\n\rcall sub_401000", "splitlines": ["\u001f", "", "call sub_401000"], "split_nl": ["\u001f", "\rcall sub_401000"]}
+{"s": "\u0085\u001e\u000b\f\u00c2\u2029call sub_401000\n\u2028\u20a8", "splitlines": ["", "", "", "", "\u00c2", "call sub_401000", "", "\u20a8"], "split_nl": ["\u0085\u001e\u000b\f\u00c2\u2029call sub_401000", "\u2028\u20a8"]}
+{"s": "\u001d\n\u001f\u2080\u2080\u0130\u0130\u2029", "splitlines": ["", "", "\u001f\u2080\u2080\u0130\u0130"], "split_nl": ["\u001d", "\u001f\u2080\u2080\u0130\u0130\u2029"]}
+{"s": "\tbc\r\ncall sub_401000\u001c\u20a8\u2028\u2027\u2027", "splitlines": ["\tbc", "call sub_401000", "\u20a8", "\u2027\u2027"], "split_nl": ["\tbc\r", "call sub_401000\u001c\u20a8\u2028\u2027\u2027"]}
+{"s": "\t\u0085\r\u00c2\u001ea\u2028\u0000\f", "splitlines": ["\t", "", "\u00c2", "a", "\u0000"], "split_nl": ["\t\u0085\r\u00c2\u001ea\u2028\u0000\f"]}
+{"s": "\u0085\t\u00c2\u00e2\u001f\ud83d\ude00\u0086\u2027\f\u202a\u001d", "splitlines": ["", "\t\u00c2\u00e2\u001f\ud83d\ude00\u0086\u2027", "\u202a"], "split_nl": ["\u0085\t\u00c2\u00e2\u001f\ud83d\ude00\u0086\u2027\f\u202a\u001d"]}
+{"s": "\n\r\u0085\n\r\u001e\u0085 ", "splitlines": ["", "", "", "", "", "", "", " "], "split_nl": ["", "\r\u0085", "\r\u001e\u0085 "]}
+{"s": "\u4e2d\u4e2d\u001e\u0086\n\r\u0130\u00c2\u0086\u2028\u001bx\t", "splitlines": ["\u4e2d\u4e2d", "\u0086", "", "\u0130\u00c2\u0086", "\u001bx\t"], "split_nl": ["\u4e2d\u4e2d\u001e\u0086", "\r\u0130\u00c2\u0086\u2028\u001bx\t"]}
+{"s": "\u0085\u0130\u20a8\r\u000b\u0086\u001b\u001d\u001b\u20a8", "splitlines": ["", "\u0130\u20a8", "", "\u0086\u001b", "\u001b\u20a8"], "split_nl": ["\u0085\u0130\u20a8\r\u000b\u0086\u001b\u001d\u001b\u20a8"]}
+{"s": "\u4e2dcall sub_401000\u001c\u001e \u2080\n\r", "splitlines": ["\u4e2dcall sub_401000", "", " \u2080", ""], "split_nl": ["\u4e2dcall sub_401000\u001c\u001e \u2080", "\r"]}
+{"s": "\u20a8\u001e\u2029\u0084\u00e9\n\rx\u202a\u2027", "splitlines": ["\u20a8", "", "\u0084\u00e9", "", "x\u202a\u2027"], "split_nl": ["\u20a8\u001e\u2029\u0084\u00e9", "\rx\u202a\u2027"]}
+{"s": "\u202abc\u001d\u00e9\u001d\u00c2\u001ca", "splitlines": ["\u202abc", "\u00e9", "\u00c2", "a"], "split_nl": ["\u202abc\u001d\u00e9\u001d\u00c2\u001ca"]}
+{"s": "ax\u2029\r\u0000\u001e\u001d\u0085", "splitlines": ["ax", "", "\u0000", "", ""], "split_nl": ["ax\u2029\r\u0000\u001e\u001d\u0085"]}
+{"s": "\u001d\u001e", "splitlines": ["", ""], "split_nl": ["\u001d\u001e"]}
+{"s": "\u2029", "splitlines": [""], "split_nl": ["\u2029"]}
+{"s": "\u2028\n\r\u2029\u0086\u2028 \u001c\u001f\u2080\u0000", "splitlines": ["", "", "", "", "\u0086", " ", "\u001f\u2080\u0000"], "split_nl": ["\u2028", "\r\u2029\u0086\u2028 \u001c\u001f\u2080\u0000"]}
+{"s": "\r\n\n\r", "splitlines": ["", "", ""], "split_nl": ["\r", "", "\r"]}
+{"s": "\u00c2bc\u4e2d\u001f\u001f\u0130\u0000\u2029", "splitlines": ["\u00c2bc\u4e2d\u001f\u001f\u0130\u0000"], "split_nl": ["\u00c2bc\u4e2d\u001f\u001f\u0130\u0000\u2029"]}
+{"s": "\u0085\u000b\u20a8\u001f\u2080\u00c2\u00e2\u001e\u2080", "splitlines": ["", "", "\u20a8\u001f\u2080\u00c2\u00e2", "\u2080"], "split_nl": ["\u0085\u000b\u20a8\u001f\u2080\u00c2\u00e2\u001e\u2080"]}
+{"s": "\f\u001d\u001e\u202acall sub_401000\n\u0000", "splitlines": ["", "", "", "\u202acall sub_401000", "\u0000"], "split_nl": ["\f\u001d\u001e\u202acall sub_401000", "\u0000"]}
+{"s": "\u001e\f\u2029\u001b\u20a8", "splitlines": ["", "", "", "\u001b\u20a8"], "split_nl": ["\u001e\f\u2029\u001b\u20a8"]}
+{"s": "\r\u001d\u0085", "splitlines": ["", "", ""], "split_nl": ["\r\u001d\u0085"]}
+{"s": "\u001d", "splitlines": [""], "split_nl": ["\u001d"]}
+{"s": "\u20a8call sub_401000call sub_401000call sub_401000", "splitlines": ["\u20a8call sub_401000call sub_401000call sub_401000"], "split_nl": ["\u20a8call sub_401000call sub_401000call sub_401000"]}
+{"s": "\r\u0084 \u0130\f\u0086\u0000", "splitlines": ["", "\u0084 \u0130", "\u0086\u0000"], "split_nl": ["\r\u0084 \u0130\f\u0086\u0000"]}
+{"s": "\u0085\r\n", "splitlines": ["", ""], "split_nl": ["\u0085\r", ""]}
+{"s": "\u00e2\u00c2\u0130\r\u0130\u0084\u00c2\u2027", "splitlines": ["\u00e2\u00c2\u0130", "\u0130\u0084\u00c2\u2027"], "split_nl": ["\u00e2\u00c2\u0130\r\u0130\u0084\u00c2\u2027"]}
+{"s": "x\u2027\f\u0086\u001c", "splitlines": ["x\u2027", "\u0086"], "split_nl": ["x\u2027\f\u0086\u001c"]}
+{"s": "\r\n\u202a", "splitlines": ["", "\u202a"], "split_nl": ["\r", "\u202a"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\u001f\u2027\u2028\u00c2\u001d\ud83d\ude00call sub_401000", "splitlines": ["\u001f\u2027", "\u00c2", "\ud83d\ude00call sub_401000"], "split_nl": ["\u001f\u2027\u2028\u00c2\u001d\ud83d\ude00call sub_401000"]}
+{"s": "\t\t\u001ecall sub_401000", "splitlines": ["\t\t", "call sub_401000"], "split_nl": ["\t\t\u001ecall sub_401000"]}
+{"s": "\u001e\u20a8\u00e9\u202a\ud83d\ude00\u2029\u0084\ud83d\ude00", "splitlines": ["", "\u20a8\u00e9\u202a\ud83d\ude00", "\u0084\ud83d\ude00"], "split_nl": ["\u001e\u20a8\u00e9\u202a\ud83d\ude00\u2029\u0084\ud83d\ude00"]}
+{"s": "a\u001d\u0085", "splitlines": ["a", ""], "split_nl": ["a\u001d\u0085"]}
+{"s": "bca\r\u2027\u0084\u2029", "splitlines": ["bca", "\u2027\u0084"], "split_nl": ["bca\r\u2027\u0084\u2029"]}
+{"s": "\u00e9\u0086\ud83d\ude00\u2028\f\u001f \rcall sub_401000", "splitlines": ["\u00e9\u0086\ud83d\ude00", "", "\u001f ", "call sub_401000"], "split_nl": ["\u00e9\u0086\ud83d\ude00\u2028\f\u001f \rcall sub_401000"]}
+{"s": "\f\u0086\u2029", "splitlines": ["", "\u0086"], "split_nl": ["\f\u0086\u2029"]}
+{"s": "bc\u2029call sub_401000\rx\u2080\u001c\u00e2\u001c\u00c2\u001b", "splitlines": ["bc", "call sub_401000", "x\u2080", "\u00e2", "\u00c2\u001b"], "split_nl": ["bc\u2029call sub_401000\rx\u2080\u001c\u00e2\u001c\u00c2\u001b"]}
+{"s": "\u0086\u2080\u00e2", "splitlines": ["\u0086\u2080\u00e2"], "split_nl": ["\u0086\u2080\u00e2"]}
+{"s": "\u001c\u2028\u001c\u001f\u202a", "splitlines": ["", "", "", "\u001f\u202a"], "split_nl": ["\u001c\u2028\u001c\u001f\u202a"]}
+{"s": "\u001f\u20a8", "splitlines": ["\u001f\u20a8"], "split_nl": ["\u001f\u20a8"]}
+{"s": "\u0000\ud83d\ude00\u00e9\ud83d\ude00call sub_401000\u0130\u001c\u20a8bc", "splitlines": ["\u0000\ud83d\ude00\u00e9\ud83d\ude00call sub_401000\u0130", "\u20a8bc"], "split_nl": ["\u0000\ud83d\ude00\u00e9\ud83d\ude00call sub_401000\u0130\u001c\u20a8bc"]}
+{"s": "\u202a\u00e9\u001c\u00e9\u001bx\u000b\u001f\u001f\u4e2d\t\n", "splitlines": ["\u202a\u00e9", "\u00e9\u001bx", "\u001f\u001f\u4e2d\t"], "split_nl": ["\u202a\u00e9\u001c\u00e9\u001bx\u000b\u001f\u001f\u4e2d\t", ""]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\u001c\f\u0086\u2027x\u2027\u0084\u0086a\u00e9a", "splitlines": ["", "", "\u0086\u2027x\u2027\u0084\u0086a\u00e9a"], "split_nl": ["\u001c\f\u0086\u2027x\u2027\u0084\u0086a\u00e9a"]}
+{"s": "\r\n", "splitlines": [""], "split_nl": ["\r", ""]}
+{"s": "\u001cx\u4e2d\u2027\u20a8call sub_401000", "splitlines": ["", "x\u4e2d\u2027\u20a8call sub_401000"], "split_nl": ["\u001cx\u4e2d\u2027\u20a8call sub_401000"]}
+{"s": "\u20a8\t\u001f\u00e9\ud83d\ude00\u0084\u001fcall sub_401000", "splitlines": ["\u20a8\t\u001f\u00e9\ud83d\ude00\u0084\u001fcall sub_401000"], "split_nl": ["\u20a8\t\u001f\u00e9\ud83d\ude00\u0084\u001fcall sub_401000"]}
+{"s": "\u0084\u0130\u4e2d\n\r\u0084", "splitlines": ["\u0084\u0130\u4e2d", "", "\u0084"], "split_nl": ["\u0084\u0130\u4e2d", "\r\u0084"]}
+{"s": "\u001c", "splitlines": [""], "split_nl": ["\u001c"]}
+{"s": "\u2028\u202ax\r\n\u2029\u202aa\u2027\u001e\u00e9", "splitlines": ["", "\u202ax", "", "\u202aa\u2027", "\u00e9"], "split_nl": ["\u2028\u202ax\r", "\u2029\u202aa\u2027\u001e\u00e9"]}
+{"s": "\u001f\u001e\u001c\u001b\u2080\u2028\u0085\u001e\u00c2\n\r", "splitlines": ["\u001f", "", "\u001b\u2080", "", "", "\u00c2", ""], "split_nl": ["\u001f\u001e\u001c\u001b\u2080\u2028\u0085\u001e\u00c2", "\r"]}
+{"s": "\r\r\n\ta\u2080\r\u0085\u0130", "splitlines": ["", "", "\ta\u2080", "", "\u0130"], "split_nl": ["\r\r", "\ta\u2080\r\u0085\u0130"]}
+{"s": "\u0085\t", "splitlines": ["", "\t"], "split_nl": ["\u0085\t"]}
+{"s": "\u202a\u001c\u2029\r\n\u0130\u0130\ud83d\ude00\u001ca\t", "splitlines": ["\u202a", "", "", "\u0130\u0130\ud83d\ude00", "a\t"], "split_nl": ["\u202a\u001c\u2029\r", "\u0130\u0130\ud83d\ude00\u001ca\t"]}
+{"s": " \u00e2\r\u4e2d\fx\u4e2d\f\u4e2d\ud83d\ude00", "splitlines": [" \u00e2", "\u4e2d", "x\u4e2d", "\u4e2d\ud83d\ude00"], "split_nl": [" \u00e2\r\u4e2d\fx\u4e2d\f\u4e2d\ud83d\ude00"]}
+{"s": "\r\n\u000b\u0085x\u202a\u4e2d\u000b\u202a\u4e2d\u001f\t", "splitlines": ["", "", "", "x\u202a\u4e2d", "\u202a\u4e2d\u001f\t"], "split_nl": ["\r", "\u000b\u0085x\u202a\u4e2d\u000b\u202a\u4e2d\u001f\t"]}
+{"s": "\u2028\u2029", "splitlines": ["", ""], "split_nl": ["\u2028\u2029"]}
+{"s": "\u2027", "splitlines": ["\u2027"], "split_nl": ["\u2027"]}
+{"s": "\u000b\u00e9", "splitlines": ["", "\u00e9"], "split_nl": ["\u000b\u00e9"]}
+{"s": "\u00e9\u00c2x\u2080\f", "splitlines": ["\u00e9\u00c2x\u2080"], "split_nl": ["\u00e9\u00c2x\u2080\f"]}
+{"s": "\u2080\u0000\u000b \u00c2x\t\r", "splitlines": ["\u2080\u0000", " \u00c2x\t"], "split_nl": ["\u2080\u0000\u000b \u00c2x\t\r"]}
+{"s": "\u0086\u0084\u00e9\u001c\u001f\u000b\u0084\u001c\u00e2\u2027", "splitlines": ["\u0086\u0084\u00e9", "\u001f", "\u0084", "\u00e2\u2027"], "split_nl": ["\u0086\u0084\u00e9\u001c\u001f\u000b\u0084\u001c\u00e2\u2027"]}
+{"s": "\u2029\u001c\u00c2\u001e\f\ud83d\ude00", "splitlines": ["", "", "\u00c2", "", "\ud83d\ude00"], "split_nl": ["\u2029\u001c\u00c2\u001e\f\ud83d\ude00"]}
+{"s": "\n\r", "splitlines": ["", ""], "split_nl": ["", "\r"]}
+{"s": "bc\u00c2call sub_401000xbc\ud83d\ude00call sub_401000", "splitlines": ["bc\u00c2call sub_401000xbc\ud83d\ude00call sub_401000"], "split_nl": ["bc\u00c2call sub_401000xbc\ud83d\ude00call sub_401000"]}
+{"s": "\u00c2\u2028\u0085\u001e\u2028bc\u2080\f\u0085\u20a8x", "splitlines": ["\u00c2", "", "", "", "bc\u2080", "", "\u20a8x"], "split_nl": ["\u00c2\u2028\u0085\u001e\u2028bc\u2080\f\u0085\u20a8x"]}
+{"s": "\f\u000b\u00e2\u00e9\t\u2080\u0086\u001f\ud83d\ude00\u0130\ra", "splitlines": ["", "", "\u00e2\u00e9\t\u2080\u0086\u001f\ud83d\ude00\u0130", "a"], "split_nl": ["\f\u000b\u00e2\u00e9\t\u2080\u0086\u001f\ud83d\ude00\u0130\ra"]}
+{"s": "\r", "splitlines": [""], "split_nl": ["\r"]}
+{"s": "\u0000\u4e2d\u20a8", "splitlines": ["\u0000\u4e2d\u20a8"], "split_nl": ["\u0000\u4e2d\u20a8"]}
+{"s": "\ud83d\ude00", "splitlines": ["\ud83d\ude00"], "split_nl": ["\ud83d\ude00"]}
+{"s": "\u001f\u00e2\u202a \u0000\ra\u0084\n\r\u2028\r", "splitlines": ["\u001f\u00e2\u202a \u0000", "a\u0084", "", "", ""], "split_nl": ["\u001f\u00e2\u202a \u0000\ra\u0084", "\r\u2028\r"]}
+{"s": "\u001d\u00c2\u001ba\u00e9 \u00e2\r\u0084\r\n", "splitlines": ["", "\u00c2\u001ba\u00e9 \u00e2", "\u0084"], "split_nl": ["\u001d\u00c2\u001ba\u00e9 \u00e2\r\u0084\r", ""]}
+{"s": "\u0084\r\u0085x\u001e\n\rbc\u4e2dx\u2080\u000b", "splitlines": ["\u0084", "", "x", "", "", "bc\u4e2dx\u2080"], "split_nl": ["\u0084\r\u0085x\u001e", "\rbc\u4e2dx\u2080\u000b"]}
+{"s": "\u000b\u2029\u0086\ud83d\ude00\u0000", "splitlines": ["", "", "\u0086\ud83d\ude00\u0000"], "split_nl": ["\u000b\u2029\u0086\ud83d\ude00\u0000"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\u001b\ud83d\ude00\u0084\u001c\u001c\u0085\u0086\r\ud83d\ude00\r", "splitlines": ["\u001b\ud83d\ude00\u0084", "", "", "\u0086", "\ud83d\ude00"], "split_nl": ["\u001b\ud83d\ude00\u0084\u001c\u001c\u0085\u0086\r\ud83d\ude00\r"]}
+{"s": "\u4e2d\n\u2080", "splitlines": ["\u4e2d", "\u2080"], "split_nl": ["\u4e2d", "\u2080"]}
+{"s": "\n\r\u001e", "splitlines": ["", "", ""], "split_nl": ["", "\r\u001e"]}
+{"s": "\u2028", "splitlines": [""], "split_nl": ["\u2028"]}
+{"s": "\u0086\u0130\ncall sub_401000a\u00c2", "splitlines": ["\u0086\u0130", "call sub_401000a\u00c2"], "split_nl": ["\u0086\u0130", "call sub_401000a\u00c2"]}
+{"s": "\n\r\u2080\u00e2 \u001b\n\r\u0084\u001d\n\r\u000b\r", "splitlines": ["", "", "\u2080\u00e2 \u001b", "", "\u0084", "", "", "", ""], "split_nl": ["", "\r\u2080\u00e2 \u001b", "\r\u0084\u001d", "\r\u000b\r"]}
+{"s": "\u2080\u4e2d\u2080", "splitlines": ["\u2080\u4e2d\u2080"], "split_nl": ["\u2080\u4e2d\u2080"]}
+{"s": "\u001e\t\u00c2\ud83d\ude00\u00e9\rx\u000b\u4e2d\u20a8bc", "splitlines": ["", "\t\u00c2\ud83d\ude00\u00e9", "x", "\u4e2d\u20a8bc"], "split_nl": ["\u001e\t\u00c2\ud83d\ude00\u00e9\rx\u000b\u4e2d\u20a8bc"]}
+{"s": "\u0086call sub_401000\u001f\t \u00c2", "splitlines": ["\u0086call sub_401000\u001f\t \u00c2"], "split_nl": ["\u0086call sub_401000\u001f\t \u00c2"]}
+{"s": "\u001b\u0130bc\u00e9\u202a\u00c2\u0085\u00c2call sub_401000\u0130", "splitlines": ["\u001b\u0130bc\u00e9\u202a\u00c2", "\u00c2call sub_401000\u0130"], "split_nl": ["\u001b\u0130bc\u00e9\u202a\u00c2\u0085\u00c2call sub_401000\u0130"]}
+{"s": "\u0130\u00e9\u2029\u001b\u0086\u0000\u2029\ud83d\ude00\r\n\u001d", "splitlines": ["\u0130\u00e9", "\u001b\u0086\u0000", "\ud83d\ude00", ""], "split_nl": ["\u0130\u00e9\u2029\u001b\u0086\u0000\u2029\ud83d\ude00\r", "\u001d"]}
+{"s": "bca", "splitlines": ["bca"], "split_nl": ["bca"]}
+{"s": "\n\r", "splitlines": ["", ""], "split_nl": ["", "\r"]}
+{"s": "\u00e9\t\r\u0130\u2029\u202aa", "splitlines": ["\u00e9\t", "\u0130", "\u202aa"], "split_nl": ["\u00e9\t\r\u0130\u2029\u202aa"]}
+{"s": "\u0086x\u2029call sub_401000\u001c bca\u2029\u000b", "splitlines": ["\u0086x", "call sub_401000", " bca", ""], "split_nl": ["\u0086x\u2029call sub_401000\u001c bca\u2029\u000b"]}
+{"s": "\u2080x\u202a\u202a\ud83d\ude00\u001d\u2029\n\r\u0086\u2029\u0084", "splitlines": ["\u2080x\u202a\u202a\ud83d\ude00", "", "", "", "\u0086", "\u0084"], "split_nl": ["\u2080x\u202a\u202a\ud83d\ude00\u001d\u2029", "\r\u0086\u2029\u0084"]}
+{"s": "\u00e2\u001f\u00e9call sub_401000\u000b\u0130", "splitlines": ["\u00e2\u001f\u00e9call sub_401000", "\u0130"], "split_nl": ["\u00e2\u001f\u00e9call sub_401000\u000b\u0130"]}
+{"s": "\ud83d\ude00", "splitlines": ["\ud83d\ude00"], "split_nl": ["\ud83d\ude00"]}
+{"s": "call sub_401000\u0000\u20a8\u00c2\rbc", "splitlines": ["call sub_401000\u0000\u20a8\u00c2", "bc"], "split_nl": ["call sub_401000\u0000\u20a8\u00c2\rbc"]}
+{"s": "\u2028a\u001d\u00c2\u000b\n\r\r\r\n", "splitlines": ["", "a", "\u00c2", "", "", "", ""], "split_nl": ["\u2028a\u001d\u00c2\u000b", "\r\r\r", ""]}
+{"s": "\u0086", "splitlines": ["\u0086"], "split_nl": ["\u0086"]}
+{"s": "\u2027\u001d", "splitlines": ["\u2027"], "split_nl": ["\u2027\u001d"]}
+{"s": "\u001d\u00e2\u4e2d\n\u2028\f\n\r\u4e2d\u0130\u00c2\u000b\u0086", "splitlines": ["", "\u00e2\u4e2d", "", "", "", "", "\u4e2d\u0130\u00c2", "\u0086"], "split_nl": ["\u001d\u00e2\u4e2d", "\u2028\f", "\r\u4e2d\u0130\u00c2\u000b\u0086"]}
+{"s": "\u001b\n\u4e2d\u2029\r\t\u001b", "splitlines": ["\u001b", "\u4e2d", "", "\t\u001b"], "split_nl": ["\u001b", "\u4e2d\u2029\r\t\u001b"]}
+{"s": "\n\r\u20a8\u0085\u0130x\u2080\u0085\u001e\u001d\n\r\u20a8", "splitlines": ["", "", "\u20a8", "\u0130x\u2080", "", "", "", "", "\u20a8"], "split_nl": ["", "\r\u20a8\u0085\u0130x\u2080\u0085\u001e\u001d", "\r\u20a8"]}
+{"s": "\u2029call sub_401000\u0085\u0084x\u4e2dbc\t", "splitlines": ["", "call sub_401000", "\u0084x\u4e2dbc\t"], "split_nl": ["\u2029call sub_401000\u0085\u0084x\u4e2dbc\t"]}
+{"s": "\u20a8\u001b", "splitlines": ["\u20a8\u001b"], "split_nl": ["\u20a8\u001b"]}
+{"s": "\r\u4e2d\u2028\u0084 \t\u20a8call sub_401000\ud83d\ude00\r", "splitlines": ["", "\u4e2d", "\u0084 \t\u20a8call sub_401000\ud83d\ude00"], "split_nl": ["\r\u4e2d\u2028\u0084 \t\u20a8call sub_401000\ud83d\ude00\r"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\u001e\u0000", "splitlines": ["", "\u0000"], "split_nl": ["\u001e\u0000"]}
+{"s": "\r\u001f\u2080\u2029\u0130\r\u000b\u2029\n\f\u0085call sub_401000", "splitlines": ["", "\u001f\u2080", "\u0130", "", "", "", "", "", "call sub_401000"], "split_nl": ["\r\u001f\u2080\u2029\u0130\r\u000b\u2029", "\f\u0085call sub_401000"]}
+{"s": "\u001d\u00e9\u00c2\u001b\u001e\u0084call sub_401000", "splitlines": ["", "\u00e9\u00c2\u001b", "\u0084call sub_401000"], "split_nl": ["\u001d\u00e9\u00c2\u001b\u001e\u0084call sub_401000"]}
+{"s": "\f\u0130\u001d\u2028\u202a\u00e9\n\r\u001ea\n\u0086", "splitlines": ["", "\u0130", "", "\u202a\u00e9", "", "", "a", "\u0086"], "split_nl": ["\f\u0130\u001d\u2028\u202a\u00e9", "\r\u001ea", "\u0086"]}
+{"s": "\u000b", "splitlines": [""], "split_nl": ["\u000b"]}
+{"s": "\u0000\r\n\u0084", "splitlines": ["\u0000", "\u0084"], "split_nl": ["\u0000\r", "\u0084"]}
+{"s": "\u00e2", "splitlines": ["\u00e2"], "split_nl": ["\u00e2"]}
+{"s": "\u0000\u001e\t\u001e\u0130\u001ebc\u001d\u2028\u202a\t ", "splitlines": ["\u0000", "\t", "\u0130", "bc", "", "\u202a\t "], "split_nl": ["\u0000\u001e\t\u001e\u0130\u001ebc\u001d\u2028\u202a\t "]}
+{"s": "\u00c2\u20a8call sub_401000\u2080\u001d\u2027\u4e2d\u0086\u2029\u0000\u0000", "splitlines": ["\u00c2\u20a8call sub_401000\u2080", "\u2027\u4e2d\u0086", "\u0000\u0000"], "split_nl": ["\u00c2\u20a8call sub_401000\u2080\u001d\u2027\u4e2d\u0086\u2029\u0000\u0000"]}
+{"s": "\ra\u000b\u202a\u2028\u00e2\u001c\t\u4e2d\u0130 \n", "splitlines": ["", "a", "\u202a", "\u00e2", "\t\u4e2d\u0130 "], "split_nl": ["\ra\u000b\u202a\u2028\u00e2\u001c\t\u4e2d\u0130 ", ""]}
+{"s": "\u0130\r\n\u2028x\u2027\r\u001f\r\ud83d\ude00\u2080\u202a\u0085", "splitlines": ["\u0130", "", "x\u2027", "\u001f", "\ud83d\ude00\u2080\u202a"], "split_nl": ["\u0130\r", "\u2028x\u2027\r\u001f\r\ud83d\ude00\u2080\u202a\u0085"]}
+{"s": " \u001bx\u2080\f\u001e\ud83d\ude00\u0084\t\t", "splitlines": [" \u001bx\u2080", "", "\ud83d\ude00\u0084\t\t"], "split_nl": [" \u001bx\u2080\f\u001e\ud83d\ude00\u0084\t\t"]}
+{"s": "\u00c2", "splitlines": ["\u00c2"], "split_nl": ["\u00c2"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\u0084\t\u0086 \u001f\u2027\ud83d\ude00call sub_401000\f\r\n\u00c2", "splitlines": ["\u0084\t\u0086 \u001f\u2027\ud83d\ude00call sub_401000", "", "\u00c2"], "split_nl": ["\u0084\t\u0086 \u001f\u2027\ud83d\ude00call sub_401000\f\r", "\u00c2"]}
+{"s": "\f\r\n\u00e2call sub_401000\u2027\u0085\n\r\u001b\u0085", "splitlines": ["", "", "\u00e2call sub_401000\u2027", "", "", "\u001b"], "split_nl": ["\f\r", "\u00e2call sub_401000\u2027\u0085", "\r\u001b\u0085"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\u0085\u202a\u4e2da\ud83d\ude00\u202a\u001b\u001f\u0085", "splitlines": ["", "\u202a\u4e2da\ud83d\ude00\u202a\u001b\u001f"], "split_nl": ["\u0085\u202a\u4e2da\ud83d\ude00\u202a\u001b\u001f\u0085"]}
+{"s": "\u000b\u000b", "splitlines": ["", ""], "split_nl": ["\u000b\u000b"]}
+{"s": "bc\u001d\u00c2\u4e2dx\u20a8\u2028\r\n\u202aa\n", "splitlines": ["bc", "\u00c2\u4e2dx\u20a8", "", "\u202aa"], "split_nl": ["bc\u001d\u00c2\u4e2dx\u20a8\u2028\r", "\u202aa", ""]}
+{"s": "\u2080\n\r\ncall sub_401000\r\u001dbc \r\u001b\ud83d\ude00", "splitlines": ["\u2080", "", "call sub_401000", "", "bc ", "\u001b\ud83d\ude00"], "split_nl": ["\u2080", "\r", "call sub_401000\r\u001dbc \r\u001b\ud83d\ude00"]}
+{"s": " ", "splitlines": [" "], "split_nl": [" "]}
+{"s": "x\u001c\u0130\r\n\u2029\u0084\u001f \u20a8\u0130", "splitlines": ["x", "\u0130", "", "\u0084\u001f \u20a8\u0130"], "split_nl": ["x\u001c\u0130\r", "\u2029\u0084\u001f \u20a8\u0130"]}
+{"s": "\n\r\u001ecall sub_401000\u001fx\u000b\n", "splitlines": ["", "", "", "call sub_401000\u001fx", ""], "split_nl": ["", "\r\u001ecall sub_401000\u001fx\u000b", ""]}
+{"s": "\u001d\u4e2d", "splitlines": ["", "\u4e2d"], "split_nl": ["\u001d\u4e2d"]}
+{"s": "\u4e2d\r\n\r\n", "splitlines": ["\u4e2d", ""], "split_nl": ["\u4e2d\r", "\r", ""]}
+{"s": "\n", "splitlines": [""], "split_nl": ["", ""]}
+{"s": "\u0085\r\n\t\u00e2", "splitlines": ["", "", "\t\u00e2"], "split_nl": ["\u0085\r", "\t\u00e2"]}
+{"s": "\r\u2027\n\u001b\u202a\u001ba\u001bcall sub_401000\f", "splitlines": ["", "\u2027", "\u001b\u202a\u001ba\u001bcall sub_401000"], "split_nl": ["\r\u2027", "\u001b\u202a\u001ba\u001bcall sub_401000\f"]}
+{"s": "\u001c\u001e\u4e2d\u0130\u001d\u001c\u000b", "splitlines": ["", "", "\u4e2d\u0130", "", ""], "split_nl": ["\u001c\u001e\u4e2d\u0130\u001d\u001c\u000b"]}
+{"s": "\n\ra\u001f\u2080\u2080", "splitlines": ["", "", "a\u001f\u2080\u2080"], "split_nl": ["", "\ra\u001f\u2080\u2080"]}
+{"s": " \u2029", "splitlines": [" "], "split_nl": [" \u2029"]}
+{"s": "\u00e2\u001d\n\u001fbccall sub_401000\u001c\u001e", "splitlines": ["\u00e2", "", "\u001fbccall sub_401000", ""], "split_nl": ["\u00e2\u001d", "\u001fbccall sub_401000\u001c\u001e"]}
+{"s": "\u001b\u00e2\n\r\u0086call sub_401000\u0130\u2080\u4e2d", "splitlines": ["\u001b\u00e2", "", "\u0086call sub_401000\u0130\u2080\u4e2d"], "split_nl": ["\u001b\u00e2", "\r\u0086call sub_401000\u0130\u2080\u4e2d"]}
+{"s": "x\u2080\n\r\u2027\r\n\u00e9\u001e\u0130\u001f\u2028\u4e2da", "splitlines": ["x\u2080", "", "\u2027", "\u00e9", "\u0130\u001f", "\u4e2da"], "split_nl": ["x\u2080", "\r\u2027\r", "\u00e9\u001e\u0130\u001f\u2028\u4e2da"]}
+{"s": "\ud83d\ude00\t\ud83d\ude00\u2080\ud83d\ude00\t", "splitlines": ["\ud83d\ude00\t\ud83d\ude00\u2080\ud83d\ude00\t"], "split_nl": ["\ud83d\ude00\t\ud83d\ude00\u2080\ud83d\ude00\t"]}
+{"s": "\u2028call sub_401000\ud83d\ude00\u001ccall sub_401000\u4e2d\u00e9", "splitlines": ["", "call sub_401000\ud83d\ude00", "call sub_401000\u4e2d\u00e9"], "split_nl": ["\u2028call sub_401000\ud83d\ude00\u001ccall sub_401000\u4e2d\u00e9"]}
+{"s": "\u001b\t\u00e2\u0084\u20a8\u0000\u001c", "splitlines": ["\u001b\t\u00e2\u0084\u20a8\u0000"], "split_nl": ["\u001b\t\u00e2\u0084\u20a8\u0000\u001c"]}
+{"s": "\t\u001c\t\ud83d\ude00\u0086\n\rcall sub_401000\u0085bc\u00c2", "splitlines": ["\t", "\t\ud83d\ude00\u0086", "", "call sub_401000", "bc\u00c2"], "split_nl": ["\t\u001c\t\ud83d\ude00\u0086", "\rcall sub_401000\u0085bc\u00c2"]}
+{"s": "\u0130\u000b\u001dcall sub_401000\u001b\r\u001c", "splitlines": ["\u0130", "", "call sub_401000\u001b", ""], "split_nl": ["\u0130\u000b\u001dcall sub_401000\u001b\r\u001c"]}
+{"s": "\u2080\u00c2\u0000", "splitlines": ["\u2080\u00c2\u0000"], "split_nl": ["\u2080\u00c2\u0000"]}
+{"s": "\u202a\u001d\u2080", "splitlines": ["\u202a", "\u2080"], "split_nl": ["\u202a\u001d\u2080"]}
+{"s": "\u001d\u00e9", "splitlines": ["", "\u00e9"], "split_nl": ["\u001d\u00e9"]}
+{"s": "\u00e2\u2029\r\u4e2d\u2027\r\n", "splitlines": ["\u00e2", "", "\u4e2d\u2027"], "split_nl": ["\u00e2\u2029\r\u4e2d\u2027\r", ""]}
+{"s": "bc\u00c2x\ud83d\ude00\r\u001d", "splitlines": ["bc\u00c2x\ud83d\ude00", ""], "split_nl": ["bc\u00c2x\ud83d\ude00\r\u001d"]}
+{"s": "\u001c\f\u4e2d", "splitlines": ["", "", "\u4e2d"], "split_nl": ["\u001c\f\u4e2d"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\ud83d\ude00\u001c\n\r\u001e\u001fa\ud83d\ude00\u0084", "splitlines": ["\ud83d\ude00", "", "", "", "\u001fa\ud83d\ude00\u0084"], "split_nl": ["\ud83d\ude00\u001c", "\r\u001e\u001fa\ud83d\ude00\u0084"]}
+{"s": "x\r\t\u2029", "splitlines": ["x", "\t"], "split_nl": ["x\r\t\u2029"]}
+{"s": "\u000b\u001b\u0000\u2080\u0000x\u0084\u2027\u00e2a\r\u00c2", "splitlines": ["", "\u001b\u0000\u2080\u0000x\u0084\u2027\u00e2a", "\u00c2"], "split_nl": ["\u000b\u001b\u0000\u2080\u0000x\u0084\u2027\u00e2a\r\u00c2"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\u0085\f\u0000\u0085\u0084\u202a", "splitlines": ["", "", "\u0000", "\u0084\u202a"], "split_nl": ["\u0085\f\u0000\u0085\u0084\u202a"]}
+{"s": "\u001e\u001c", "splitlines": ["", ""], "split_nl": ["\u001e\u001c"]}
+{"s": "\u001c\u20a8call sub_401000\u0000\r", "splitlines": ["", "\u20a8call sub_401000\u0000"], "split_nl": ["\u001c\u20a8call sub_401000\u0000\r"]}
+{"s": "\u00e9\ud83d\ude00 \u001dbc\u0085\t\u2080xcall sub_401000\u4e2d", "splitlines": ["\u00e9\ud83d\ude00 ", "bc", "\t\u2080xcall sub_401000\u4e2d"], "split_nl": ["\u00e9\ud83d\ude00 \u001dbc\u0085\t\u2080xcall sub_401000\u4e2d"]}
+{"s": "\u00e9", "splitlines": ["\u00e9"], "split_nl": ["\u00e9"]}
+{"s": " \u0086a\u001b\u202a\r\u20a8", "splitlines": [" \u0086a\u001b\u202a", "\u20a8"], "split_nl": [" \u0086a\u001b\u202a\r\u20a8"]}
+{"s": "\u0085a", "splitlines": ["", "a"], "split_nl": ["\u0085a"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\u0130\n\r\u0000bc\u2029\u000b\u4e2d\u0000\u001f\u2027\u202a", "splitlines": ["\u0130", "", "\u0000bc", "", "\u4e2d\u0000\u001f\u2027\u202a"], "split_nl": ["\u0130", "\r\u0000bc\u2029\u000b\u4e2d\u0000\u001f\u2027\u202a"]}
+{"s": "\f\u001f\u0085\u2080\u20a8\n\u00c2\t", "splitlines": ["", "\u001f", "\u2080\u20a8", "\u00c2\t"], "split_nl": ["\f\u001f\u0085\u2080\u20a8", "\u00c2\t"]}
+{"s": "x\f\f\u00c2\n\r\u0130\u0084\u0130\n\ra", "splitlines": ["x", "", "\u00c2", "", "\u0130\u0084\u0130", "", "a"], "split_nl": ["x\f\f\u00c2", "\r\u0130\u0084\u0130", "\ra"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\u001e\r\n\u2028\f\t", "splitlines": ["", "", "", "", "\t"], "split_nl": ["\u001e\r", "\u2028\f\t"]}
+{"s": "\u20a8\u2029x\u4e2da\u4e2d\u001b\ud83d\ude00\u2027\r", "splitlines": ["\u20a8", "x\u4e2da\u4e2d\u001b\ud83d\ude00\u2027"], "split_nl": ["\u20a8\u2029x\u4e2da\u4e2d\u001b\ud83d\ude00\u2027\r"]}
+{"s": "\u000b\n\u20a8\u2027\u2028\r\n\u0086\u00c2\u001e\u001e\u2080", "splitlines": ["", "", "\u20a8\u2027", "", "\u0086\u00c2", "", "\u2080"], "split_nl": ["\u000b", "\u20a8\u2027\u2028\r", "\u0086\u00c2\u001e\u001e\u2080"]}
+{"s": "\u0130\u0086bc\u202a\u001f\t\ud83d\ude00\u001c\u4e2d\u202a\u2080\u001e", "splitlines": ["\u0130\u0086bc\u202a\u001f\t\ud83d\ude00", "\u4e2d\u202a\u2080"], "split_nl": ["\u0130\u0086bc\u202a\u001f\t\ud83d\ude00\u001c\u4e2d\u202a\u2080\u001e"]}
+{"s": "x \f\t\u001c\u2028\r\n\u2029\u20a8", "splitlines": ["x ", "\t", "", "", "", "\u20a8"], "split_nl": ["x \f\t\u001c\u2028\r", "\u2029\u20a8"]}
+{"s": "\u001d", "splitlines": [""], "split_nl": ["\u001d"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\u001fx\u2029\u00e9\u0084\u001c\u000b\u0086\u00c2\u0086x", "splitlines": ["\u001fx", "\u00e9\u0084", "", "\u0086\u00c2\u0086x"], "split_nl": ["\u001fx\u2029\u00e9\u0084\u001c\u000b\u0086\u00c2\u0086x"]}
+{"s": "\t\u2027", "splitlines": ["\t\u2027"], "split_nl": ["\t\u2027"]}
+{"s": "\u001c\u001c\u0130\fa\u0086call sub_401000\u0000\u001b\u202a\u0084", "splitlines": ["", "", "\u0130", "a\u0086call sub_401000\u0000\u001b\u202a\u0084"], "split_nl": ["\u001c\u001c\u0130\fa\u0086call sub_401000\u0000\u001b\u202a\u0084"]}
+{"s": "\u2028\u0000", "splitlines": ["", "\u0000"], "split_nl": ["\u2028\u0000"]}
+{"s": "\u2028call sub_401000\u2029\u00e9\u0130\f\n\u2029\u001b\u20a8", "splitlines": ["", "call sub_401000", "\u00e9\u0130", "", "", "\u001b\u20a8"], "split_nl": ["\u2028call sub_401000\u2029\u00e9\u0130\f", "\u2029\u001b\u20a8"]}
+{"s": "\u2080bca", "splitlines": ["\u2080bca"], "split_nl": ["\u2080bca"]}
+{"s": "\u2080\u0000", "splitlines": ["\u2080\u0000"], "split_nl": ["\u2080\u0000"]}
+{"s": "\u0000\u00c2a\u2080x\u2080", "splitlines": ["\u0000\u00c2a\u2080x\u2080"], "split_nl": ["\u0000\u00c2a\u2080x\u2080"]}
+{"s": "\u00e9\u00e9\r", "splitlines": ["\u00e9\u00e9"], "split_nl": ["\u00e9\u00e9\r"]}
+{"s": "\u00c2\u001d\f\u20a8\t\u2028\u00c2\u2080\r\n", "splitlines": ["\u00c2", "", "\u20a8\t", "\u00c2\u2080"], "split_nl": ["\u00c2\u001d\f\u20a8\t\u2028\u00c2\u2080\r", ""]}
+{"s": "\u0085a\u001e\u0130\u202a\u000b", "splitlines": ["", "a", "\u0130\u202a"], "split_nl": ["\u0085a\u001e\u0130\u202a\u000b"]}
+{"s": "\u2027 \f\n\u2028\t\u20a8\u0130", "splitlines": ["\u2027 ", "", "", "\t\u20a8\u0130"], "split_nl": ["\u2027 \f", "\u2028\t\u20a8\u0130"]}
+{"s": "\u2080\u2080\u0085\u000ba\t\u0000\ud83d\ude00\u0130\u0084", "splitlines": ["\u2080\u2080", "", "a\t\u0000\ud83d\ude00\u0130\u0084"], "split_nl": ["\u2080\u2080\u0085\u000ba\t\u0000\ud83d\ude00\u0130\u0084"]}
+{"s": "\ud83d\ude00\u2027\u0086\u0085\u00c2\u001c\r\n\n\r\u001e\u4e2d", "splitlines": ["\ud83d\ude00\u2027\u0086", "\u00c2", "", "", "", "", "\u4e2d"], "split_nl": ["\ud83d\ude00\u2027\u0086\u0085\u00c2\u001c\r", "", "\r\u001e\u4e2d"]}
+{"s": "a\f\u0130\u001c\u001e", "splitlines": ["a", "\u0130", ""], "split_nl": ["a\f\u0130\u001c\u001e"]}
+{"s": "\u001b\u00e2\u2028\r\n\u2028\u2028\u2027", "splitlines": ["\u001b\u00e2", "", "", "", "\u2027"], "split_nl": ["\u001b\u00e2\u2028\r", "\u2028\u2028\u2027"]}
+{"s": "\u2028\u001d\u2028\u0130\u001b\u0084a\u0086\n\r\n\u00c2", "splitlines": ["", "", "", "\u0130\u001b\u0084a\u0086", "", "\u00c2"], "split_nl": ["\u2028\u001d\u2028\u0130\u001b\u0084a\u0086", "\r", "\u00c2"]}
+{"s": "\u001b\u001b\ud83d\ude00\u0084\u0000\u00e9", "splitlines": ["\u001b\u001b\ud83d\ude00\u0084\u0000\u00e9"], "split_nl": ["\u001b\u001b\ud83d\ude00\u0084\u0000\u00e9"]}
+{"s": "\u2080\fx\u4e2da\n\r", "splitlines": ["\u2080", "x\u4e2da", ""], "split_nl": ["\u2080\fx\u4e2da", "\r"]}
+{"s": "\u0130\u001d\u2027", "splitlines": ["\u0130", "\u2027"], "split_nl": ["\u0130\u001d\u2027"]}
+{"s": "\u001e", "splitlines": [""], "split_nl": ["\u001e"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\n\r\n\u00c2\u001e\u4e2d\u0130\u2080\u0086\u2028", "splitlines": ["", "", "\u00c2", "\u4e2d\u0130\u2080\u0086"], "split_nl": ["", "\r", "\u00c2\u001e\u4e2d\u0130\u2080\u0086\u2028"]}
+{"s": "\n\r", "splitlines": ["", ""], "split_nl": ["", "\r"]}
+{"s": "\u001b\ud83d\ude00\n\r\r\n\f", "splitlines": ["\u001b\ud83d\ude00", "", "", ""], "split_nl": ["\u001b\ud83d\ude00", "\r\r", "\f"]}
+{"s": "\u2080\u2029\u2029\u0085a", "splitlines": ["\u2080", "", "", "a"], "split_nl": ["\u2080\u2029\u2029\u0085a"]}
+{"s": "\f\u00e9call sub_401000\u00e2", "splitlines": ["", "\u00e9call sub_401000\u00e2"], "split_nl": ["\f\u00e9call sub_401000\u00e2"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "call sub_401000\u0086\u2028\ud83d\ude00\u0084", "splitlines": ["call sub_401000\u0086", "\ud83d\ude00\u0084"], "split_nl": ["call sub_401000\u0086\u2028\ud83d\ude00\u0084"]}
+{"s": "\u001e\ud83d\ude00x", "splitlines": ["", "\ud83d\ude00x"], "split_nl": ["\u001e\ud83d\ude00x"]}
+{"s": "\u202a", "splitlines": ["\u202a"], "split_nl": ["\u202a"]}
+{"s": "\u202a\r", "splitlines": ["\u202a"], "split_nl": ["\u202a\r"]}
+{"s": "\u2028\u0086\u20a8\u0085", "splitlines": ["", "\u0086\u20a8"], "split_nl": ["\u2028\u0086\u20a8\u0085"]}
+{"s": "\u4e2d\u0130a\u00e2\u001c\u2029a\u001d", "splitlines": ["\u4e2d\u0130a\u00e2", "", "a"], "split_nl": ["\u4e2d\u0130a\u00e2\u001c\u2029a\u001d"]}
+{"s": "\u2027\t\u20a8\u00c2\u001b\r\t\u2027", "splitlines": ["\u2027\t\u20a8\u00c2\u001b", "\t\u2027"], "split_nl": ["\u2027\t\u20a8\u00c2\u001b\r\t\u2027"]}
+{"s": "\ud83d\ude00\f\u00e2\u0085\t\u2028\u000b\u0084\u001f", "splitlines": ["\ud83d\ude00", "\u00e2", "\t", "", "\u0084\u001f"], "split_nl": ["\ud83d\ude00\f\u00e2\u0085\t\u2028\u000b\u0084\u001f"]}
+{"s": "\u00c2\n", "splitlines": ["\u00c2"], "split_nl": ["\u00c2", ""]}
+{"s": "\u000b\fcall sub_401000\u001b", "splitlines": ["", "", "call sub_401000\u001b"], "split_nl": ["\u000b\fcall sub_401000\u001b"]}
+{"s": "\u00c2\u00c2 ", "splitlines": ["\u00c2\u00c2 "], "split_nl": ["\u00c2\u00c2 "]}
+{"s": "\u000b\rx\u001c\u00c2", "splitlines": ["", "", "x", "\u00c2"], "split_nl": ["\u000b\rx\u001c\u00c2"]}
+{"s": "\u0130\u001b\u00e2\u0084\u001c\u00e9\u0085\ud83d\ude00call sub_401000a\u00e2call sub_401000", "splitlines": ["\u0130\u001b\u00e2\u0084", "\u00e9", "\ud83d\ude00call sub_401000a\u00e2call sub_401000"], "split_nl": ["\u0130\u001b\u00e2\u0084\u001c\u00e9\u0085\ud83d\ude00call sub_401000a\u00e2call sub_401000"]}
+{"s": "\u00c2call sub_401000\u0130\u0086\u00e2\u000b\u2080\u202a", "splitlines": ["\u00c2call sub_401000\u0130\u0086\u00e2", "\u2080\u202a"], "split_nl": ["\u00c2call sub_401000\u0130\u0086\u00e2\u000b\u2080\u202a"]}
+{"s": "\u00c2\u2027call sub_401000\u20a8\u001c\u000b\u2080\u202a\u00c2\u0085bc", "splitlines": ["\u00c2\u2027call sub_401000\u20a8", "", "\u2080\u202a\u00c2", "bc"], "split_nl": ["\u00c2\u2027call sub_401000\u20a8\u001c\u000b\u2080\u202a\u00c2\u0085bc"]}
+{"s": "\u000bcall sub_401000\ta\u2080\u0085\ud83d\ude00a", "splitlines": ["", "call sub_401000\ta\u2080", "\ud83d\ude00a"], "split_nl": ["\u000bcall sub_401000\ta\u2080\u0085\ud83d\ude00a"]}
+{"s": "\u00e2", "splitlines": ["\u00e2"], "split_nl": ["\u00e2"]}
+{"s": "\u000b\u0130\u001c \u0085\ud83d\ude00a", "splitlines": ["", "\u0130", " ", "\ud83d\ude00a"], "split_nl": ["\u000b\u0130\u001c \u0085\ud83d\ude00a"]}
+{"s": "\u2027", "splitlines": ["\u2027"], "split_nl": ["\u2027"]}
+{"s": "\u001ba\u0084\u001e \fx\u000b\u001b\u0085\ud83d\ude00", "splitlines": ["\u001ba\u0084", " ", "x", "\u001b", "\ud83d\ude00"], "split_nl": ["\u001ba\u0084\u001e \fx\u000b\u001b\u0085\ud83d\ude00"]}
+{"s": "\u0000\t\u0086\u001b", "splitlines": ["\u0000\t\u0086\u001b"], "split_nl": ["\u0000\t\u0086\u001b"]}
+{"s": "\u0000\r\n\u00e9\u00e2\u4e2d", "splitlines": ["\u0000", "\u00e9\u00e2\u4e2d"], "split_nl": ["\u0000\r", "\u00e9\u00e2\u4e2d"]}
+{"s": "\u001d\u2028\r\r\u0085\u0086", "splitlines": ["", "", "", "", "", "\u0086"], "split_nl": ["\u001d\u2028\r\r\u0085\u0086"]}
+{"s": "\u4e2d\u0000\u2080a\u001d\u00e2\u00c2\u202a\t\t\ud83d\ude00", "splitlines": ["\u4e2d\u0000\u2080a", "\u00e2\u00c2\u202a\t\t\ud83d\ude00"], "split_nl": ["\u4e2d\u0000\u2080a\u001d\u00e2\u00c2\u202a\t\t\ud83d\ude00"]}
+{"s": "\u001b\n\f\u0086", "splitlines": ["\u001b", "", "\u0086"], "split_nl": ["\u001b", "\f\u0086"]}
+{"s": "\n call sub_401000x\t\u0086a", "splitlines": ["", " call sub_401000x\t\u0086a"], "split_nl": ["", " call sub_401000x\t\u0086a"]}
+{"s": "call sub_401000\r\n\u00e2\u0130\u4e2d \u0085\u2029", "splitlines": ["call sub_401000", "\u00e2\u0130\u4e2d ", ""], "split_nl": ["call sub_401000\r", "\u00e2\u0130\u4e2d \u0085\u2029"]}
+{"s": "a", "splitlines": ["a"], "split_nl": ["a"]}
+{"s": "\u001c\u2027\n\u001b\u0130\u2027\f", "splitlines": ["", "\u2027", "\u001b\u0130\u2027"], "split_nl": ["\u001c\u2027", "\u001b\u0130\u2027\f"]}
+{"s": "\u001b\u2027\u0085", "splitlines": ["\u001b\u2027"], "split_nl": ["\u001b\u2027\u0085"]}
+{"s": "\u0084\u4e2d\u0086\n\r\u001f\t", "splitlines": ["\u0084\u4e2d\u0086", "", "\u001f\t"], "split_nl": ["\u0084\u4e2d\u0086", "\r\u001f\t"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\ud83d\ude00", "splitlines": ["\ud83d\ude00"], "split_nl": ["\ud83d\ude00"]}
+{"s": "\u202a  \u00e2\u0084\u001f\u00e9\n\u2080\n\r\ud83d\ude00\u0000", "splitlines": ["\u202a  \u00e2\u0084\u001f\u00e9", "\u2080", "", "\ud83d\ude00\u0000"], "split_nl": ["\u202a  \u00e2\u0084\u001f\u00e9", "\u2080", "\r\ud83d\ude00\u0000"]}
+{"s": "\u4e2d\u0086\u0000\u001f\u4e2d\r\u20a8 \u2029\ud83d\ude00\u00c2", "splitlines": ["\u4e2d\u0086\u0000\u001f\u4e2d", "\u20a8 ", "\ud83d\ude00\u00c2"], "split_nl": ["\u4e2d\u0086\u0000\u001f\u4e2d\r\u20a8 \u2029\ud83d\ude00\u00c2"]}
+{"s": "\u4e2d\u2029\u001e\u0130\r", "splitlines": ["\u4e2d", "", "\u0130"], "split_nl": ["\u4e2d\u2029\u001e\u0130\r"]}
+{"s": "\u001f\u2080\u0086\u202a\u2029\u001b\u0000\u2028\u2029xbc", "splitlines": ["\u001f\u2080\u0086\u202a", "\u001b\u0000", "", "xbc"], "split_nl": ["\u001f\u2080\u0086\u202a\u2029\u001b\u0000\u2028\u2029xbc"]}
+{"s": "\u001f\u2080\u0000a\u00e9a\u001b\u001e\u4e2d\u001bx\u001b", "splitlines": ["\u001f\u2080\u0000a\u00e9a\u001b", "\u4e2d\u001bx\u001b"], "split_nl": ["\u001f\u2080\u0000a\u00e9a\u001b\u001e\u4e2d\u001bx\u001b"]}
+{"s": "a\u001cbc\u0086\u001f\rx", "splitlines": ["a", "bc\u0086\u001f", "x"], "split_nl": ["a\u001cbc\u0086\u001f\rx"]}
+{"s": "\u2080\u2027\u00c2\u001d\u0084\n \t", "splitlines": ["\u2080\u2027\u00c2", "\u0084", " \t"], "split_nl": ["\u2080\u2027\u00c2\u001d\u0084", " \t"]}
+{"s": "\u0085\u001f\u202a\u00e2\u001b\u001d", "splitlines": ["", "\u001f\u202a\u00e2\u001b"], "split_nl": ["\u0085\u001f\u202a\u00e2\u001b\u001d"]}
+{"s": "\u001c\u001c\u0085\u0130", "splitlines": ["", "", "", "\u0130"], "split_nl": ["\u001c\u001c\u0085\u0130"]}
+{"s": "\u0085bc", "splitlines": ["", "bc"], "split_nl": ["\u0085bc"]}
+{"s": "\u2027\u001b\f\u0085\u001d\u000b\u4e2d", "splitlines": ["\u2027\u001b", "", "", "", "\u4e2d"], "split_nl": ["\u2027\u001b\f\u0085\u001d\u000b\u4e2d"]}
+{"s": " \f\u000b", "splitlines": [" ", ""], "split_nl": [" \f\u000b"]}
+{"s": "call sub_401000\u4e2d\u4e2d\u001c\u000b", "splitlines": ["call sub_401000\u4e2d\u4e2d", ""], "split_nl": ["call sub_401000\u4e2d\u4e2d\u001c\u000b"]}
+{"s": "\u001e\u001d\r\n\u0130\u2029\u0086\r\n", "splitlines": ["", "", "", "\u0130", "\u0086"], "split_nl": ["\u001e\u001d\r", "\u0130\u2029\u0086\r", ""]}
+{"s": "\fa\u001e\n\r", "splitlines": ["", "a", "", ""], "split_nl": ["\fa\u001e", "\r"]}
+{"s": "x\t\ud83d\ude00 \u00e2\u0000", "splitlines": ["x\t\ud83d\ude00 \u00e2\u0000"], "split_nl": ["x\t\ud83d\ude00 \u00e2\u0000"]}
+{"s": "\u0000\u00e9\n\u001c\u00e9\u001fx\u0086\r\nbc", "splitlines": ["\u0000\u00e9", "", "\u00e9\u001fx\u0086", "bc"], "split_nl": ["\u0000\u00e9", "\u001c\u00e9\u001fx\u0086\r", "bc"]}
+{"s": "\r\n\u0084\u001d", "splitlines": ["", "\u0084"], "split_nl": ["\r", "\u0084\u001d"]}
+{"s": "call sub_401000 ", "splitlines": ["call sub_401000 "], "split_nl": ["call sub_401000 "]}
+{"s": "\u00e9\r\n\u001f\u202a\u001d\u001d\u001f", "splitlines": ["\u00e9", "\u001f\u202a", "", "\u001f"], "split_nl": ["\u00e9\r", "\u001f\u202a\u001d\u001d\u001f"]}
+{"s": "\u000b\r\n\u00e9", "splitlines": ["", "", "\u00e9"], "split_nl": ["\u000b\r", "\u00e9"]}
+{"s": "\n\u2028\u001f\r\u202a\u00e9\u4e2d\u0086call sub_401000\u2029", "splitlines": ["", "", "\u001f", "\u202a\u00e9\u4e2d\u0086call sub_401000"], "split_nl": ["", "\u2028\u001f\r\u202a\u00e9\u4e2d\u0086call sub_401000\u2029"]}
+{"s": "\n\r", "splitlines": ["", ""], "split_nl": ["", "\r"]}
+{"s": "\u2080\u001d", "splitlines": ["\u2080"], "split_nl": ["\u2080\u001d"]}
+{"s": "\u0130\u2029\r\u0000\u20a8\u20a8", "splitlines": ["\u0130", "", "\u0000\u20a8\u20a8"], "split_nl": ["\u0130\u2029\r\u0000\u20a8\u20a8"]}
+{"s": "\ud83d\ude00\u0085\u001f", "splitlines": ["\ud83d\ude00", "\u001f"], "split_nl": ["\ud83d\ude00\u0085\u001f"]}
+{"s": "\u00e9\u0084\u202a\u0086\u0084\u2027\u0084\u202a\u20a8", "splitlines": ["\u00e9\u0084\u202a\u0086\u0084\u2027\u0084\u202a\u20a8"], "split_nl": ["\u00e9\u0084\u202a\u0086\u0084\u2027\u0084\u202a\u20a8"]}
+{"s": "\u001d\u001ea\u2028", "splitlines": ["", "", "a"], "split_nl": ["\u001d\u001ea\u2028"]}
+{"s": "\u001f", "splitlines": ["\u001f"], "split_nl": ["\u001f"]}
+{"s": "\u2027\u001b\t\u000b\u000b\r\u2028\u00e9x\u0000", "splitlines": ["\u2027\u001b\t", "", "", "", "\u00e9x\u0000"], "split_nl": ["\u2027\u001b\t\u000b\u000b\r\u2028\u00e9x\u0000"]}
+{"s": "\u000b\u000b\u2080\t\u00c2\u001f\u001d\f\t", "splitlines": ["", "", "\u2080\t\u00c2\u001f", "", "\t"], "split_nl": ["\u000b\u000b\u2080\t\u00c2\u001f\u001d\f\t"]}
+{"s": "\u001b\u0084\u0130abc \u001f\u00c2\u2027", "splitlines": ["\u001b\u0084\u0130abc \u001f\u00c2\u2027"], "split_nl": ["\u001b\u0084\u0130abc \u001f\u00c2\u2027"]}
+{"s": "\rx\u202a\r\n", "splitlines": ["", "x\u202a"], "split_nl": ["\rx\u202a\r", ""]}
+{"s": "\u0086\u2028\u20a8\u2029\f\u001e\n\u001b\u000b\u0086\u001f", "splitlines": ["\u0086", "\u20a8", "", "", "", "\u001b", "\u0086\u001f"], "split_nl": ["\u0086\u2028\u20a8\u2029\f\u001e", "\u001b\u000b\u0086\u001f"]}
+{"s": "\n\r\u000b\u000b", "splitlines": ["", "", "", ""], "split_nl": ["", "\r\u000b\u000b"]}
+{"s": "\ud83d\ude00\u0000\u202a\r\u001f\u001e\u0130", "splitlines": ["\ud83d\ude00\u0000\u202a", "\u001f", "\u0130"], "split_nl": ["\ud83d\ude00\u0000\u202a\r\u001f\u001e\u0130"]}
+{"s": "\u000b \u00e2call sub_401000\u001c\n\u2029\u0085", "splitlines": ["", " \u00e2call sub_401000", "", "", ""], "split_nl": ["\u000b \u00e2call sub_401000\u001c", "\u2029\u0085"]}
+{"s": "\u20a8\u0084\u001b\r\n\u4e2d\u4e2d", "splitlines": ["\u20a8\u0084\u001b", "\u4e2d\u4e2d"], "split_nl": ["\u20a8\u0084\u001b\r", "\u4e2d\u4e2d"]}
+{"s": "x\u001f\r\n\u2080\u0000\ud83d\ude00\u0084\u000b\u0130\u0130\r\n", "splitlines": ["x\u001f", "\u2080\u0000\ud83d\ude00\u0084", "\u0130\u0130"], "split_nl": ["x\u001f\r", "\u2080\u0000\ud83d\ude00\u0084\u000b\u0130\u0130\r", ""]}
+{"s": "\u001dbc\u001e\u20a8xbc\u2028\u001e\u001d", "splitlines": ["", "bc", "\u20a8xbc", "", ""], "split_nl": ["\u001dbc\u001e\u20a8xbc\u2028\u001e\u001d"]}
+{"s": "\u20a8", "splitlines": ["\u20a8"], "split_nl": ["\u20a8"]}
+{"s": "\u2027\u2027", "splitlines": ["\u2027\u2027"], "split_nl": ["\u2027\u2027"]}
+{"s": "\t\u0130call sub_401000\u001b\r\u2029\u20a8\u00c2\u0130", "splitlines": ["\t\u0130call sub_401000\u001b", "", "\u20a8\u00c2\u0130"], "split_nl": ["\t\u0130call sub_401000\u001b\r\u2029\u20a8\u00c2\u0130"]}
+{"s": " \u00c2\u202ax\r\n\u001c\u0130\u4e2d\u0000\u0084", "splitlines": [" \u00c2\u202ax", "", "\u0130\u4e2d\u0000\u0084"], "split_nl": [" \u00c2\u202ax\r", "\u001c\u0130\u4e2d\u0000\u0084"]}
+{"s": "\u0084\r\u001b\u0086\u001b\u202a", "splitlines": ["\u0084", "\u001b\u0086\u001b\u202a"], "split_nl": ["\u0084\r\u001b\u0086\u001b\u202a"]}
+{"s": "\u00c2\u00e2\u202a", "splitlines": ["\u00c2\u00e2\u202a"], "split_nl": ["\u00c2\u00e2\u202a"]}
+{"s": "\u00e9\n\r\u001b\u00e9\u0130\u00c2\u00e2\n\u2027\u00e9", "splitlines": ["\u00e9", "", "\u001b\u00e9\u0130\u00c2\u00e2", "\u2027\u00e9"], "split_nl": ["\u00e9", "\r\u001b\u00e9\u0130\u00c2\u00e2", "\u2027\u00e9"]}
+{"s": "\n\r\u0130\r\n\r\n", "splitlines": ["", "", "\u0130", ""], "split_nl": ["", "\r\u0130\r", "\r", ""]}
+{"s": "\u0085\u0000\u000b\t\u0084\u2027\u0085", "splitlines": ["", "\u0000", "\t\u0084\u2027"], "split_nl": ["\u0085\u0000\u000b\t\u0084\u2027\u0085"]}
+{"s": "\u2027\r\u001d\f\n\rcall sub_401000\u001ebc\u001b", "splitlines": ["\u2027", "", "", "", "", "call sub_401000", "bc\u001b"], "split_nl": ["\u2027\r\u001d\f", "\rcall sub_401000\u001ebc\u001b"]}
+{"s": "\u001c\u0130\u0000\u202a\u20a8x\u0084\u0085\u20a8", "splitlines": ["", "\u0130\u0000\u202a\u20a8x\u0084", "\u20a8"], "split_nl": ["\u001c\u0130\u0000\u202a\u20a8x\u0084\u0085\u20a8"]}
+{"s": "\u001d\u20a8\n\r\u2027\r\n\u202a\u001d", "splitlines": ["", "\u20a8", "", "\u2027", "\u202a"], "split_nl": ["\u001d\u20a8", "\r\u2027\r", "\u202a\u001d"]}
+{"s": "\t\u0130\u4e2d\u20a8\u001d\rbcx\u001b\u20a8\u2080x", "splitlines": ["\t\u0130\u4e2d\u20a8", "", "bcx\u001b\u20a8\u2080x"], "split_nl": ["\t\u0130\u4e2d\u20a8\u001d\rbcx\u001b\u20a8\u2080x"]}
+{"s": "\r\n x\tcall sub_401000bc\u000b", "splitlines": ["", " x\tcall sub_401000bc"], "split_nl": ["\r", " x\tcall sub_401000bc\u000b"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "call sub_401000\u00e9", "splitlines": ["call sub_401000\u00e9"], "split_nl": ["call sub_401000\u00e9"]}
+{"s": "\u001f\f\u00e2call sub_401000call sub_401000\u2027x\u2028", "splitlines": ["\u001f", "\u00e2call sub_401000call sub_401000\u2027x"], "split_nl": ["\u001f\f\u00e2call sub_401000call sub_401000\u2027x\u2028"]}
+{"s": "\u0130\u0086\u2080\u2080\u001d\u001f\u4e2d\r\u00c2", "splitlines": ["\u0130\u0086\u2080\u2080", "\u001f\u4e2d", "\u00c2"], "split_nl": ["\u0130\u0086\u2080\u2080\u001d\u001f\u4e2d\r\u00c2"]}
+{"s": "x\r\u2028 \u0086\u001f\u2029\n\r\u00e9\u001e", "splitlines": ["x", "", " \u0086\u001f", "", "", "\u00e9"], "split_nl": ["x\r\u2028 \u0086\u001f\u2029", "\r\u00e9\u001e"]}
+{"s": "\r\u2027call sub_401000\u4e2d\u001e\u00e2\u0086\u4e2d\u2027\u001f\r\n", "splitlines": ["", "\u2027call sub_401000\u4e2d", "\u00e2\u0086\u4e2d\u2027\u001f"], "split_nl": ["\r\u2027call sub_401000\u4e2d\u001e\u00e2\u0086\u4e2d\u2027\u001f\r", ""]}
+{"s": "\u001ebc\u2027\r\n\u0086\t\u001fcall sub_401000", "splitlines": ["", "bc\u2027", "\u0086\t\u001fcall sub_401000"], "split_nl": ["\u001ebc\u2027\r", "\u0086\t\u001fcall sub_401000"]}
+{"s": "\u0000\u00c2\u001f\u0085\n\u00e2\u00c2\n\r\r\n\r\u00e2", "splitlines": ["\u0000\u00c2\u001f", "", "\u00e2\u00c2", "", "", "", "\u00e2"], "split_nl": ["\u0000\u00c2\u001f\u0085", "\u00e2\u00c2", "\r\r", "\r\u00e2"]}
+{"s": "\r\u00e9bc\u2027\u202a", "splitlines": ["", "\u00e9bc\u2027\u202a"], "split_nl": ["\r\u00e9bc\u2027\u202a"]}
+{"s": "\u2029\u001e\u2080\u202a\u001d", "splitlines": ["", "", "\u2080\u202a"], "split_nl": ["\u2029\u001e\u2080\u202a\u001d"]}
+{"s": "\u2027\u001cbc", "splitlines": ["\u2027", "bc"], "split_nl": ["\u2027\u001cbc"]}
+{"s": "\f\u0086\ud83d\ude00\ud83d\ude00a\u0086\u0084\n\r", "splitlines": ["", "\u0086\ud83d\ude00\ud83d\ude00a\u0086\u0084", ""], "split_nl": ["\f\u0086\ud83d\ude00\ud83d\ude00a\u0086\u0084", "\r"]}
+{"s": "\u0130\ud83d\ude00\u2028\u4e2d\f\u00e2\u00e9\u001e\u0084\r", "splitlines": ["\u0130\ud83d\ude00", "\u4e2d", "\u00e2\u00e9", "\u0084"], "split_nl": ["\u0130\ud83d\ude00\u2028\u4e2d\f\u00e2\u00e9\u001e\u0084\r"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\n\r\u00e2\u00e2\u001b\u2080\u20a8\n\f\u00c2\u0084", "splitlines": ["", "", "\u00e2\u00e2\u001b\u2080\u20a8", "", "\u00c2\u0084"], "split_nl": ["", "\r\u00e2\u00e2\u001b\u2080\u20a8", "\f\u00c2\u0084"]}
+{"s": "\u0000\u0085\u001d\ud83d\ude00\u00c2\u2080\r\t\u2080 ", "splitlines": ["\u0000", "", "\ud83d\ude00\u00c2\u2080", "\t\u2080 "], "split_nl": ["\u0000\u0085\u001d\ud83d\ude00\u00c2\u2080\r\t\u2080 "]}
+{"s": "bc\n\u2029\r\u00c2\u001c\u001e", "splitlines": ["bc", "", "", "\u00c2", ""], "split_nl": ["bc", "\u2029\r\u00c2\u001c\u001e"]}
+{"s": "\t\u2027\u0085\u2029\u001d\u0085\f\u2027a\ud83d\ude00\u2080", "splitlines": ["\t\u2027", "", "", "", "", "\u2027a\ud83d\ude00\u2080"], "split_nl": ["\t\u2027\u0085\u2029\u001d\u0085\f\u2027a\ud83d\ude00\u2080"]}
+{"s": "\u0084\u000bbc\u2029\tbc", "splitlines": ["\u0084", "bc", "\tbc"], "split_nl": ["\u0084\u000bbc\u2029\tbc"]}
+{"s": "\u20a8", "splitlines": ["\u20a8"], "split_nl": ["\u20a8"]}
+{"s": "\r\n \u001c\u001e\n", "splitlines": ["", " ", "", ""], "split_nl": ["\r", " \u001c\u001e", ""]}
+{"s": "\n\u2028\u4e2d\u001b\u2027\u0084\u2028", "splitlines": ["", "", "\u4e2d\u001b\u2027\u0084"], "split_nl": ["", "\u2028\u4e2d\u001b\u2027\u0084\u2028"]}
+{"s": "\ud83d\ude00\u0085\t\u001e", "splitlines": ["\ud83d\ude00", "\t"], "split_nl": ["\ud83d\ude00\u0085\t\u001e"]}
+{"s": "\u2080\u001b\u0130\u00e9\u001f\u2080\u0085\u00e2call sub_401000", "splitlines": ["\u2080\u001b\u0130\u00e9\u001f\u2080", "\u00e2call sub_401000"], "split_nl": ["\u2080\u001b\u0130\u00e9\u001f\u2080\u0085\u00e2call sub_401000"]}
+{"s": "\u2027\u0000\n\u202a", "splitlines": ["\u2027\u0000", "\u202a"], "split_nl": ["\u2027\u0000", "\u202a"]}
+{"s": "ax\u0130 \u00e2", "splitlines": ["ax\u0130 \u00e2"], "split_nl": ["ax\u0130 \u00e2"]}
+{"s": "\r\u001f\u2027\u0130\u00e9\u0086", "splitlines": ["", "\u001f\u2027\u0130\u00e9\u0086"], "split_nl": ["\r\u001f\u2027\u0130\u00e9\u0086"]}
+{"s": "\u2027\u001c\u0085bc\u202a\u001ex\u0130\r\n\u0086", "splitlines": ["\u2027", "", "bc\u202a", "x\u0130", "\u0086"], "split_nl": ["\u2027\u001c\u0085bc\u202a\u001ex\u0130\r", "\u0086"]}
+{"s": "\n\u001b\u000b\ud83d\ude00\n\u001c\u001d", "splitlines": ["", "\u001b", "\ud83d\ude00", "", ""], "split_nl": ["", "\u001b\u000b\ud83d\ude00", "\u001c\u001d"]}
+{"s": "\u0086a\u2027call sub_401000\r\n\u0086call sub_401000\u001c\u0000\u0084", "splitlines": ["\u0086a\u2027call sub_401000", "\u0086call sub_401000", "\u0000\u0084"], "split_nl": ["\u0086a\u2027call sub_401000\r", "\u0086call sub_401000\u001c\u0000\u0084"]}
+{"s": "\u001f\u20a8\u0130", "splitlines": ["\u001f\u20a8\u0130"], "split_nl": ["\u001f\u20a8\u0130"]}
+{"s": "bc\r\n\n\r\u4e2d", "splitlines": ["bc", "", "", "\u4e2d"], "split_nl": ["bc\r", "", "\r\u4e2d"]}
+{"s": "\u4e2d\u2080call sub_401000\u0130\u000b", "splitlines": ["\u4e2d\u2080call sub_401000\u0130"], "split_nl": ["\u4e2d\u2080call sub_401000\u0130\u000b"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\t\u202a\u4e2d\u001f\u001f\r\u2029\r\n\u2029\u000b\u0000", "splitlines": ["\t\u202a\u4e2d\u001f\u001f", "", "", "", "", "\u0000"], "split_nl": ["\t\u202a\u4e2d\u001f\u001f\r\u2029\r", "\u2029\u000b\u0000"]}
+{"s": "\u00e9\tbc\n\u202a\u2080\r\ud83d\ude00\u0000\r\n\r", "splitlines": ["\u00e9\tbc", "\u202a\u2080", "\ud83d\ude00\u0000", ""], "split_nl": ["\u00e9\tbc", "\u202a\u2080\r\ud83d\ude00\u0000\r", "\r"]}
+{"s": "\n\u2028\u000b\u0086\u00c2\u0000\u0130\u00e9", "splitlines": ["", "", "", "\u0086\u00c2\u0000\u0130\u00e9"], "split_nl": ["", "\u2028\u000b\u0086\u00c2\u0000\u0130\u00e9"]}
+{"s": "\u0085\u202a\u000b\u001c\u0086\n\u2028", "splitlines": ["", "\u202a", "", "\u0086", ""], "split_nl": ["\u0085\u202a\u000b\u001c\u0086", "\u2028"]}
+{"s": "\r\n\u001e\u001f\u0085\u00e9", "splitlines": ["", "", "\u001f", "\u00e9"], "split_nl": ["\r", "\u001e\u001f\u0085\u00e9"]}
+{"s": "\u0130\ud83d\ude00\u0130", "splitlines": ["\u0130\ud83d\ude00\u0130"], "split_nl": ["\u0130\ud83d\ude00\u0130"]}
+{"s": "xbc\r\n \u20a8\u2029\u20a8\u001d\u2027\u00e9\f", "splitlines": ["xbc", " \u20a8", "\u20a8", "\u2027\u00e9"], "split_nl": ["xbc\r", " \u20a8\u2029\u20a8\u001d\u2027\u00e9\f"]}
+{"s": "\t\u2080\u2027\u001b\u00c2\u202a\u20a8\ud83d\ude00\u001f\u0086", "splitlines": ["\t\u2080\u2027\u001b\u00c2\u202a\u20a8\ud83d\ude00\u001f\u0086"], "split_nl": ["\t\u2080\u2027\u001b\u00c2\u202a\u20a8\ud83d\ude00\u001f\u0086"]}
+{"s": "\u4e2d\u001dcall sub_401000\u001b\u2080\u001e", "splitlines": ["\u4e2d", "call sub_401000\u001b\u2080"], "split_nl": ["\u4e2d\u001dcall sub_401000\u001b\u2080\u001e"]}
+{"s": "x\u001c\u202a\f\u2027\u20a8\t\u001c\n\r", "splitlines": ["x", "\u202a", "\u2027\u20a8\t", "", ""], "split_nl": ["x\u001c\u202a\f\u2027\u20a8\t\u001c", "\r"]}
+{"s": "\f\u001d", "splitlines": ["", ""], "split_nl": ["\f\u001d"]}
+{"s": "x\u00e9\u20a8\u00c2\f\r\n\u001ebc\t\u00e2", "splitlines": ["x\u00e9\u20a8\u00c2", "", "", "bc\t\u00e2"], "split_nl": ["x\u00e9\u20a8\u00c2\f\r", "\u001ebc\t\u00e2"]}
+{"s": "x\u2027\ud83d\ude00\u001dcall sub_401000\ud83d\ude00\u2027", "splitlines": ["x\u2027\ud83d\ude00", "call sub_401000\ud83d\ude00\u2027"], "split_nl": ["x\u2027\ud83d\ude00\u001dcall sub_401000\ud83d\ude00\u2027"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\u0086bcbc\u00c2", "splitlines": ["\u0086bcbc\u00c2"], "split_nl": ["\u0086bcbc\u00c2"]}
+{"s": "\u00e9\u2029\u0084 ", "splitlines": ["\u00e9", "\u0084 "], "split_nl": ["\u00e9\u2029\u0084 "]}
+{"s": "\u202a\u00e9\r\n\r\n \u0084\u2028", "splitlines": ["\u202a\u00e9", "", " \u0084"], "split_nl": ["\u202a\u00e9\r", "\r", " \u0084\u2028"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\u2027\u001d\u001b", "splitlines": ["\u2027", "\u001b"], "split_nl": ["\u2027\u001d\u001b"]}
+{"s": "\u00e2\u2028\t\u0000\u2029\u001c\u0000\u001f", "splitlines": ["\u00e2", "\t\u0000", "", "\u0000\u001f"], "split_nl": ["\u00e2\u2028\t\u0000\u2029\u001c\u0000\u001f"]}
+{"s": "call sub_401000\u20a8\r\ncall sub_401000\u00e9\r", "splitlines": ["call sub_401000\u20a8", "call sub_401000\u00e9"], "split_nl": ["call sub_401000\u20a8\r", "call sub_401000\u00e9\r"]}
+{"s": "\u0084\u2027 a\r\n\u0085 \u20a8\f\u2029\r", "splitlines": ["\u0084\u2027 a", "", " \u20a8", "", ""], "split_nl": ["\u0084\u2027 a\r", "\u0085 \u20a8\f\u2029\r"]}
+{"s": "\u2028\u001ebc\u00e9", "splitlines": ["", "", "bc\u00e9"], "split_nl": ["\u2028\u001ebc\u00e9"]}
+{"s": "\u001d\u00e2\u2080\r\n\f\u00e2", "splitlines": ["", "\u00e2\u2080", "", "\u00e2"], "split_nl": ["\u001d\u00e2\u2080\r", "\f\u00e2"]}
+{"s": "\u001ecall sub_401000\r\n\u0084\u2027\u0000", "splitlines": ["", "call sub_401000", "\u0084\u2027\u0000"], "split_nl": ["\u001ecall sub_401000\r", "\u0084\u2027\u0000"]}
+{"s": "\u20a8\n\n\u202a\u001d\r\n\n\r\u20a8\u0084\u2028\n", "splitlines": ["\u20a8", "", "\u202a", "", "", "", "\u20a8\u0084", ""], "split_nl": ["\u20a8", "", "\u202a\u001d\r", "", "\r\u20a8\u0084\u2028", ""]}
+{"s": "\u001d\n", "splitlines": ["", ""], "split_nl": ["\u001d", ""]}
+{"s": "abc\ud83d\ude00\t\u00e2\u2028\r\t\u4e2dbc a", "splitlines": ["abc\ud83d\ude00\t\u00e2", "", "\t\u4e2dbc a"], "split_nl": ["abc\ud83d\ude00\t\u00e2\u2028\r\t\u4e2dbc a"]}
+{"s": "\u4e2d\u00c2\u2027\u001f", "splitlines": ["\u4e2d\u00c2\u2027\u001f"], "split_nl": ["\u4e2d\u00c2\u2027\u001f"]}
+{"s": "\u0130\u0000\u4e2d\t\u0086\u20a8\u0084x\u2080\u4e2d", "splitlines": ["\u0130\u0000\u4e2d\t\u0086\u20a8\u0084x\u2080\u4e2d"], "split_nl": ["\u0130\u0000\u4e2d\t\u0086\u20a8\u0084x\u2080\u4e2d"]}
+{"s": "\u2029\u00c2", "splitlines": ["", "\u00c2"], "split_nl": ["\u2029\u00c2"]}
+{"s": "\rcall sub_401000", "splitlines": ["", "call sub_401000"], "split_nl": ["\rcall sub_401000"]}
+{"s": "a\u0084\r\r\u0130\u2080bc\u2027\r\n\u0085\u2028", "splitlines": ["a\u0084", "", "\u0130\u2080bc\u2027", "", ""], "split_nl": ["a\u0084\r\r\u0130\u2080bc\u2027\r", "\u0085\u2028"]}
+{"s": "\r\u20a8\u0130\u0130\u20a8 \u001b\t\u0085", "splitlines": ["", "\u20a8\u0130\u0130\u20a8 \u001b\t"], "split_nl": ["\r\u20a8\u0130\u0130\u20a8 \u001b\t\u0085"]}
+{"s": "\u0000\u000b\u20a8\f", "splitlines": ["\u0000", "\u20a8"], "split_nl": ["\u0000\u000b\u20a8\f"]}
+{"s": "\u2027\u001f\u20a8\u0000\u0086", "splitlines": ["\u2027\u001f\u20a8\u0000\u0086"], "split_nl": ["\u2027\u001f\u20a8\u0000\u0086"]}
+{"s": "\u0084\u001d\t\tx\u000b\u202a\n\r", "splitlines": ["\u0084", "\t\tx", "\u202a", ""], "split_nl": ["\u0084\u001d\t\tx\u000b\u202a", "\r"]}
+{"s": "\u000b\r\n\u2080\u00e2x\u0084\u001e", "splitlines": ["", "", "\u2080\u00e2x\u0084"], "split_nl": ["\u000b\r", "\u2080\u00e2x\u0084\u001e"]}
+{"s": "\u4e2d\u0084", "splitlines": ["\u4e2d\u0084"], "split_nl": ["\u4e2d\u0084"]}
+{"s": "call sub_401000\r\u0000\u0000\t\u001f\u0085", "splitlines": ["call sub_401000", "\u0000\u0000\t\u001f"], "split_nl": ["call sub_401000\r\u0000\u0000\t\u001f\u0085"]}
+{"s": "\r\ud83d\ude00", "splitlines": ["", "\ud83d\ude00"], "split_nl": ["\r\ud83d\ude00"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\u0085", "splitlines": [""], "split_nl": ["\u0085"]}
+{"s": "\n\u001b\u001d", "splitlines": ["", "\u001b"], "split_nl": ["", "\u001b\u001d"]}
+{"s": "\u0130\r\nbc\r\n\u4e2d\u4e2d\f\t\u000b", "splitlines": ["\u0130", "bc", "\u4e2d\u4e2d", "\t"], "split_nl": ["\u0130\r", "bc\r", "\u4e2d\u4e2d\f\t\u000b"]}
+{"s": "\u001f\u00c2\u001d\u2080", "splitlines": ["\u001f\u00c2", "\u2080"], "split_nl": ["\u001f\u00c2\u001d\u2080"]}
+{"s": "\u00c2\u000b\u001b\u4e2d\r\n\u4e2d\u2027\ud83d\ude00\r\n\u2028", "splitlines": ["\u00c2", "\u001b\u4e2d", "\u4e2d\u2027\ud83d\ude00", ""], "split_nl": ["\u00c2\u000b\u001b\u4e2d\r", "\u4e2d\u2027\ud83d\ude00\r", "\u2028"]}
+{"s": "\u0086\u001d\u2080\u00e2\t\u2029", "splitlines": ["\u0086", "\u2080\u00e2\t"], "split_nl": ["\u0086\u001d\u2080\u00e2\t\u2029"]}
+{"s": "\u0086\u00e9\u001d\u2027call sub_401000\u20a8\u000b\u00e2", "splitlines": ["\u0086\u00e9", "\u2027call sub_401000\u20a8", "\u00e2"], "split_nl": ["\u0086\u00e9\u001d\u2027call sub_401000\u20a8\u000b\u00e2"]}
+{"s": "\u001e\u4e2d\u20a8\u001c\u001e\u2080\r \u0130\u001c\u0085\r", "splitlines": ["", "\u4e2d\u20a8", "", "\u2080", " \u0130", "", ""], "split_nl": ["\u001e\u4e2d\u20a8\u001c\u001e\u2080\r \u0130\u001c\u0085\r"]}
+{"s": "\u00c2\r", "splitlines": ["\u00c2"], "split_nl": ["\u00c2\r"]}
+{"s": "\u001c\u0084\u2027\u2028\u0086", "splitlines": ["", "\u0084\u2027", "\u0086"], "split_nl": ["\u001c\u0084\u2027\u2028\u0086"]}
+{"s": "\t\f\n\r\u00e2xabc\r\n\f", "splitlines": ["\t", "", "", "\u00e2xabc", ""], "split_nl": ["\t\f", "\r\u00e2xabc\r", "\f"]}
+{"s": "\u2028\u000b\ud83d\ude00", "splitlines": ["", "", "\ud83d\ude00"], "split_nl": ["\u2028\u000b\ud83d\ude00"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "x\t\u000b\u2080\u001d", "splitlines": ["x\t", "\u2080"], "split_nl": ["x\t\u000b\u2080\u001d"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\u001cbca\u0086\u001e", "splitlines": ["", "bca\u0086"], "split_nl": ["\u001cbca\u0086\u001e"]}
+{"s": "\u001f\u0000\f\u2027\r\n\u0084\f\u2028\u0085", "splitlines": ["\u001f\u0000", "\u2027", "\u0084", "", ""], "split_nl": ["\u001f\u0000\f\u2027\r", "\u0084\f\u2028\u0085"]}
+{"s": "\u000bx\u001d\u00c2x\u001c\u001e\u00e9\u2028\u4e2d", "splitlines": ["", "x", "\u00c2x", "", "\u00e9", "\u4e2d"], "split_nl": ["\u000bx\u001d\u00c2x\u001c\u001e\u00e9\u2028\u4e2d"]}
+{"s": "call sub_401000\u202ax\u0086\u001c\t\u4e2d", "splitlines": ["call sub_401000\u202ax\u0086", "\t\u4e2d"], "split_nl": ["call sub_401000\u202ax\u0086\u001c\t\u4e2d"]}
+{"s": "\u0130\u001f\u001f", "splitlines": ["\u0130\u001f\u001f"], "split_nl": ["\u0130\u001f\u001f"]}
+{"s": "\u0130\u00e2", "splitlines": ["\u0130\u00e2"], "split_nl": ["\u0130\u00e2"]}
+{"s": "\u001e\t\u00e2 \u2080\u202a", "splitlines": ["", "\t\u00e2 \u2080\u202a"], "split_nl": ["\u001e\t\u00e2 \u2080\u202a"]}
+{"s": "\u001c\r\u001c\u202a\u2029call sub_401000\r\r\n", "splitlines": ["", "", "", "\u202a", "call sub_401000", ""], "split_nl": ["\u001c\r\u001c\u202a\u2029call sub_401000\r\r", ""]}
+{"s": "bc\r\r\ta\u001c\u2080", "splitlines": ["bc", "", "\ta", "\u2080"], "split_nl": ["bc\r\r\ta\u001c\u2080"]}
+{"s": "\u0086\u2029abc\u2029\u00e2\u0000", "splitlines": ["\u0086", "abc", "\u00e2\u0000"], "split_nl": ["\u0086\u2029abc\u2029\u00e2\u0000"]}
+{"s": "\u2027", "splitlines": ["\u2027"], "split_nl": ["\u2027"]}
+{"s": " \f\u001ba\u000b", "splitlines": [" ", "\u001ba"], "split_nl": [" \f\u001ba\u000b"]}
+{"s": "\u001c\ud83d\ude00\u001e\u001d\u2080", "splitlines": ["", "\ud83d\ude00", "", "\u2080"], "split_nl": ["\u001c\ud83d\ude00\u001e\u001d\u2080"]}
+{"s": "\u0084\ud83d\ude00\u2028\r\n\u2028\r\n", "splitlines": ["\u0084\ud83d\ude00", "", "", ""], "split_nl": ["\u0084\ud83d\ude00\u2028\r", "\u2028\r", ""]}
+{"s": "a\t\u0130\u4e2d \u00e2\u2027 \u2080", "splitlines": ["a\t\u0130\u4e2d \u00e2\u2027 \u2080"], "split_nl": ["a\t\u0130\u4e2d \u00e2\u2027 \u2080"]}
+{"s": "\u0130\u001c\ud83d\ude00x\u001c\u0085\u2029\u00e2\u0130\u001f", "splitlines": ["\u0130", "\ud83d\ude00x", "", "", "\u00e2\u0130\u001f"], "split_nl": ["\u0130\u001c\ud83d\ude00x\u001c\u0085\u2029\u00e2\u0130\u001f"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": " \u00c2\u2028ax\r\n\f", "splitlines": [" \u00c2", "ax", ""], "split_nl": [" \u00c2\u2028ax\r", "\f"]}
+{"s": "\u4e2d\u202a \u4e2d\u001f\u001e \u20a8\u00e9\u2028", "splitlines": ["\u4e2d\u202a \u4e2d\u001f", " \u20a8\u00e9"], "split_nl": ["\u4e2d\u202a \u4e2d\u001f\u001e \u20a8\u00e9\u2028"]}
+{"s": "\u0084\u2027\u0086bca", "splitlines": ["\u0084\u2027\u0086bca"], "split_nl": ["\u0084\u2027\u0086bca"]}
+{"s": " ", "splitlines": [" "], "split_nl": [" "]}
+{"s": "call sub_401000call sub_401000\n", "splitlines": ["call sub_401000call sub_401000"], "split_nl": ["call sub_401000call sub_401000", ""]}
+{"s": "\r\ncall sub_401000\u0084\u0084\u0085\rcall sub_401000\na\u00c2\r", "splitlines": ["", "call sub_401000\u0084\u0084", "", "call sub_401000", "a\u00c2"], "split_nl": ["\r", "call sub_401000\u0084\u0084\u0085\rcall sub_401000", "a\u00c2\r"]}
+{"s": "\u0085\u0000\u00e9\u4e2dbc\u4e2d\u00e9\r", "splitlines": ["", "\u0000\u00e9\u4e2dbc\u4e2d\u00e9"], "split_nl": ["\u0085\u0000\u00e9\u4e2dbc\u4e2d\u00e9\r"]}
+{"s": "\u202ax\u20a8\u001d\u0085\u0084\u2080\u2027\u001c\u00e2\n", "splitlines": ["\u202ax\u20a8", "", "\u0084\u2080\u2027", "\u00e2"], "split_nl": ["\u202ax\u20a8\u001d\u0085\u0084\u2080\u2027\u001c\u00e2", ""]}
+{"s": "\u00c2\n\u0086", "splitlines": ["\u00c2", "\u0086"], "split_nl": ["\u00c2", "\u0086"]}
+{"s": "\u00c2\u001f\u2027bc\u0130\t\u2028", "splitlines": ["\u00c2\u001f\u2027bc\u0130\t"], "split_nl": ["\u00c2\u001f\u2027bc\u0130\t\u2028"]}
+{"s": " \u0130", "splitlines": [" \u0130"], "split_nl": [" \u0130"]}
+{"s": "\u0086\u0084\r\n\u0085\u00c2\t\f\u20a8\u0085", "splitlines": ["\u0086\u0084", "", "\u00c2\t", "\u20a8"], "split_nl": ["\u0086\u0084\r", "\u0085\u00c2\t\f\u20a8\u0085"]}
+{"s": "\u001e\u000baa\u0084\u2080", "splitlines": ["", "", "aa\u0084\u2080"], "split_nl": ["\u001e\u000baa\u0084\u2080"]}
+{"s": "\u202a\ud83d\ude00", "splitlines": ["\u202a\ud83d\ude00"], "split_nl": ["\u202a\ud83d\ude00"]}
+{"s": "\n\r\u001b\n\r\u4e2d\u0130x\u0086a\u0130", "splitlines": ["", "", "\u001b", "", "\u4e2d\u0130x\u0086a\u0130"], "split_nl": ["", "\r\u001b", "\r\u4e2d\u0130x\u0086a\u0130"]}
+{"s": "\u000b\u001f\u000b", "splitlines": ["", "\u001f"], "split_nl": ["\u000b\u001f\u000b"]}
+{"s": " \u001b\u001c\t\ud83d\ude00\fcall sub_401000\u202a \t", "splitlines": [" \u001b", "\t\ud83d\ude00", "call sub_401000\u202a \t"], "split_nl": [" \u001b\u001c\t\ud83d\ude00\fcall sub_401000\u202a \t"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\t\u00c2\u0085\u001fx\u001d\u2080", "splitlines": ["\t\u00c2", "\u001fx", "\u2080"], "split_nl": ["\t\u00c2\u0085\u001fx\u001d\u2080"]}
+{"s": "\u000b\u202a\u4e2d\u000b\t\u001e\n\rx", "splitlines": ["", "\u202a\u4e2d", "\t", "", "", "x"], "split_nl": ["\u000b\u202a\u4e2d\u000b\t\u001e", "\rx"]}
+{"s": "\u4e2dcall sub_401000\u001e\r\u000b\u001fbc\u00e9", "splitlines": ["\u4e2dcall sub_401000", "", "", "\u001fbc\u00e9"], "split_nl": ["\u4e2dcall sub_401000\u001e\r\u000b\u001fbc\u00e9"]}
+{"s": "\u000b\u001e\u0000\u000b\f\t\u20a8\u0000\u00c2\u0086\u001e", "splitlines": ["", "", "\u0000", "", "\t\u20a8\u0000\u00c2\u0086"], "split_nl": ["\u000b\u001e\u0000\u000b\f\t\u20a8\u0000\u00c2\u0086\u001e"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\u20a8\u0000\u2027\u202a\r\tcall sub_401000\r\n\u4e2d\u001f", "splitlines": ["\u20a8\u0000\u2027\u202a", "\tcall sub_401000", "\u4e2d\u001f"], "split_nl": ["\u20a8\u0000\u2027\u202a\r\tcall sub_401000\r", "\u4e2d\u001f"]}
+{"s": "\u2029\u001c\u2028", "splitlines": ["", "", ""], "split_nl": ["\u2029\u001c\u2028"]}
+{"s": "\u00e2", "splitlines": ["\u00e2"], "split_nl": ["\u00e2"]}
+{"s": "\u001ecall sub_401000 \ud83d\ude00", "splitlines": ["", "call sub_401000 \ud83d\ude00"], "split_nl": ["\u001ecall sub_401000 \ud83d\ude00"]}
+{"s": "\n", "splitlines": [""], "split_nl": ["", ""]}
+{"s": "\u001e", "splitlines": [""], "split_nl": ["\u001e"]}
+{"s": "\u001f", "splitlines": ["\u001f"], "split_nl": ["\u001f"]}
+{"s": "bc\t\u001f\u0084\u00e2bca\u00e2\f\u2028\u000b", "splitlines": ["bc\t\u001f\u0084\u00e2bca\u00e2", "", ""], "split_nl": ["bc\t\u001f\u0084\u00e2bca\u00e2\f\u2028\u000b"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\u202a\u4e2d\u2080\u001e", "splitlines": ["\u202a\u4e2d\u2080"], "split_nl": ["\u202a\u4e2d\u2080\u001e"]}
+{"s": "\u0000\ud83d\ude00\f\t\u001c\u00c2a ", "splitlines": ["\u0000\ud83d\ude00", "\t", "\u00c2a "], "split_nl": ["\u0000\ud83d\ude00\f\t\u001c\u00c2a "]}
+{"s": "bc\u001f\u2027\u00e2\u001d", "splitlines": ["bc\u001f\u2027\u00e2"], "split_nl": ["bc\u001f\u2027\u00e2\u001d"]}
+{"s": "\u202a\u2028\u0086\u20a8\u0086\n", "splitlines": ["\u202a", "\u0086\u20a8\u0086"], "split_nl": ["\u202a\u2028\u0086\u20a8\u0086", ""]}
+{"s": "\u001f\r", "splitlines": ["\u001f"], "split_nl": ["\u001f\r"]}
+{"s": "\u001b\u2028\u2028\u2029\n\u001d\u0130\u001f\u2027\u0085", "splitlines": ["\u001b", "", "", "", "", "\u0130\u001f\u2027"], "split_nl": ["\u001b\u2028\u2028\u2029", "\u001d\u0130\u001f\u2027\u0085"]}
+{"s": "\f\u00e9\u0086\u0000a\u0130\u001c\u0000\u2027bc", "splitlines": ["", "\u00e9\u0086\u0000a\u0130", "\u0000\u2027bc"], "split_nl": ["\f\u00e9\u0086\u0000a\u0130\u001c\u0000\u2027bc"]}
+{"s": "\u0084\u0086\u0000\u00e2\u001f \u0085\u2028\u001e\u202a\u00e2", "splitlines": ["\u0084\u0086\u0000\u00e2\u001f ", "", "", "\u202a\u00e2"], "split_nl": ["\u0084\u0086\u0000\u00e2\u001f \u0085\u2028\u001e\u202a\u00e2"]}
+{"s": "\u001f\u00c2\u2028xcall sub_401000\u001c\u001b\u001e", "splitlines": ["\u001f\u00c2", "xcall sub_401000", "\u001b"], "split_nl": ["\u001f\u00c2\u2028xcall sub_401000\u001c\u001b\u001e"]}
+{"s": "\u00e9\u001c\n\u001b\u001e\u0000\u2027\n\r", "splitlines": ["\u00e9", "", "\u001b", "\u0000\u2027", ""], "split_nl": ["\u00e9\u001c", "\u001b\u001e\u0000\u2027", "\r"]}
+{"s": "\n\u0084\u0130\u4e2d\u4e2d\u202a\u0084\ud83d\ude00\u4e2d", "splitlines": ["", "\u0084\u0130\u4e2d\u4e2d\u202a\u0084\ud83d\ude00\u4e2d"], "split_nl": ["", "\u0084\u0130\u4e2d\u4e2d\u202a\u0084\ud83d\ude00\u4e2d"]}
+{"s": "\t\u2080\ud83d\ude00\u2027\u0084\u00c2x\na\f\u0086", "splitlines": ["\t\u2080\ud83d\ude00\u2027\u0084\u00c2x", "a", "\u0086"], "split_nl": ["\t\u2080\ud83d\ude00\u2027\u0084\u00c2x", "a\f\u0086"]}
+{"s": "\u2027\r\n\u0084\r\u202a\r\n\u2027a", "splitlines": ["\u2027", "\u0084", "\u202a", "\u2027a"], "split_nl": ["\u2027\r", "\u0084\r\u202a\r", "\u2027a"]}
+{"s": "\u0085", "splitlines": [""], "split_nl": ["\u0085"]}
+{"s": "\ud83d\ude00\u20a8x\t\u001f\u001e\u4e2d\u2080\u202a\u001f\u00e2\u0085", "splitlines": ["\ud83d\ude00\u20a8x\t\u001f", "\u4e2d\u2080\u202a\u001f\u00e2"], "split_nl": ["\ud83d\ude00\u20a8x\t\u001f\u001e\u4e2d\u2080\u202a\u001f\u00e2\u0085"]}
+{"s": "a\n\r\u202abc\u001c", "splitlines": ["a", "", "\u202abc"], "split_nl": ["a", "\r\u202abc\u001c"]}
+{"s": "\u00e2", "splitlines": ["\u00e2"], "split_nl": ["\u00e2"]}
+{"s": "\u2028\ud83d\ude00\u00c2\u00c2\u0000\u001e\u0000\u202a", "splitlines": ["", "\ud83d\ude00\u00c2\u00c2\u0000", "\u0000\u202a"], "split_nl": ["\u2028\ud83d\ude00\u00c2\u00c2\u0000\u001e\u0000\u202a"]}
+{"s": "\r\n\u001c\u0086\u2029\u2028a\u00e9\t", "splitlines": ["", "", "\u0086", "", "a\u00e9\t"], "split_nl": ["\r", "\u001c\u0086\u2029\u2028a\u00e9\t"]}
+{"s": "\u0086\u2027\u2028\u001f\u00c2\t\n\u00e9\u00e2", "splitlines": ["\u0086\u2027", "\u001f\u00c2\t", "\u00e9\u00e2"], "split_nl": ["\u0086\u2027\u2028\u001f\u00c2\t", "\u00e9\u00e2"]}
+{"s": "\u0085", "splitlines": [""], "split_nl": ["\u0085"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\n\u00e2", "splitlines": ["", "\u00e2"], "split_nl": ["", "\u00e2"]}
+{"s": "call sub_401000\r\u4e2d\u202a\r\n\u001e\u0085\u20a8\u20a8\u0085\u0085\r", "splitlines": ["call sub_401000", "\u4e2d\u202a", "", "", "\u20a8\u20a8", "", ""], "split_nl": ["call sub_401000\r\u4e2d\u202a\r", "\u001e\u0085\u20a8\u20a8\u0085\u0085\r"]}
+{"s": "\u0086\n\u000b\r\u00c2\u20a8\u2080\r\n\u0085\f", "splitlines": ["\u0086", "", "", "\u00c2\u20a8\u2080", "", ""], "split_nl": ["\u0086", "\u000b\r\u00c2\u20a8\u2080\r", "\u0085\f"]}
+{"s": "\u00c2", "splitlines": ["\u00c2"], "split_nl": ["\u00c2"]}
+{"s": "\u2080\u0085\r\n\n\u202abc", "splitlines": ["\u2080", "", "", "\u202abc"], "split_nl": ["\u2080\u0085\r", "", "\u202abc"]}
+{"s": "\n\n\r\u001e\u0130", "splitlines": ["", "", "", "", "\u0130"], "split_nl": ["", "", "\r\u001e\u0130"]}
+{"s": "call sub_401000\r\u2080\u4e2d\u20a8\u2029bc\u001b\u0084\u000b\u2080\u0000", "splitlines": ["call sub_401000", "\u2080\u4e2d\u20a8", "bc\u001b\u0084", "\u2080\u0000"], "split_nl": ["call sub_401000\r\u2080\u4e2d\u20a8\u2029bc\u001b\u0084\u000b\u2080\u0000"]}
+{"s": "\u000bx\f\u2029\u2080\n\r\u0084", "splitlines": ["", "x", "", "\u2080", "", "\u0084"], "split_nl": ["\u000bx\f\u2029\u2080", "\r\u0084"]}
+{"s": "\u2080x\n\r\u001e\u00e9\u00e2\u00e2\u2080", "splitlines": ["\u2080x", "", "", "\u00e9\u00e2\u00e2\u2080"], "split_nl": ["\u2080x", "\r\u001e\u00e9\u00e2\u00e2\u2080"]}
+{"s": "\u001c\u4e2d\n\u001c", "splitlines": ["", "\u4e2d", ""], "split_nl": ["\u001c\u4e2d", "\u001c"]}
+{"s": "\u0130bc\u001d\u0084\r\n\u2080\u001b\u001b\u001b\u00e2\u00c2", "splitlines": ["\u0130bc", "\u0084", "\u2080\u001b\u001b\u001b\u00e2\u00c2"], "split_nl": ["\u0130bc\u001d\u0084\r", "\u2080\u001b\u001b\u001b\u00e2\u00c2"]}
+{"s": "\u000b\u0130", "splitlines": ["", "\u0130"], "split_nl": ["\u000b\u0130"]}
+{"s": "\u0086bc\u0000\u4e2d", "splitlines": ["\u0086bc\u0000\u4e2d"], "split_nl": ["\u0086bc\u0000\u4e2d"]}
+{"s": "\u2080call sub_401000a", "splitlines": ["\u2080call sub_401000a"], "split_nl": ["\u2080call sub_401000a"]}
+{"s": "\u001b\u001e\u20a8\r\n\u00c2\u20a8\u0000\n\u001d\u0085\u001b", "splitlines": ["\u001b", "\u20a8", "\u00c2\u20a8\u0000", "", "", "\u001b"], "split_nl": ["\u001b\u001e\u20a8\r", "\u00c2\u20a8\u0000", "\u001d\u0085\u001b"]}
+{"s": "\u001f", "splitlines": ["\u001f"], "split_nl": ["\u001f"]}
+{"s": "\u0000\u0130 \u001f\t\u001f\u0000", "splitlines": ["\u0000\u0130 \u001f\t\u001f\u0000"], "split_nl": ["\u0000\u0130 \u001f\t\u001f\u0000"]}
+{"s": "\n\u2029  \r\nbc", "splitlines": ["", "", "  ", "bc"], "split_nl": ["", "\u2029  \r", "bc"]}
+{"s": "\ud83d\ude00bc\u202abc\u001e\u0086\u202a\u001b\u00e2", "splitlines": ["\ud83d\ude00bc\u202abc", "\u0086\u202a\u001b\u00e2"], "split_nl": ["\ud83d\ude00bc\u202abc\u001e\u0086\u202a\u001b\u00e2"]}
+{"s": "\u00e9", "splitlines": ["\u00e9"], "split_nl": ["\u00e9"]}
+{"s": "\ud83d\ude00\n\rcall sub_401000\u2027\u00e9x", "splitlines": ["\ud83d\ude00", "", "call sub_401000\u2027\u00e9x"], "split_nl": ["\ud83d\ude00", "\rcall sub_401000\u2027\u00e9x"]}
+{"s": "\tbc", "splitlines": ["\tbc"], "split_nl": ["\tbc"]}
+{"s": "\u202a\u0086", "splitlines": ["\u202a\u0086"], "split_nl": ["\u202a\u0086"]}
+{"s": " \n\r\u000b\r\n\u0130", "splitlines": [" ", "", "", "", "\u0130"], "split_nl": [" ", "\r\u000b\r", "\u0130"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\r\n\u2080\r\u4e2d\u2029\r\n\u2028\u001b\f", "splitlines": ["", "\u2080", "\u4e2d", "", "", "\u001b"], "split_nl": ["\r", "\u2080\r\u4e2d\u2029\r", "\u2028\u001b\f"]}
+{"s": "\u2028\u00e9\u0000\u4e2d\n\r", "splitlines": ["", "\u00e9\u0000\u4e2d", ""], "split_nl": ["\u2028\u00e9\u0000\u4e2d", "\r"]}
+{"s": "a\u2029", "splitlines": ["a"], "split_nl": ["a\u2029"]}
+{"s": "\t\r\t\u000b\u00c2", "splitlines": ["\t", "\t", "\u00c2"], "split_nl": ["\t\r\t\u000b\u00c2"]}
+{"s": "\u00c2\n\r\u0130\u001f\u00e2\u0130", "splitlines": ["\u00c2", "", "\u0130\u001f\u00e2\u0130"], "split_nl": ["\u00c2", "\r\u0130\u001f\u00e2\u0130"]}
+{"s": "\r\n\u0086\u2080\u001f\na\u0084", "splitlines": ["", "\u0086\u2080\u001f", "a\u0084"], "split_nl": ["\r", "\u0086\u2080\u001f", "a\u0084"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\u0084\u0084\u202a\u2027\u2027\u0085", "splitlines": ["\u0084\u0084\u202a\u2027\u2027"], "split_nl": ["\u0084\u0084\u202a\u2027\u2027\u0085"]}
+{"s": "a\u00e9x\u001c", "splitlines": ["a\u00e9x"], "split_nl": ["a\u00e9x\u001c"]}
+{"s": "\u001c\u0130\t\u00c2\r\n", "splitlines": ["", "\u0130\t\u00c2"], "split_nl": ["\u001c\u0130\t\u00c2\r", ""]}
+{"s": "\n\r\u4e2d\u2027\u4e2d\u2080\u2080\r\n\u001b\u00e9\u001c", "splitlines": ["", "", "\u4e2d\u2027\u4e2d\u2080\u2080", "\u001b\u00e9"], "split_nl": ["", "\r\u4e2d\u2027\u4e2d\u2080\u2080\r", "\u001b\u00e9\u001c"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "bc", "splitlines": ["bc"], "split_nl": ["bc"]}
+{"s": "\u001f\u00e9\u0000\u000b", "splitlines": ["\u001f\u00e9\u0000"], "split_nl": ["\u001f\u00e9\u0000\u000b"]}
+{"s": "\u00c2\u2080\rbc\rcall sub_401000\u00e9\u202a", "splitlines": ["\u00c2\u2080", "bc", "call sub_401000\u00e9\u202a"], "split_nl": ["\u00c2\u2080\rbc\rcall sub_401000\u00e9\u202a"]}
+{"s": "\u001b\u2080\r\u0130\u001c", "splitlines": ["\u001b\u2080", "\u0130"], "split_nl": ["\u001b\u2080\r\u0130\u001c"]}
+{"s": "\u000b\u0084\n\u0000\u0084\u0086\u001e", "splitlines": ["", "\u0084", "\u0000\u0084\u0086"], "split_nl": ["\u000b\u0084", "\u0000\u0084\u0086\u001e"]}
+{"s": "\u2027\u001c\u2080\u0085\r\u2029\u00c2\u001f", "splitlines": ["\u2027", "\u2080", "", "", "\u00c2\u001f"], "split_nl": ["\u2027\u001c\u2080\u0085\r\u2029\u00c2\u001f"]}
+{"s": "\u2029\u001c\u001d\u2080\u00c2a\ud83d\ude00", "splitlines": ["", "", "", "\u2080\u00c2a\ud83d\ude00"], "split_nl": ["\u2029\u001c\u001d\u2080\u00c2a\ud83d\ude00"]}
+{"s": "\u20a8\u202a\u00e9\u202a\r\r\n\u001b\u0085", "splitlines": ["\u20a8\u202a\u00e9\u202a", "", "\u001b"], "split_nl": ["\u20a8\u202a\u00e9\u202a\r\r", "\u001b\u0085"]}
+{"s": "bc\u0085 ", "splitlines": ["bc", " "], "split_nl": ["bc\u0085 "]}
+{"s": "\u0085\u00c2\n\u001d\u00e2", "splitlines": ["", "\u00c2", "", "\u00e2"], "split_nl": ["\u0085\u00c2", "\u001d\u00e2"]}
+{"s": "\u001d\u20a8 \n\u0085\u00e9\r\n\f\u0086\r\u0130", "splitlines": ["", "\u20a8 ", "", "\u00e9", "", "\u0086", "\u0130"], "split_nl": ["\u001d\u20a8 ", "\u0085\u00e9\r", "\f\u0086\r\u0130"]}
+{"s": "\r\n\t\u0000\u0086\n\u2080", "splitlines": ["", "\t\u0000\u0086", "\u2080"], "split_nl": ["\r", "\t\u0000\u0086", "\u2080"]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\u001e\u2027\u001b\u001d\f\u0086\f\u00e2 \f\r", "splitlines": ["", "\u2027\u001b", "", "\u0086", "\u00e2 ", ""], "split_nl": ["\u001e\u2027\u001b\u001d\f\u0086\f\u00e2 \f\r"]}
+{"s": "\u000b\u000b\u0085\u00c2 \u00e2x\u00e2\u0086\u2080\n", "splitlines": ["", "", "", "\u00c2 \u00e2x\u00e2\u0086\u2080"], "split_nl": ["\u000b\u000b\u0085\u00c2 \u00e2x\u00e2\u0086\u2080", ""]}
+{"s": "\u2027\u0084\u0000x\u2028\nbc\u0000\u4e2d", "splitlines": ["\u2027\u0084\u0000x", "", "bc\u0000\u4e2d"], "split_nl": ["\u2027\u0084\u0000x\u2028", "bc\u0000\u4e2d"]}
+{"s": "\u0130\u0086", "splitlines": ["\u0130\u0086"], "split_nl": ["\u0130\u0086"]}
+{"s": "\ud83d\ude00\u2027\u4e2d\f\u2080\u00e2\u00e9\u2080\u001b\f\r", "splitlines": ["\ud83d\ude00\u2027\u4e2d", "\u2080\u00e2\u00e9\u2080\u001b", ""], "split_nl": ["\ud83d\ude00\u2027\u4e2d\f\u2080\u00e2\u00e9\u2080\u001b\f\r"]}
+{"s": "\u0000\u001e\u00e2\tbc\u0086", "splitlines": ["\u0000", "\u00e2\tbc\u0086"], "split_nl": ["\u0000\u001e\u00e2\tbc\u0086"]}
+{"s": "\u001c\n\r\u2080\n\r\u0130\u0084", "splitlines": ["", "", "", "\u2080", "", "\u0130\u0084"], "split_nl": ["\u001c", "\r\u2080", "\r\u0130\u0084"]}
+{"s": "\u001ba\u00e2\u2028\n\r\u00c2\u0085\u2027\u001f\u2080", "splitlines": ["\u001ba\u00e2", "", "", "\u00c2", "\u2027\u001f\u2080"], "split_nl": ["\u001ba\u00e2\u2028", "\r\u00c2\u0085\u2027\u001f\u2080"]}
+{"s": "\u000b\f\u202a\u2029\u0085\n\u000b\r\n", "splitlines": ["", "", "\u202a", "", "", "", ""], "split_nl": ["\u000b\f\u202a\u2029\u0085", "\u000b\r", ""]}
+{"s": "\u0084\r\n", "splitlines": ["\u0084"], "split_nl": ["\u0084\r", ""]}
+{"s": "", "splitlines": [], "split_nl": [""]}
+{"s": "\u2028\u2028\u2028\u2028\u001d\u2027", "splitlines": ["", "", "", "", "", "\u2027"], "split_nl": ["\u2028\u2028\u2028\u2028\u001d\u2027"]}
+{"s": "\u001e\f\u2028\u2029\u2027\u00e2\u001e\u0130\u001d", "splitlines": ["", "", "", "", "\u2027\u00e2", "\u0130"], "split_nl": ["\u001e\f\u2028\u2029\u2027\u00e2\u001e\u0130\u001d"]}
+{"s": "\n\r\u0130\u001d\u00e2 ", "splitlines": ["", "", "\u0130", "\u00e2 "], "split_nl": ["", "\r\u0130\u001d\u00e2 "]}
+{"s": "\r\n\u000b\u0086\u001d\u00e2\u202a\u001d\u2029\u0086\u0085\n", "splitlines": ["", "", "\u0086", "\u00e2\u202a", "", "\u0086", ""], "split_nl": ["\r", "\u000b\u0086\u001d\u00e2\u202a\u001d\u2029\u0086\u0085", ""]}
+{"s": "a\u00c2call sub_401000\u202a\u00c2x", "splitlines": ["a\u00c2call sub_401000\u202a\u00c2x"], "split_nl": ["a\u00c2call sub_401000\u202a\u00c2x"]}
+{"s": "\u0085call sub_401000\u0084\u001b\u4e2d\n\r\ud83d\ude00\u001d", "splitlines": ["", "call sub_401000\u0084\u001b\u4e2d", "", "\ud83d\ude00"], "split_nl": ["\u0085call sub_401000\u0084\u001b\u4e2d", "\r\ud83d\ude00\u001d"]}
+{"s": "\u2028\u001b\r\u00e9\u00e9bc\n\ra\u0084\u001c\u0086\u0085", "splitlines": ["", "\u001b", "\u00e9\u00e9bc", "", "a\u0084", "\u0086"], "split_nl": ["\u2028\u001b\r\u00e9\u00e9bc", "\ra\u0084\u001c\u0086\u0085"]}
+{"s": "\u2028", "splitlines": [""], "split_nl": ["\u2028"]}
+{"s": "\u001c\u00c2\u0000\u001b\u001ebc\u2029\f\u00e9a\n\r", "splitlines": ["", "\u00c2\u0000\u001b", "bc", "", "\u00e9a", ""], "split_nl": ["\u001c\u00c2\u0000\u001b\u001ebc\u2029\f\u00e9a", "\r"]}
