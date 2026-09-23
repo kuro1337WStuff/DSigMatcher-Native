@@ -3,7 +3,9 @@
 
 #include "dsigmatcher/diff/Registry.h"
 
+#include <iterator>
 #include <stdexcept>
+#include <string>
 
 #include "dsigmatcher/diff/StageSql.h"
 

@@ -9,8 +9,6 @@
 //        matched_secondary as maps, the flags, and the choosers / unmatched dumps when present.
 // config.date is always ignored; config.main_db / diff_db only when CompareConfigPaths is set.
 
-#include <sqlite3.h>
-
 #include <algorithm>
 #include <cstdio>
 #include <map>
@@ -81,8 +79,17 @@ inline ResultsFile ReadResultsFile(const std::string& Path) {
             File.AllText = false;
           }
         }
-        ResultsRow Row{Text(S, 0), Text(S, 1), Text(S, 2), Text(S, 3), Text(S, 4),
-                       Text(S, 5), Text(S, 6), Text(S, 7), Text(S, 8), Text(S, 9)};
+        ResultsRow Row;
+        Row.Type = Text(S, 0);
+        Row.Line = Text(S, 1);
+        Row.Address = Text(S, 2);
+        Row.Name = Text(S, 3);
+        Row.Address2 = Text(S, 4);
+        Row.Name2 = Text(S, 5);
+        Row.Ratio = Text(S, 6);
+        Row.Nodes1 = Text(S, 7);
+        Row.Nodes2 = Text(S, 8);
+        Row.Description = Text(S, 9);
         Row.NameNull = S.IsNull(3);
         Row.Name2Null = S.IsNull(5);
         File.Results.push_back(std::move(Row));
@@ -96,7 +103,11 @@ inline ResultsFile ReadResultsFile(const std::string& Path) {
             File.AllText = false;
           }
         }
-        UnmatchedRowText Row{Text(S, 0), Text(S, 1), Text(S, 2), Text(S, 3)};
+        UnmatchedRowText Row;
+        Row.Type = Text(S, 0);
+        Row.Line = Text(S, 1);
+        Row.Address = Text(S, 2);
+        Row.Name = Text(S, 3);
         Row.NameNull = S.IsNull(3);
         File.Unmatched.push_back(std::move(Row));
       }
