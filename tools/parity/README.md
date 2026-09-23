@@ -26,6 +26,15 @@ The scripts take every path from a flag or from the environment:
 Run them with the oracle's Python (CPython 3.13.12, `sqlite3` 3.51.1, no
 `cdifflib`). `run.json` records all three.
 
+The native side needs the same SQLite, because Diaphora's results follow the
+row order of SQLite's query planner (plan §5 R1). The default build bundles
+SQLite 3.51.1 compiled with the oracle's options (`cmake/VendoredSqlite.cmake`;
+`build/dsig_sqlite_info` prints the version and compile options), so native
+results compare at L2 (exact order, `line`, ratios) on every platform. A build
+with `-DDSIG_VENDORED_SQLITE=OFF` uses the system SQLite: unless that is also
+3.51.1, `dsigmatcher diff` warns and only L1 (same rows, any order) is
+meaningful.
+
 ## `oracle_trace.py run`
 
 ```
