@@ -6,7 +6,9 @@
 #include <chrono>
 #include <cstdio>
 #include <ctime>
+#include <filesystem>
 #include <fstream>
+#include <system_error>
 #include <vector>
 
 #include "dsigmatcher/ExportDatabase.h"
@@ -53,6 +55,16 @@ const char* const CreateProvenanceSchema =
     "  first_labelled_at text"
     ");";
 
+std::string CanonicalPath(const std::string& Path) {
+  std::error_code Error;
+  const std::filesystem::path Canonical =
+      std::filesystem::weakly_canonical(std::filesystem::path(Path), Error);
+  if (Error) {
+    return Path;
+  }
+  return Canonical.string();
+}
+
 std::string ColumnString(sqlite3_stmt* Statement, int Index) {
   const unsigned char* Text = sqlite3_column_text(Statement, Index);
   if (Text == nullptr) {
@@ -75,6 +87,10 @@ bool TableExists(sqlite3* Handle, const char* Table) {
 }
 
 bool CopyFileBinary(const std::string& From, const std::string& To) {
+  if (CanonicalPath(From) == CanonicalPath(To)) {
+    return false;
+  }
+
   std::ifstream Input(From, std::ios::binary);
   if (!Input.is_open()) {
     return false;
@@ -287,6 +303,19 @@ std::unordered_map<std::string, NameOrigin> ReadNameOrigins(const std::string& P
 
 PortResult PortSymbols(const PortOptions& Options) {
   PortResult Result;
+
+  const std::string CanonicalReference = CanonicalPath(Options.ReferencePath);
+  const std::string CanonicalTarget = CanonicalPath(Options.TargetPath);
+  const std::string CanonicalOutput = CanonicalPath(Options.OutputPath);
+
+  if (CanonicalOutput == CanonicalTarget) {
+    Result.Error = "output path resolves to the target database; refusing to overwrite an input";
+    return Result;
+  }
+  if (CanonicalOutput == CanonicalReference) {
+    Result.Error = "output path resolves to the reference database; refusing to overwrite an input";
+    return Result;
+  }
 
   const DatabaseIdentity ReferenceIdentity = InspectDatabase(Options.ReferencePath);
   if (!ReferenceIdentity.Ok) {
