@@ -14,6 +14,7 @@
 #include <cmath>
 #include <cstring>
 #include <filesystem>
+#include <iterator>
 #include <fstream>
 #include <limits>
 #include <map>
@@ -1126,6 +1127,25 @@ void TestCorpusIngestCensus() {
     return;
   }
   DSig::Test::Suite("corpus-ingest-census");
+  // The literal values of plan §4 L0, independent of the generated census.
+  struct PlanValues {
+    const char* Id;
+    long long Rows, NullPseudocode, NameNeMangled;
+  };
+  const PlanValues Plan[] = {{"ls-old", 304, 106, 0},          {"ls", 318, 113, 0},
+                             {"userenv-9168-pdb", 643, 1, 393}, {"userenv-9278-nopdb", 628, 1, 0},
+                             {"userenv-9278-pdb", 663, 1, 411}, {"sechost-9168-pdb", 1442, 1, 772},
+                             {"sechost-9444-nopdb", 1419, 5, 0}};
+  CHECK_NUM_EQ(std::size(kCensusExports), std::size(Plan));
+  for (size_t Index = 0; Index < std::size(Plan) && Index < std::size(kCensusExports); ++Index) {
+    CHECK_TEXT_EQ(kCensusExports[Index].Id, Plan[Index].Id);
+    CHECK_NUM_EQ(kCensusExports[Index].Rows, Plan[Index].Rows);
+    CHECK_NUM_EQ(kCensusExports[Index].NullPseudocode, Plan[Index].NullPseudocode);
+    CHECK_NUM_EQ(kCensusExports[Index].NameNeMangled, Plan[Index].NameNeMangled);
+    CHECK_NUM_EQ(kCensusExports[Index].ProgramRows, 1);
+    CHECK_TEXT_EQ(kCensusExports[Index].Processor, "pc64");
+    CHECK_TEXT_EQ(kCensusExports[Index].Version, "3.4");
+  }
   for (const CensusExport& E : kCensusExports) {
     if (!DSig::Test::ExportAvailable(E.Id)) {
       DSig::Test::Skip(E.Id, "export missing");
@@ -1135,7 +1155,16 @@ void TestCorpusIngestCensus() {
     bool HashOk = false;
     const std::string Sha = DSig::Sha256::FileHex(Path, HashOk);
     CHECK(HashOk);
-    CHECK_TEXT_EQ(Sha, E.Sha256);  // equal to the oracle manifest (census asserted it at generation)
+    CHECK_TEXT_EQ(Sha, E.Sha256);  // equal to the census (which asserted the manifest at generation)
+    const std::string ManifestPath = (fs::path(DSig::Test::OracleDir()) / "manifest.json").string();
+    if (fs::exists(ManifestPath)) {  // and to the oracle manifest itself
+      const JsonValue Manifest = JsonParse(ReadFile(ManifestPath));
+      const JsonValue* Entry = Manifest.At("exports").Find(E.Id);
+      CHECK(Entry != nullptr);
+      if (Entry != nullptr) {
+        CHECK_TEXT_EQ(Sha, Entry->At("sqlite_sha256").AsString());
+      }
+    }
 
     DiffDatabase Db;
     Db.OpenSingle(Path);
