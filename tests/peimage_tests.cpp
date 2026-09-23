@@ -65,11 +65,20 @@ void NoteNumber(const char* Label, long long Value) {
   ReportText(std::string(A) == std::string(B), #A " == " #B, std::string(A), std::string(B), \
              __FILE__, __LINE__)
 
-const char* const CorpusOlderWin32u =
-    R"(<corpus>\win32u\win32u_100261009168\win32u.dll)";
-const char* const CorpusNewerWin32u =
-    R"(<corpus>\win32u\win32u_100261009444\win32u.dll)";
-const char* const CorpusAbsentFile = R"(<corpus>\this-file-does-not-exist.dll)";
+#ifndef DSIG_CORPUS_ROOT
+#define DSIG_CORPUS_ROOT "corpus"
+#endif
+
+const std::string CorpusOlderWin32uStorage =
+    std::string(DSIG_CORPUS_ROOT) + "/win32u/win32u_100261009168/win32u.dll";
+const std::string CorpusNewerWin32uStorage =
+    std::string(DSIG_CORPUS_ROOT) + "/win32u/win32u_100261009444/win32u.dll";
+const std::string CorpusAbsentFileStorage =
+    std::string(DSIG_CORPUS_ROOT) + "/this-file-does-not-exist.dll";
+
+const char* const CorpusOlderWin32u = CorpusOlderWin32uStorage.c_str();
+const char* const CorpusNewerWin32u = CorpusNewerWin32uStorage.c_str();
+const char* const CorpusAbsentFile = CorpusAbsentFileStorage.c_str();
 
 constexpr size_t SynthTotalSizePe32Plus = 0x600;
 constexpr size_t SynthTotalSizePe32 = 0x400;
