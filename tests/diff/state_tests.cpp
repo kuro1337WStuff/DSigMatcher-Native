@@ -684,17 +684,39 @@ void TestIgnoreOnlyOnNewAdd() {
 void TestPyIntText() {
   DSig::Test::Suite("Python int() of address texts (D:280/D:286/D:288/D:1935)");
   using Detail::PyIntAsciiAccepts;
-  for (const char* Ok : {"0", "10", "4294967296", " 10 ", "\t7\n", "1_0", "+12", "-13", "0014", "1_2_3", "\x1c" "5\x1f"}) {
+  // Py_ISSPACE (space, TAB, LF, VT, FF, CR) is stripped on both sides; the 0x1c-0x1f separators that
+  // str.isspace() accepts are not (checked on the oracle's CPython 3.13.12: int("\x1c5") raises).
+  for (const char* Ok : {"0", "10", "4294967296", " 10 ", "\t7\n", "\v5\f", "\r\n8 ", "1_0", "+12", "-13", "0014",
+                         "1_2_3"}) {
     CHECK(PyIntAsciiAccepts(Ok));
   }
-  for (const char* Bad : {"", " ", "0x10", "1_", "_1", "1__0", "+ 1", "1 2", "--1", "None", "1.0", "1e3", "+", "\x7f" "1"}) {
+  for (const char* Bad : {"", " ", "0x10", "1_", "_1", "1__0", "+ 1", "1 2", "--1", "None", "1.0", "1e3", "+", "\x7f" "1",
+                          "\x1c" "5", "5\x1f", "\x1d" "5", "\x1e" "5", "\x1c" "5\x1f", "+_1", "1_ "}) {
     CHECK(!PyIntAsciiAccepts(Bad));
   }
   CHECK(!PyIntAsciiAccepts(std::string_view("1\0" "2", 3)));
+  CHECK(!PyIntAsciiAccepts(std::string_view("1\0", 2)));
+  // No digit limit: diaphora.py runs sys.set_int_max_str_digits(0) when it is loaded (D:96-97), so
+  // CPython's default 4300-digit limit does not apply (real-Diaphora vector cases *_int_digit_limit*).
+  const std::string D4301(4301, '1');
+  std::string Sep4301 = "1";  // "1_1_..._1": 4301 digits, 4300 underscores
+  for (int K = 0; K < 4300; ++K) {
+    Sep4301 += "_1";
+  }
+  for (const std::string& Long : {D4301, "-" + D4301, " \t" + D4301 + "\n", Sep4301, std::string(4301, '0'),
+                                  std::string(100000, '9')}) {
+    CHECK(PyIntAsciiAccepts(Long));
+  }
+  CHECK(!PyIntAsciiAccepts(D4301 + "x"));
+  CHECK(!PyIntAsciiAccepts(D4301 + "_"));
   DiffSession S;
   std::string Site;
   CHECK(ThrowsWouldRaise([&] { Detail::RequirePyInt(S.Ids(), kNoneAddr, "D:280"); }, &Site));
   CHECK_TEXT_EQ(Site, "D:280 TypeError");
+  CHECK(ThrowsWouldRaise([&] { Detail::RequirePyInt(S.Ids(), S.Ids().Addr("\x1c" "5"), "D:286"); }, &Site));
+  CHECK_TEXT_EQ(Site, "D:286 ValueError");
+  CHECK(!ThrowsWouldRaise([&] { Detail::RequirePyInt(S.Ids(), S.Ids().Addr("\v5\f"), "D:288"); }));
+  CHECK(!ThrowsWouldRaise([&] { Detail::RequirePyInt(S.Ids(), S.Ids().Addr(D4301), "D:1935"); }));
   bool Refused = false;
   try {
     Detail::RequirePyInt(S.Ids(), S.Ids().Addr("\xd9\xa1\xd9\xa2"), "D:286");  // Arabic-Indic digits

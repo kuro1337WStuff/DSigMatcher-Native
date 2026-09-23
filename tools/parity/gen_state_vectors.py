@@ -9,7 +9,8 @@ and 10; 01 E2). Covered:
   (D:1554-1605), all_functions_matched (D:1777-1784), get_sorted_results / get_total_matched_functions
   (D:3133-3148), check_match + add_matches_internal + the four add_matches_from_* wrappers
   (D:1786-2083) over a fake cursor, final_pass (D:2937-2948 with D:2718-2935) and find_unmatched
-  (D:2323-2356).
+  (D:2323-2356), including Python int() of odd address texts at D:280, D:286/D:288 and D:1935 (with
+  the digit limit that diaphora.py switches off at D:96-97).
 
 Only check_ratio is replaced (by a table of scripted ratios per (ea, ea2), or a raise), and the
 cursors are fakes that hand out scripted rows; everything else is Diaphora's own code. The row and
@@ -576,6 +577,44 @@ def NamedCases():
     Cases.append({"name": "unmatched_python_int_forms", "totals": [3, 3], "ops": [
         {"op": "find_unmatched", "main": [["a", " 10 "], ["b", "1_1"], ["c", "+12"], ["d", "-13"], ["e", "0014"]],
          "diff": [["c", "20\t"]]},
+    ]})
+    # int() of an address text at every site L1 evaluates it (D:280 find_unmatched, D:286/D:288 final
+    # pass add_item, D:1935 add_matches_internal): CPython strips only Py_ISSPACE (space, TAB, LF, VT,
+    # FF, CR), not the 0x1c-0x1f separators that str.isspace() accepts. CPython's default limit of
+    # 4300 digits does NOT apply: diaphora.py calls sys.set_int_max_str_digits(0) when it is loaded
+    # (D:96-97), so the 4301-digit addresses below are accepted.
+    Limit, Over = "1" * 4300, "2" * 4301
+    Cases.append({"name": "unmatched_int_py_isspace", "totals": [3, 3], "ops": [
+        {"op": "find_unmatched", "main": [["a", "\x0b10\x0c"], ["b", "\r11\n"]], "diff": [["c", " \t20"]]},
+    ]})
+    Cases.append({"name": "unmatched_int_separator_main", "totals": [3, 3], "ops": [
+        {"op": "find_unmatched", "main": [["a", "10"], ["b", "\x1c11"]], "diff": [["c", "20"]]},
+    ]})
+    Cases.append({"name": "unmatched_int_separator_diff", "totals": [3, 3], "ops": [
+        {"op": "find_unmatched", "main": [["a", "10"]], "diff": [["c", "20\x1f"]]},
+    ]})
+    Cases.append({"name": "unmatched_int_digit_limit", "totals": [3, 3], "ops": [
+        {"op": "find_unmatched", "main": [["a", Limit], ["b", "0" * 4299 + "7"]],
+         "diff": [["c", "1" + "_1" * 4299], ["d", "-" + Limit]]},
+    ]})
+    Cases.append({"name": "unmatched_int_digit_limit_exceeded", "totals": [3, 3], "ops": [
+        {"op": "find_unmatched", "main": [["a", "10"]], "diff": [["c", "0" * 4301]]},
+    ]})
+    Cases.append({"name": "consume_int_digit_limit", "totals": [100, 100],
+                  "ratios_py": {(Limit, "20"): 1.0, (Over, "21"): 0.9}, "ops": [
+        {"op": "consume", "kind": "internal", "best": "best", "partial": "partial", "val": None,
+         "rows": [[Limit, "sub_A", "20", "sub_B", "h", 3, 3], [Over, "sub_C", "21", "sub_D", "h", 3, 3]]},
+    ]})
+    Cases.append({"name": "consume_int_separator", "totals": [100, 100],
+                  "ratios_py": {("\x0b6", "20"): 1.0, ("\x1c5", "21"): 1.0}, "ops": [
+        {"op": "consume", "kind": "internal", "best": "best", "partial": "partial", "val": None,
+         "rows": [["\x0b6", "sub_A", "20", "sub_B", "h", 3, 3], ["\x1c5", "sub_C", "21", "sub_D", "h", 3, 3]]},
+    ]})
+    Cases.append({"name": "final_pass_int_digit_limit", "totals": [100, 100], "ops": [
+        {"op": "set_state", "state_py": {
+            "best": [I(Limit, "a", "2", "b", "h", 1.0)],
+            "partial": [I("3", "c", "4", "d", "h2", 0.9), I("5", "e", Over, "f", "h3", 0.8)]}},
+        {"op": "final_pass"},
     ]})
     return Cases
 

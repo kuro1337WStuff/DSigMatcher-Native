@@ -312,6 +312,12 @@ size_t MatchState::SecondarySize() const { return Impl_->Secondary.Map.size(); }
 
 namespace {
 
+// SnapItem::Ea1 and SnapItem::Ea2 are plain strings in the frozen Snapshot.h, so an item address
+// that is None (kNoneAddr) is exported as the TEXT "None", where the oracle's snapshot holds JSON
+// null, and ImportItem reads it back as the text "None", a key distinct from None (Interner.h). This
+// applies to both ea1 and ea2. It is not reachable: SqlRowSource refuses NULL addresses (Database.cpp,
+// "A NULL or non-TEXT address never comes from a Diaphora export"), and the consumers' ea1 is
+// str(row["ea"]) (D:1910, D:2067), which is already the text "None" in Python (Consumer.cpp StrOfEa).
 SnapItem ExportItem(const Interners& Ids, const Item& It) {
   SnapItem Out;
   Out.Ea1 = std::string(Ids.AddrKeyText(It.Ea1));
