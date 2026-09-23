@@ -1,0 +1,395 @@
+name: Release
+
+# Builds the release archives for Windows x64, Linux x64 and macOS universal2, tests each one, checks
+# that each binary depends on nothing but the operating system, writes SHA256SUMS and creates a DRAFT
+# GitHub release. Nothing is ever published automatically: a maintainer reviews the draft and publishes it.
+#
+#   push of a tag vX.Y.Z   the tag must equal v<project(VERSION) in CMakeLists.txt>; creates the draft
+#   workflow_dispatch      builds and uploads the archives as workflow artifacts (a dry run); with
+#                          create_draft it also creates the draft for tag v<version> at the dispatched
+#                          commit (GitHub creates the tag only when the draft is published)
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      create_draft:
+        description: 'Also create a draft GitHub release (never published automatically)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # The four documents every archive carries next to the binary.
+  RELEASE_DOCS: LICENSE NOTICE THIRD_PARTY_NOTICES.md README.md
+
+jobs:
+  version:
+    name: Version and release documents
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Tag must equal v<CMake project version>
+        id: version
+        shell: bash
+        run: |
+          version=$(perl -0777 -ne 'print $1 if /project\s*\(\s*DSigMatcherNative\b[^)]*?\bVERSION\s+(\d+\.\d+\.\d+)\b/' CMakeLists.txt)
+          if [ -z "$version" ]; then
+            echo "::error file=CMakeLists.txt::could not read project(DSigMatcherNative VERSION x.y.z)"
+            exit 1
+          fi
+          tag="v$version"
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$GITHUB_REF_NAME" != "$tag" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match the CMake project version $version (expected $tag)"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "CMake project version $version, release tag $tag"
+
+      - name: Release documents must exist
+        shell: bash
+        run: |
+          missing=0
+          for doc in $RELEASE_DOCS; do
+            if [ ! -s "$doc" ]; then
+              echo "::error file=$doc::$doc is missing or empty at the repository root; every release archive must contain it"
+              missing=1
+            fi
+          done
+          exit $missing
+
+  windows:
+    name: Windows x64 (MSVC, static CRT)
+    needs: version
+    runs-on: windows-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      PACKAGE: dsigmatcher-${{ needs.version.outputs.version }}-windows-x64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up MSVC environment (x64)
+        shell: pwsh
+        run: ./.github/scripts/msvc-dev-env.ps1
+
+      # DSIG_STATIC_RUNTIME=ON (the default) builds every target, Zydis, Zycore and SQLite included, with /MT.
+      - name: Configure
+        shell: pwsh
+        run: >-
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DDSIG_STATIC_RUNTIME=ON
+          -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl
+
+      - name: Build
+        shell: pwsh
+        run: cmake --build build
+
+      - name: Test
+        shell: pwsh
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Dependencies must be Windows system DLLs only
+        shell: pwsh
+        run: |
+          $Output = dumpbin /nologo /dependents build\dsigmatcher.exe
+          $Output
+          if ($LASTEXITCODE -ne 0) { throw "dumpbin failed with exit code $LASTEXITCODE" }
+          $Dlls = foreach ($Line in $Output) {
+            if ($Line -match '^\s+([A-Za-z0-9_.-]+\.dll)\s*$') { $Matches[1].ToUpperInvariant() }
+          }
+          if (-not $Dlls) { throw 'dumpbin listed no DLL dependencies; the output format may have changed' }
+          # Operating-system DLLs only: no MSVCP140, VCRUNTIME140*, api-ms-win-crt-*, ucrtbase or sqlite3.
+          $Allowed = @('KERNEL32.DLL', 'SHELL32.DLL', 'USER32.DLL', 'ADVAPI32.DLL', 'BCRYPT.DLL', 'NTDLL.DLL',
+                       'OLE32.DLL', 'OLEAUT32.DLL', 'SHLWAPI.DLL', 'WS2_32.DLL', 'RPCRT4.DLL', 'VERSION.DLL')
+          $Unexpected = @($Dlls | Where-Object { $Allowed -notcontains $_ })
+          if ($Unexpected.Count -gt 0) {
+            Write-Output "::error::dsigmatcher.exe depends on non-system DLLs: $($Unexpected -join ', ')"
+            exit 1
+          }
+          Write-Output "dependencies: $($Dlls -join ', ')"
+
+      - name: Package
+        shell: pwsh
+        run: |
+          cmake --install build --prefix stage --component dsigmatcher
+          if ($LASTEXITCODE -ne 0) { throw 'cmake --install failed' }
+          # Flat layout: FindExportScript looks for dsig_export.py beside the executable first.
+          $Dir = "dist\$env:PACKAGE"
+          New-Item -ItemType Directory -Force -Path $Dir | Out-Null
+          Copy-Item stage\bin\dsigmatcher.exe $Dir
+          Copy-Item stage\share\dsigmatcher\tools\export\dsig_export.py $Dir
+          foreach ($Doc in $env:RELEASE_DOCS.Split(' ')) {
+            if (-not (Test-Path $Doc)) { throw "$Doc is missing at the repository root" }
+            Copy-Item $Doc $Dir
+          }
+          Compress-Archive -Path $Dir -DestinationPath "dist\$env:PACKAGE.zip"
+          Get-ChildItem -Recurse $Dir | Select-Object FullName, Length | Format-Table -AutoSize
+
+      - name: Smoke test the archive (empty folder, PATH = System32 only)
+        shell: pwsh
+        run: |
+          $Dir = Join-Path $env:RUNNER_TEMP 'smoke'
+          Expand-Archive "dist\$env:PACKAGE.zip" -DestinationPath $Dir
+          $Exe = Join-Path $Dir "$env:PACKAGE\dsigmatcher.exe"
+          $env:PATH = "$env:SystemRoot\System32"
+          $Lines = & $Exe --version
+          if ($LASTEXITCODE -ne 0) { throw "--version exited $LASTEXITCODE" }
+          $Lines
+          if ($Lines[0] -ne "dsigmatcher $env:VERSION") { throw "--version printed '$($Lines[0])', expected 'dsigmatcher $env:VERSION'" }
+          & $Exe --help | Select-Object -First 1
+
+      - name: Upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: pkg-windows-x64
+          path: dist/*.zip
+          if-no-files-found: error
+
+  linux:
+    # Alpine's musl links a fully static binary (DSIG_FULLY_STATIC=ON): no glibc version floor and no
+    # libstdc++/libgcc_s/libsqlite3 to find, so the same file runs on any x86-64 Linux.
+    name: Linux x64 (Alpine musl, fully static)
+    needs: version
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      PACKAGE: dsigmatcher-${{ needs.version.outputs.version }}-linux-x64
+      ALPINE_IMAGE: alpine:3.22
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Build, test and install in Alpine
+        run: |
+          docker run --rm -v "$PWD:/src" -w /src "$ALPINE_IMAGE" sh -euc '
+            apk add --no-cache build-base cmake samurai git linux-headers python3 file
+            echo "alpine $(cat /etc/alpine-release); $(gcc --version | head -n 1); $(cmake --version | head -n 1)"
+            cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DDSIG_FULLY_STATIC=ON
+            cmake --build build
+            ctest --test-dir build --output-on-failure
+            cmake --install build --prefix stage --component dsigmatcher --strip
+            chown -R "$(stat -c %u:%g /src)" build stage
+          '
+
+      - name: The binary must be fully static
+        run: |
+          bin=stage/bin/dsigmatcher
+          file "$bin"
+          if readelf -d "$bin" 2>/dev/null | grep -q '(NEEDED)'; then
+            readelf -d "$bin" | grep '(NEEDED)'
+            echo "::error::dsigmatcher has dynamic library dependencies"
+            exit 1
+          fi
+          if readelf -l "$bin" | grep -q 'Requesting program interpreter'; then
+            echo "::error::dsigmatcher requests a program interpreter (not a static executable)"
+            exit 1
+          fi
+          ldd "$bin" 2>&1 || true
+
+      - name: Smoke test on glibc distributions
+        run: |
+          for image in ubuntu:20.04 debian:12 almalinux:8; do
+            echo "--- $image"
+            out=$(docker run --rm -v "$PWD/stage:/pkg:ro" "$image" /pkg/bin/dsigmatcher --version)
+            echo "$out"
+            first=$(printf '%s\n' "$out" | head -n 1)
+            if [ "$first" != "dsigmatcher $VERSION" ]; then
+              echo "::error::$image: --version printed '$first', expected 'dsigmatcher $VERSION'"
+              exit 1
+            fi
+          done
+
+      - name: Package
+        run: |
+          dir="dist/$PACKAGE"
+          mkdir -p "$dir"
+          cp -R stage/bin stage/share "$dir/"
+          for doc in $RELEASE_DOCS; do
+            [ -f "$doc" ] || { echo "::error::$doc is missing at the repository root"; exit 1; }
+            cp "$doc" "$dir/"
+          done
+          tar -C dist -czf "dist/$PACKAGE.tar.gz" "$PACKAGE"
+          tar -tzvf "dist/$PACKAGE.tar.gz"
+
+      - name: Upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: pkg-linux-x64
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  macos:
+    # One universal2 binary (arm64 + x86_64). The deployment target is 26.0 because the parity engine uses
+    # floating-point std::from_chars (src/diff/Json.cpp), which Apple's libc++ provides from macOS 26.0 on;
+    # an older target fails to compile. libc++ and libSystem are part of the OS, SQLite is linked statically.
+    name: macOS universal2 (arm64 + x86_64)
+    needs: version
+    runs-on: macos-26
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      PACKAGE: dsigmatcher-${{ needs.version.outputs.version }}-macos-universal2
+      MACOS_DEPLOYMENT_TARGET: '26.0'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET="$MACOS_DEPLOYMENT_TARGET"
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Test (arm64)
+        run: ctest --test-dir build --output-on-failure
+
+      # Rosetta 2 runs the x86_64 slice. The whole suite runs when ctest itself is universal (a process
+      # started under Rosetta prefers the x86_64 slice of the universal test executables).
+      - name: Test (x86_64 under Rosetta)
+        run: |
+          if ! arch -x86_64 /usr/bin/true 2>/dev/null; then
+            echo "::error::Rosetta 2 is not available on this runner; the x86_64 slice cannot be tested"
+            exit 1
+          fi
+          out=$(arch -x86_64 build/dsigmatcher --version)
+          echo "$out"
+          [ "$(printf '%s\n' "$out" | head -n 1)" = "dsigmatcher $VERSION" ]
+          ctest_bin=$(command -v ctest)
+          if lipo -archs "$ctest_bin" 2>/dev/null | grep -qw x86_64; then
+            arch -x86_64 "$ctest_bin" --test-dir build --output-on-failure
+          else
+            echo "::warning::$ctest_bin has no x86_64 slice; running the unit suite only under x86_64"
+            arch -x86_64 build/dsigmatcher_tests
+          fi
+
+      - name: Architectures, deployment target and dependencies
+        run: |
+          bin=build/dsigmatcher
+          archs=$(lipo -archs "$bin")
+          echo "architectures: $archs"
+          for want in arm64 x86_64; do
+            echo " $archs " | grep -q " $want " || { echo "::error::$bin has no $want slice"; exit 1; }
+          done
+          status=0
+          for arch in arm64 x86_64; do
+            echo "--- $arch"
+            otool -arch "$arch" -l "$bin" | grep -A4 LC_BUILD_VERSION | grep -E 'minos|sdk' || true
+            deps=$(otool -arch "$arch" -L "$bin" | tail -n +2 | awk '{print $1}')
+            echo "$deps"
+            unexpected=$(printf '%s\n' "$deps" | grep -v -E '^/usr/lib/(libc\+\+\.1|libSystem\.B)\.dylib$' || true)
+            if [ -n "$unexpected" ]; then
+              echo "::error::$arch slice links non-system libraries: $unexpected"
+              status=1
+            fi
+          done
+          exit $status
+
+      - name: Package
+        run: |
+          cmake --install build --prefix stage --component dsigmatcher --strip
+          codesign --force --sign - stage/bin/dsigmatcher
+          codesign --verify --verbose stage/bin/dsigmatcher
+          out=$(stage/bin/dsigmatcher --version)
+          [ "$(printf '%s\n' "$out" | head -n 1)" = "dsigmatcher $VERSION" ]
+          dir="dist/$PACKAGE"
+          mkdir -p "$dir"
+          cp -R stage/bin stage/share "$dir/"
+          for doc in $RELEASE_DOCS; do
+            [ -f "$doc" ] || { echo "::error::$doc is missing at the repository root"; exit 1; }
+            cp "$doc" "$dir/"
+          done
+          tar -C dist -czf "dist/$PACKAGE.tar.gz" "$PACKAGE"
+          tar -tzvf "dist/$PACKAGE.tar.gz"
+
+      - name: Upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: pkg-macos-universal2
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  checksums:
+    name: SHA256SUMS
+    needs: [windows, linux, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download archives
+        uses: actions/download-artifact@v8
+        with:
+          pattern: pkg-*
+          path: dist
+          merge-multiple: true
+
+      - name: Write SHA256SUMS
+        working-directory: dist
+        run: |
+          ls -l
+          sha256sum -- *.zip *.tar.gz > SHA256SUMS
+          cat SHA256SUMS
+          [ "$(wc -l < SHA256SUMS)" -eq 3 ] || { echo "::error::expected 3 archives"; exit 1; }
+
+      - name: Upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-assets
+          path: dist/*
+          if-no-files-found: error
+
+  draft:
+    name: Draft GitHub release
+    needs: [version, checksums]
+    if: github.ref_type == 'tag' || inputs.create_draft
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ needs.version.outputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download release assets
+        uses: actions/download-artifact@v8
+        with:
+          name: release-assets
+          path: dist
+
+      - name: Create the draft (never published here)
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::a release for $TAG already exists; delete the old draft first"
+            exit 1
+          fi
+          notes=(--generate-notes)
+          if [ -f "docs/release-notes/$TAG.md" ]; then
+            notes=(--notes-file "docs/release-notes/$TAG.md")
+          fi
+          target=()
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            target=(--verify-tag)
+          else
+            if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null; then
+              echo "::error::tag $TAG already exists; push it to run this workflow on the tag instead"
+              exit 1
+            fi
+            target=(--target "$GITHUB_SHA")
+          fi
+          gh release create "$TAG" --draft --title "DSigMatcher Native $TAG" "${notes[@]}" "${target[@]}" dist/*
+          echo "Draft created for $TAG; review and publish it on GitHub."

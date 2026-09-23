@@ -11,13 +11,10 @@
 #include <unordered_map>
 
 #include "FileIo.h"
+#include "dsigmatcher/Version.h"
 #include "dsigmatcher/diff/Errors.h"
 #include "dsigmatcher/diff/StageSql.h"
 #include "dsigmatcher/diff/Stages.h"
-
-#ifndef DSIG_VERSION
-#define DSIG_VERSION "0.0.0"
-#endif
 
 namespace DSig::Diff {
 

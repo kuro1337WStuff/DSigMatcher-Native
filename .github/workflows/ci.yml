@@ -7,11 +7,39 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  # Committed files must not carry personal paths, account names or session identifiers (plan §7.1 D9;
+  # audit F20). The patterns are spelled so that this file does not match itself.
+  hygiene:
+    name: No personal paths in tracked files
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Scan tracked files
+        shell: bash
+        run: |
+          patterns=(
+            -e 'Users[\\/]+[A-Za-z0-9_]'
+            -e 'C-[-]Users-'
+            -e '\blok[i]\b'
+            -e 'cross[b]oss'
+            -e '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+          )
+          if git grep -n -I -i -E "${patterns[@]}" -- . ; then
+            echo "::error::tracked files contain personal paths, user names or session identifiers (see the lines above); use placeholders such as <scratch>, <corpus> or <diaphora-ref>"
+            exit 1
+          fi
+          echo "no personal paths found"
+
   build-and-test:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
@@ -34,11 +62,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
+      # ilammy/msvc-dev-cmd@v1 still runs on Node 20; this script does the same with vswhere + vcvars64.
       - name: Set up MSVC environment
         if: runner.os == 'Windows'
-        uses: ilammy/msvc-dev-cmd@v1
+        shell: pwsh
+        run: ./.github/scripts/msvc-dev-env.ps1
 
       # SQLite 3.51.1 (the parity oracle's) is bundled and built by CMake by default; only the
       # system-SQLite job installs one.

@@ -17,6 +17,7 @@
 #include "dsigmatcher/Naming.h"
 #include "dsigmatcher/Provenance.h"
 #include "dsigmatcher/Types.h"
+#include "dsigmatcher/Version.h"
 #include "dsigmatcher/cli/Commands.h"
 #include "dsigmatcher/diff/Pipeline.h"
 
@@ -29,10 +30,6 @@
 #endif
 #include <windows.h>
 #include <shellapi.h>
-#endif
-
-#ifndef DSIG_VERSION
-#define DSIG_VERSION "0.0.0"
 #endif
 
 namespace {
@@ -49,6 +46,7 @@ void PrintUsage() {
   std::printf("  dsigmatcher extract <in.i64|in.idb> -o <out.sqlite> [tool options]\n");
   std::printf("  dsigmatcher ingest <binary> -o <out.sqlite> [--pdb <file> | --no-pdb] [tool options]\n");
   std::printf("  dsigmatcher info <database.sqlite>\n");
+  std::printf("  dsigmatcher --version | -V       prints \"dsigmatcher <version>\" and the linked SQLite version\n");
   std::printf("\n");
   std::printf("diff (parity engine, the default): writes Diaphora's .diaphora results file. Without -o the\n");
   std::printf("name is <stem(db1)>_vs_<stem(db2)>.diaphora, as `python diaphora.py db1 db2` would choose.\n");
@@ -154,6 +152,7 @@ struct Parsed {
   std::map<std::string, std::string> Values;
   std::set<std::string> Flags;
   bool ShowHelp = false;
+  bool ShowVersion = false;
   bool Valid = true;
   std::string Error;
 
@@ -175,6 +174,10 @@ Parsed ParseArguments(int Argc, char** Argv) {
   Result.Command = Argv[1];
   if (Result.Command == "-h" || Result.Command == "--help" || Result.Command == "help") {
     Result.ShowHelp = true;
+    return Result;
+  }
+  if (Result.Command == "--version" || Result.Command == "-V" || Result.Command == "version") {
+    Result.ShowVersion = true;
     return Result;
   }
   static const std::set<std::string> Commands = {"diff", "port", "info", "extract", "ingest"};
@@ -746,6 +749,12 @@ int RunMain(int Argc, char** Argv) {
   if (Arguments.ShowHelp) {
     PrintUsage();
     return Arguments.Valid ? 0 : kExitUsage;
+  }
+  if (Arguments.ShowVersion) {
+    // The first line is the stable, machine-readable part: "dsigmatcher <major.minor.patch>".
+    std::printf("dsigmatcher %s\n", DSIG_VERSION);
+    std::printf("SQLite %s\n", sqlite3_libversion());
+    return 0;
   }
   if (!Arguments.Valid) {
     return UsageError(Arguments.Error);

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 project(DSigMatcherNative
-  VERSION 0.1.0
+  VERSION 1.0.0
   DESCRIPTION "Native C++ binary diffing engine"
   LANGUAGES C CXX)
 
@@ -12,6 +12,29 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "" FORCE)
 endif()
+
+# The C and C++ runtimes are linked statically by default, so a release binary runs from an unzipped folder
+# with no prerequisites:
+#   MSVC: /MT (/MTd for Debug) for every target, including Zydis, Zycore and the bundled SQLite. It is set
+#         before FetchContent so the dependencies inherit it (both set CMP0091 NEW themselves); dumpbin
+#         /dependents dsigmatcher.exe then lists only Windows system DLLs (no MSVCP140, VCRUNTIME140 or
+#         api-ms-win-crt-*).
+#   Linux (GCC or Clang): -static-libstdc++ -static-libgcc on every executable, so no GLIBCXX_ or
+#         libgcc_s requirement. DSIG_FULLY_STATIC=ON links fully statically (-static); it is meant for a
+#         musl toolchain (Alpine), which the release workflow uses. On glibc it links but warns, because
+#         glibc's dlopen and NSS functions cannot be linked statically.
+#   macOS: nothing to do; libc++ and libSystem are part of the OS.
+# A CMAKE_MSVC_RUNTIME_LIBRARY given on the command line wins.
+option(DSIG_STATIC_RUNTIME "Link the C/C++ runtime statically (MSVC /MT; -static-libstdc++ -static-libgcc on Linux)" ON)
+option(DSIG_FULLY_STATIC "Linux: link executables fully statically (-static; intended for musl)" OFF)
+if(DSIG_STATIC_RUNTIME AND NOT DEFINED CMAKE_MSVC_RUNTIME_LIBRARY)
+  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
+# The product version, generated from project(VERSION) into <build>/generated/dsigmatcher/Version.h. It is
+# the only definition of DSIG_VERSION: every translation unit that reports the version includes it.
+set(DSIG_GENERATED_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/generated")
+configure_file(cmake/Version.h.in "${DSIG_GENERATED_INCLUDE_DIR}/dsigmatcher/Version.h" @ONLY)
 
 find_package(Threads REQUIRED)
 
@@ -40,22 +63,44 @@ set(ZYDIS_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
 set(ZYDIS_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(ZYDIS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 
+# Both pinned by commit SHA (a tag can be moved). Zydis a2278f1 is the v4.1.1 release.
+# Zydis and Zycore bring their own install() rules (static libraries, headers, CMake packages). With
+# CMake 3.28 or later they are added EXCLUDE_FROM_ALL, which drops those rules, so a plain
+# `cmake --install <build>` installs only the tool. Older CMake keeps them, grouped into their own
+# install component: `cmake --install <build> --component dsigmatcher` installs only the tool everywhere
+# (the release workflow uses that form).
+set(_dsig_dep_exclude "")
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.28)
+  set(_dsig_dep_exclude EXCLUDE_FROM_ALL)
+endif()
+
 FetchContent_Declare(zycore
   GIT_REPOSITORY https://github.com/zyantific/zycore-c.git
-  GIT_TAG 75a36c45ae1ad382b0f4e0ede0af84c11ee69928)
+  GIT_TAG 75a36c45ae1ad382b0f4e0ede0af84c11ee69928
+  ${_dsig_dep_exclude})
 
 FetchContent_Declare(zydis
   GIT_REPOSITORY https://github.com/zyantific/zydis.git
-  GIT_TAG v4.1.1)
+  GIT_TAG a2278f1d254e492f6a6b39f6cb5d1f5d515659dc  # v4.1.1
+  ${_dsig_dep_exclude})
 
-# Zydis and Zycore bring their own install() rules (static libraries, headers, CMake packages). They
-# are grouped into their own install component, so `cmake --install <build> --component dsigmatcher`
-# installs only the tool (see the install rules below).
 set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME dsig_third_party)
 FetchContent_MakeAvailable(zycore)
 set(ZYAN_ZYCORE_PATH "${zycore_SOURCE_DIR}" CACHE PATH "" FORCE)
 FetchContent_MakeAvailable(zydis)
 unset(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME)
+
+# Static runtime on Linux (see DSIG_STATIC_RUNTIME above). Directory-wide, after the dependencies: it
+# applies to every executable defined below; static libraries are not linked, so they are unaffected.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+  if(DSIG_FULLY_STATIC)
+    # -z stack-size: musl sizes new threads' stacks from PT_GNU_STACK (default 128 KiB); 8 MiB matches the
+    # glibc default the ThreadPool workers are otherwise run with. glibc ignores it for threads.
+    add_link_options(-static -Wl,-z,stack-size=8388608)
+  elseif(DSIG_STATIC_RUNTIME)
+    add_link_options(-static-libstdc++ -static-libgcc)
+  endif()
+endif()
 
 function(dsig_apply_warnings Target)
   if(MSVC)
@@ -80,9 +125,8 @@ add_library(dsigmatcher_core STATIC
   src/Synth.cpp
   src/ThreadPool.cpp)
 
-target_include_directories(dsigmatcher_core PUBLIC include)
+target_include_directories(dsigmatcher_core PUBLIC include "${DSIG_GENERATED_INCLUDE_DIR}")
 target_link_libraries(dsigmatcher_core PUBLIC ${DSIG_SQLITE_TARGET} Threads::Threads Zydis)
-target_compile_definitions(dsigmatcher_core PUBLIC DSIG_VERSION="${PROJECT_VERSION}")
 dsig_apply_warnings(dsigmatcher_core)
 
 # ---------------------------------------------------------------------------------------------
@@ -150,6 +194,9 @@ if(WIN32)
   if(MSVC)
     target_sources(dsigmatcher PRIVATE src/dsigmatcher.manifest)
   endif()
+  # VERSIONINFO (file and product version) from project(VERSION).
+  configure_file(cmake/dsigmatcher.rc.in "${CMAKE_CURRENT_BINARY_DIR}/dsigmatcher.rc" @ONLY)
+  target_sources(dsigmatcher PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/dsigmatcher.rc")
 endif()
 
 # System SQLite only (DSIG_VENDORED_SQLITE=OFF; the bundled one is linked statically): stage the
@@ -198,6 +245,10 @@ if(WIN32 AND DSIG_SQLITE_DLL)
   install(FILES "${DSIG_SQLITE_DLL}" DESTINATION bin COMPONENT dsigmatcher)
 endif()
 
+# Tests and the benchmark (BUILD_TESTING, the CTest convention; default ON). OFF builds only the tool and
+# its libraries, e.g. for packaging after the tests have run.
+option(BUILD_TESTING "Build the unit and parity test suites and the benchmark" ON)
+if(BUILD_TESTING)
 enable_testing()
 
 add_executable(dsigmatcher_tests tests/dsigmatcher_tests.cpp)
@@ -293,4 +344,12 @@ add_test(NAME cli_install_layout
     -DCONFIG=$<CONFIG>
     -DEXE_NAME=$<TARGET_FILE_NAME:dsigmatcher>
     -DBUILT_EXE=$<TARGET_FILE:dsigmatcher>
+    -DCONFIGURE_CMAKE_VERSION=${CMAKE_VERSION}
     -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/cli/install_layout_test.cmake)
+
+# `dsigmatcher --version` prints "dsigmatcher <PROJECT_VERSION>" first and exits 0 (the release workflow
+# compares it with the tag).
+string(REPLACE "." "\\." _dsig_version_regex "${PROJECT_VERSION}")
+add_test(NAME cli_version COMMAND dsigmatcher --version)
+set_tests_properties(cli_version PROPERTIES PASS_REGULAR_EXPRESSION "^dsigmatcher ${_dsig_version_regex}[\r\n]")
+endif()  # BUILD_TESTING

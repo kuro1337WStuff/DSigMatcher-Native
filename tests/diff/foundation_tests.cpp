@@ -57,6 +57,7 @@
 #include "diff/ResultsCompare.h"
 #include "diff/TestHarness.h"
 #include "dsigmatcher/Sha256.h"
+#include "dsigmatcher/Version.h"
 #include "dsigmatcher/diff/Candidates.h"
 #include "dsigmatcher/diff/Config.h"
 #include "dsigmatcher/diff/Database.h"

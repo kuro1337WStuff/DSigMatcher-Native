@@ -2,7 +2,8 @@
 # export-script discovery by an installed executable that lives outside the source tree.
 #
 #   cmake -DBUILD_DIR=<build> -DSOURCE_DIR=<source> -DCONFIG=<config> -DEXE_NAME=<dsigmatcher[.exe]>
-#         -DBUILT_EXE=<build>/.../dsigmatcher[.exe] -P tests/cli/install_layout_test.cmake
+#         -DBUILT_EXE=<build>/.../dsigmatcher[.exe] [-DCONFIGURE_CMAKE_VERSION=<x.y.z>]
+#         -P tests/cli/install_layout_test.cmake
 #
 # src/cli/ExportBridge.cpp FindExportScript searches <exe dir>/dsig_export.py, then
 # <exe dir>/../share/dsigmatcher/tools/export/dsig_export.py, then tools/export/ in the executable's
@@ -89,6 +90,29 @@ foreach(Other include lib)
   endif()
 endforeach()
 Pass()
+# 2b. CMake 3.28+ adds Zydis and Zycore EXCLUDE_FROM_ALL (no install rules), so a plain install without
+#     --component installs the same clean layout
+if(DEFINED CONFIGURE_CMAKE_VERSION AND CONFIGURE_CMAKE_VERSION VERSION_GREATER_EQUAL 3.28)
+  set(PlainPrefix "${Prefix}-plain")
+  file(REMOVE_RECURSE "${PlainPrefix}")
+  execute_process(
+    COMMAND "${CMAKE_COMMAND}" --install "${BUILD_DIR}" --prefix "${PlainPrefix}" ${ConfigArgs}
+    RESULT_VARIABLE Code OUTPUT_VARIABLE Out ERROR_VARIABLE Err)
+  if(NOT Code EQUAL 0)
+    Fail("plain cmake --install exited ${Code}: ${Out}${Err}")
+  endif()
+  if(NOT EXISTS "${PlainPrefix}/bin/${EXE_NAME}")
+    Fail("the plain install has no bin/${EXE_NAME}")
+  endif()
+  foreach(Other include lib)
+    if(EXISTS "${PlainPrefix}/${Other}")
+      Fail("the plain install created ${PlainPrefix}/${Other} (third-party development files)")
+    endif()
+  endforeach()
+  file(REMOVE_RECURSE "${PlainPrefix}")
+  Pass()
+endif()
+
 if(WIN32 AND NOT EXISTS "${Prefix}/bin/sqlite3.dll")
   # Without a sqlite3.dll found next to the import library at configure time (CI stages vcpkg's DLL in
   # its workflow instead), the one beside the built executable is used so the installed copy can start.
