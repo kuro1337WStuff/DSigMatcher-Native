@@ -907,10 +907,17 @@ ProcessResult RunProcess(const std::vector<std::string>& Arguments,
   }
   PROCESS_INFORMATION Process{};
   const std::wstring Directory = WorkingDirectory.empty() ? std::wstring() : WorkingDirectory.native();
+  // The child inherits this process's error mode, and so does everything it starts. Without
+  // SEM_FAILCRITICALERRORS (the default under cmd.exe, PowerShell and Explorer) a failed DLL load in the
+  // worker, such as a broken or foreign idalib, raises a modal "Bad Image" hard error and the headless
+  // run blocks until someone clicks it. With it the load just fails and the script reports the error.
+  const UINT PreviousErrorMode = GetErrorMode();
+  SetErrorMode(PreviousErrorMode | SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
   const BOOL Created =
       CreateProcessW(Application.c_str(), CommandLine.data(), nullptr, nullptr, TRUE, Flags, Environment.data(),
                      Directory.empty() ? nullptr : Directory.c_str(), &Startup.StartupInfo, &Process);
   const DWORD CreateError = GetLastError();
+  SetErrorMode(PreviousErrorMode);
   if (AttributesOk) {
     DeleteProcThreadAttributeList(Attributes);
   }

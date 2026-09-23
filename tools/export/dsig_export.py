@@ -1434,8 +1434,33 @@ def RunWorker(SpecPath):
 
 # ----------------------------------------------------------------------------- entry
 
+SEM_FAILCRITICALERRORS = 0x0001
+SEM_NOOPENFILEERRORBOX = 0x8000
+
+
+def QuietHardErrors():
+    """Windows: a failed DLL load fails instead of raising a modal dialog.
+
+    Under cmd.exe, PowerShell or Explorer a process may show critical-error dialogs. When idapro then
+    loads a broken or foreign idalib, Windows raises a modal "Bad Image" hard error and the headless
+    run blocks until someone clicks it. The worker started by the driver inherits this mode. Returns
+    the new mode (None elsewhere, or when it cannot be set)."""
+    if sys.platform != "win32":
+        return None
+    try:
+        import ctypes
+        Kernel32 = ctypes.WinDLL("kernel32")
+        Kernel32.GetErrorMode.restype = ctypes.c_uint
+        Kernel32.SetErrorMode.argtypes = (ctypes.c_uint,)
+        Kernel32.SetErrorMode(Kernel32.GetErrorMode() | SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX)
+        return Kernel32.GetErrorMode()
+    except (OSError, AttributeError):
+        return None
+
+
 def Main(Argv=None):
     Argv = sys.argv[1:] if Argv is None else Argv
+    QuietHardErrors()
     if Argv[:1] == ["_worker"]:
         if len(Argv) != 2:
             LogError("usage: dsig_export.py _worker <spec.json>")

@@ -258,6 +258,22 @@ int RunChild(const std::string& Mode, int Argc, char** Argv) {
     }
     return 0;
   }
+#ifdef _WIN32
+  if (Mode == "error-mode") {
+    std::printf("ERRORMODE %u\n", GetErrorMode());
+    return 0;
+  }
+  if (Mode == "load-bad-image" && !Arguments.empty()) {
+    // What idapro does with a broken idalib. With critical-error dialogs on, this blocks on a modal
+    // "Bad Image" hard error until someone clicks it.
+    const HMODULE Module = LoadLibraryW(PathFromUtf8(Arguments[0]).c_str());
+    std::printf("LOADED %d\n", Module != nullptr ? 1 : 0);
+    if (Module != nullptr) {
+      FreeLibrary(Module);
+    }
+    return 0;
+  }
+#endif
   return 98;
 }
 
@@ -408,7 +424,7 @@ void TestSameFile(const std::string& Scratch) {
 
 // ------------------------------------------------------------------------------------------------ processes
 
-void TestRunProcess() {
+void TestRunProcess(const std::string& Scratch) {
   Test::Suite("process launch (this executable as the child)");
   const fs::path Self = SelfExecutablePath();
   CHECK(!Self.empty());
@@ -473,6 +489,38 @@ void TestRunProcess() {
     CHECK_NUM_EQ(Waited.ExitCode, 0);
     CHECK(Elapsed >= 1500);
   }
+
+#ifdef _WIN32
+  // A child that fails to load a DLL must not block on a modal hard-error dialog. cmd.exe, and so ctest
+  // under dsig_build.cmd, leaves those dialogs on; emulate that whatever started this suite.
+  Test::Suite("process launch: no hard-error dialogs in the child");
+  const UINT SavedMode = GetErrorMode();
+  SetErrorMode(0);
+  const ProcessResult ModeRun = RunProcess({PathToUtf8(Self)}, {{"DSIG_TEST_CHILD_MODE", "error-mode"}}, 60, nullptr);
+  CHECK_NUM_EQ(GetErrorMode(), 0u);  // this process's own mode is restored
+  unsigned ChildMode = 0;
+  for (const std::string& Line : SplitLines(ModeRun.Tail)) {
+    if (Line.rfind("ERRORMODE ", 0) == 0) {
+      ChildMode = static_cast<unsigned>(std::strtoul(Line.c_str() + 10, nullptr, 10));
+    }
+  }
+  CHECK(ModeRun.Started);
+  CHECK_NUM_EQ(ChildMode & (SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX),
+               static_cast<unsigned>(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX));
+  const fs::path BadImage = PathFromUtf8(Scratch) / "bad image" / "idalib.dll";
+  std::error_code Error;
+  fs::create_directories(BadImage.parent_path(), Error);
+  WriteFile(BadImage, "x");
+  const ProcessResult Load = RunProcess({PathToUtf8(Self), PathToUtf8(BadImage)},
+                                        {{"DSIG_TEST_CHILD_MODE", "load-bad-image"}}, 60, nullptr);
+  CHECK(Load.Started);
+  CHECK(!Load.TimedOut);
+  CHECK_NUM_EQ(Load.ExitCode, 0);
+  CHECK(Contains(Load.Tail, "LOADED 0"));
+  SetErrorMode(SavedMode);
+#else
+  (void)Scratch;
+#endif
 }
 
 // F44: on POSIX the script runs in its own process group, which the bridge signals as a whole.
@@ -1180,6 +1228,12 @@ void TestWithRealPython(const std::string& Scratch, const std::optional<std::str
   fs::create_directories(Fake.Root / "empty idausr", Error);
   SetEnv("IDAUSR", PathToUtf8(Fake.Root / "empty idausr"));  // the user's IDA directory is not read
   SetEnv("PYTHONPATH", PathToUtf8(Poison));
+#ifdef _WIN32
+  // As under cmd.exe and ctest: critical-error dialogs on. The worker's idapro then loads the
+  // placeholder idalib; that must fail, not block the run behind a modal "Bad Image" dialog.
+  const UINT SavedMode = GetErrorMode();
+  SetErrorMode(0);
+#endif
   IngestArgs Args;
   Args.Input = PathToUtf8(Fake.Input);
   Args.Output = PathToUtf8(Fake.Output);
@@ -1189,7 +1243,11 @@ void TestWithRealPython(const std::string& Scratch, const std::optional<std::str
   Args.Tools.IdaDir = PathToUtf8(Fake.IdaDir);  // a placeholder idalib: the worker stops at "IDA not usable"
   Args.Tools.DiaphoraDir = PathToUtf8(Fake.DiaphoraDir);
   Args.Tools.TempDir = PathToUtf8(Fake.TempDir);
+  Args.Tools.TimeoutSeconds = 180;  // a regression fails the suite instead of hanging it
   const CommandOutcome Outcome = RunIngest(Args);
+#ifdef _WIN32
+  SetErrorMode(SavedMode);
+#endif
   SetEnv("PYTHONPATH", Saved);
   SetEnv("IDAUSR", SavedIdaUsr);
   CHECK(!Contains(Outcome.Message, "exit 42"));
@@ -1545,7 +1603,7 @@ int main(int Argc, char** Argv) {
   TestExitMapping();
   TestToolErrorLine();
   TestSameFile(Scratch);
-  TestRunProcess();
+  TestRunProcess(Scratch);
   TestBatchRefusal(Scratch);
   TestProcessGroup(Scratch);
   TestFakeExports(Scratch);

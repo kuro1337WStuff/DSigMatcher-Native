@@ -13,7 +13,8 @@ alias the input or the PDB (F02), git is never taken from the current directory 
 was killed leaves no work directory behind for long (F43), a run whose launcher died publishes
 nothing (F44), a --timeout too large for the platform is refused (F42), a Hex-Rays refusal names the
 variable that works through dsigmatcher (F46), an input without functions is "unsupported input"
-(F57 d), and the caller's PYTHON* variables never reach the worker (F66). Prints "<n> checks, <f>
+(F57 d), the caller's PYTHON* variables never reach the worker (F66), and on Windows a broken idalib
+cannot block the run behind a modal "Bad Image" hard-error dialog. Prints "<n> checks, <f>
 failed" and exits non-zero on failure.
 
     python -B tools/export/selftest_dsig_export.py
@@ -156,6 +157,22 @@ def TestSmallPieces():
                 os.environ.pop(Key, None)
             else:
                 os.environ[Key] = Value
+    if sys.platform == "win32":
+        # A broken idalib must not block the run behind a modal "Bad Image" dialog: the script turns
+        # critical-error dialogs off, whatever mode it was started with (cmd.exe and ctest: on).
+        import ctypes
+        Kernel32 = ctypes.WinDLL("kernel32")
+        Kernel32.GetErrorMode.restype = ctypes.c_uint
+        Kernel32.SetErrorMode.argtypes = (ctypes.c_uint,)
+        Saved = Kernel32.GetErrorMode()
+        Kernel32.SetErrorMode(0)
+        try:
+            Mode = dsig_export.QuietHardErrors()
+            Wanted = dsig_export.SEM_FAILCRITICALERRORS | dsig_export.SEM_NOOPENFILEERRORBOX
+            Check(Mode is not None and Mode & Wanted == Wanted, "critical-error dialogs are off (mode %r)" % Mode)
+            Check(Kernel32.GetErrorMode() & Wanted == Wanted, "the process error mode was changed")
+        finally:
+            Kernel32.SetErrorMode(Saved)
 
 
 def TestDriverChecks(Dir):

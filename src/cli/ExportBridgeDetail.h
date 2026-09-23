@@ -114,7 +114,9 @@ struct ProcessResult {
 // honoured in full (waits are chunked, nothing is narrowed to 32 bits).
 //   Windows: CreateProcessW with a quoted UTF-16 command line in WorkingDirectory (when not empty),
 //   only the pipe and the null device inherited, and a kill-on-close job object so the whole tree dies
-//   on timeout or when this process exits.
+//   on timeout or when this process exits. The child starts with SEM_FAILCRITICALERRORS and
+//   SEM_NOOPENFILEERRORBOX added to the inherited error mode, so a failed DLL load in it fails instead of
+//   blocking the run behind a modal "Bad Image" dialog.
 //   POSIX: posix_spawn into a new process group, so a timeout (SIGTERM, then SIGKILL after 30 s) reaches
 //   the script and its IDA worker together; SIGINT/SIGTERM/SIGHUP received meanwhile are forwarded to
 //   that group; stragglers in the group are killed once the script has exited (audit F44).
