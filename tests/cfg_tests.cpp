@@ -65,8 +65,14 @@ void NoteNumber(const char* Label, long long Value) {
   ReportText(std::string(A) == std::string(B), #A " == " #B, std::string(A), std::string(B), \
              __FILE__, __LINE__)
 
-const char* const CorpusWin32u =
-    R"(<corpus>\win32u\win32u_100261009168\win32u.dll)";
+#ifndef DSIG_CORPUS_ROOT
+#define DSIG_CORPUS_ROOT "corpus"
+#endif
+
+// The corpus root comes from the DSIG_CORPUS_ROOT CMake cache variable; the tests skip when it is absent.
+const std::string CorpusWin32uPath =
+    std::string(DSIG_CORPUS_ROOT) + "/win32u/win32u_100261009168/win32u.dll";
+const char* const CorpusWin32u = CorpusWin32uPath.c_str();
 
 const uint64_t TestRuntimeBase = 0x140001000ull;
 

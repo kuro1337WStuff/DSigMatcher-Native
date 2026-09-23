@@ -222,6 +222,10 @@ add_executable(dsigmatcher_cfg_tests tests/cfg_tests.cpp)
 target_link_libraries(dsigmatcher_cfg_tests PRIVATE dsigmatcher_core)
 dsig_apply_warnings(dsigmatcher_cfg_tests)
 add_test(NAME controlflowgraph COMMAND dsigmatcher_cfg_tests)
+if(DSIG_CORPUS_ROOT)
+  target_compile_definitions(dsigmatcher_cfg_tests PRIVATE
+    DSIG_CORPUS_ROOT="${DSIG_CORPUS_ROOT}")
+endif()
 
 # ---------------------------------------------------------------------------------------------
 # Parity suites (plan §2.6, §3.12). Corpus- and SQLite-3.51.1-dependent tests skip without them.

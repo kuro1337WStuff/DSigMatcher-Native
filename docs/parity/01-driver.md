@@ -39,7 +39,7 @@ and `check_ratio`/`deep_ratio` are specified elsewhere; this document covers eve
 Reference revision: `<diaphora-ref>` at `621ec26` (`git describe` = `3.4.2-4-g621ec26`).
 `git diff 3.4.2 HEAD --stat` touches only `README.md` and `diaphora_ida.py` (4 lines). `diaphora.py`,
 `diaphora_config.py`, `diaphora_heuristics.py`, `jkutils/` and `scripts/` are byte-identical to tag
-3.4.2. The oracle Python is `<python-home>/python.exe`: Python 3.13.12, SQLite 3.51.1,
+3.4.2. The oracle Python is `<conda>/python.exe`: Python 3.13.12, SQLite 3.51.1,
 no `cdifflib` (stdlib `difflib` is used), and sklearn/joblib/pandas present, so `ML_AVAILABLE=True`
 but unused. No `DIAPHORA_*` or `PYTHONHASHSEED` environment variables are set on this PC.
 

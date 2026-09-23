@@ -25,7 +25,7 @@
 |---|---|---|
 | Diaphora checkout | `621ec2699255fa709b2ee422cd919b38f088f16b`, `git describe` = `3.4.2-4-g621ec26`, which is 4 commits after tag 3.4.2 | `git -C <diaphora-ref> describe --tags` |
 | Python | `3.13.12 \| packaged by Anaconda, Inc. \| (main, Feb 24 2026, 16:05:56) [MSC v.1942 64 bit (AMD64)]` | `sys.version` |
-| difflib | `<python-home>\Lib\difflib.py`, 2056 lines, md5 `60d095550edf66222f142d8bbb9feff5` | `difflib.__file__`, `md5sum` |
+| difflib | `<conda>\Lib\difflib.py`, 2056 lines, md5 `60d095550edf66222f142d8bbb9feff5` | `difflib.__file__`, `md5sum` |
 | cdifflib | **not installed**: `ModuleNotFoundError: No module named 'cdifflib'` | `python -c "import cdifflib"` |
 | sklearn / joblib / pandas | importable, sklearn 1.8.0, so `ML_AVAILABLE = True`, but see §4.5 | `python -c "import sklearn, joblib, pandas"` |
 
@@ -1509,7 +1509,7 @@ Called only from `check_ratio` when `self.relaxed_ratio`, `ast1 is not None`, `a
 
 ## Verification log (adversarial review, 2026-09-23)
 
-This is an independent re-check of every behavioural claim, quoted excerpt and line number in this file. It was checked against Diaphora `621ec26` (`3.4.2-4-g621ec26`, working tree clean) and against `<python-home>\Lib\difflib.py` (md5 `60d095550edf66222f142d8bbb9feff5`, 2056 lines) on Python 3.13.12.
+This is an independent re-check of every behavioural claim, quoted excerpt and line number in this file. It was checked against Diaphora `621ec26` (`3.4.2-4-g621ec26`, working tree clean) and against `<conda>\Lib\difflib.py` (md5 `60d095550edf66222f142d8bbb9feff5`, 2056 lines) on Python 3.13.12.
 
 The experiments ran on a `git archive HEAD` copy of Diaphora under scratch `v03b/dref/`, with `python -B`, so `<diaphora-ref>` was not modified by this review. Note that `diaphora-ref` already contains git-ignored `__pycache__/` directories, with timestamps 00:04 and 00:07 from earlier agents' imports. They were left untouched.
 

@@ -27,7 +27,7 @@ Evidence legend: `D:` = `<diaphora-ref>/diaphora.py`, `H:` = `diaphora_heuristic
 - The checkout is `3.4.2-4-g621ec26`, 4 commits after the tag. `git diff 3.4.2 HEAD` touches only `README.md` and CSS colours in `diaphora_ida.py`, at line 3864 and later.
 - So every `D:`/`H:`/`C:`/`S:` line number, and every cited `diaphora_ida.py` line below 3864, is the same at the tag.
 
-Native paths are relative to `<worktree>`. "OBSERVED" marks something verified by running code during this investigation (Section 1.3). "NOT DETERMINED FROM SOURCE" marks behaviour that depends on SQLite or CPython internals that the source does not specify.
+Native paths are relative to `<repo>`. "OBSERVED" marks something verified by running code during this investigation (Section 1.3). "NOT DETERMINED FROM SOURCE" marks behaviour that depends on SQLite or CPython internals that the source does not specify.
 
 ---
 
@@ -39,7 +39,7 @@ Native paths are relative to `<worktree>`. "OBSERVED" marks something verified b
 <dsig-tools>\dsig_build.cmd <src-dir> <build-dir> test
 ```
 
-Verified run: `dsig_build.cmd <worktree> <scratch>\b07 test` printed `BUILD_CLEAN`, then `100% tests passed, 0 tests failed out of 5`, then `TESTS_PASSED`. Re-verified in a fresh build directory during verification. There were **no compiler warnings**. A fresh configure does print one `CMake Deprecation Warning at .../deps/zydis-src/CMakeLists.txt:1 (cmake_minimum_required)`, which comes from the vendored Zydis and not from our code. `BUILD_CLEAN` only means that `cmake --build` succeeded. It is printed even when there are warnings, so the zero-warning check has to grep the log.
+Verified run: `dsig_build.cmd <repo> <scratch>\b07 test` printed `BUILD_CLEAN`, then `100% tests passed, 0 tests failed out of 5`, then `TESTS_PASSED`. Re-verified in a fresh build directory during verification. There were **no compiler warnings**. A fresh configure does print one `CMake Deprecation Warning at .../deps/zydis-src/CMakeLists.txt:1 (cmake_minimum_required)`, which comes from the vendored Zydis and not from our code. `BUILD_CLEAN` only means that `cmake --build` succeeded. It is printed even when there are warnings, so the zero-warning check has to grep the log.
 
 What the script does, verbatim (`dsig-tools/dsig_build.cmd`):
 
@@ -48,7 +48,7 @@ call "C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\v
 set "DEPS=<dsig-tools>\deps"
 if not exist "%BLD%\CMakeCache.txt" (
   cmake -S "%SRC%" -B "%BLD%" -G Ninja -DCMAKE_BUILD_TYPE=Release ^
-    -DCMAKE_PREFIX_PATH=<python-home>/Library ^
+    -DCMAKE_PREFIX_PATH=<conda>/Library ^
     -DDSIG_CORPUS_ROOT=<corpus> ^
     -DFETCHCONTENT_SOURCE_DIR_ZYDIS=%DEPS%\zydis-src ^
     -DFETCHCONTENT_SOURCE_DIR_ZYCORE=%DEPS%\zycore-src ^
@@ -57,7 +57,7 @@ if not exist "%BLD%\CMakeCache.txt" (
 cmake --build "%BLD%" || (echo BUILD_FAILED & exit /b 1)
 echo BUILD_CLEAN
 if /i "%~3"=="test" (
-  set "PATH=<python-home>\Library\bin;%PATH%"
+  set "PATH=<conda>\Library\bin;%PATH%"
   ctest --test-dir "%BLD%" --output-on-failure || (echo TESTS_FAILED & exit /b 1)
   echo TESTS_PASSED
 )
@@ -1533,7 +1533,7 @@ Stages (equal, dirty, same-name, small-diff, loop, final pass) read/write MatchS
   - the md cast.
 
   It depends on using the **same SQLite build** and **the same files**.
-  - The build is 3.51.1. `CMakeCache.txt` OBSERVED `SQLite3_INCLUDE_DIR=<python-home>/Library/include`, `SQLite3_LIBRARY=.../Library/lib/sqlite3.lib`, and the header's `SQLITE_VERSION "3.51.1"`. Python reports `sqlite3.sqlite_version == '3.51.1'`.
+  - The build is 3.51.1. `CMakeCache.txt` OBSERVED `SQLite3_INCLUDE_DIR=<conda>/Library/include`, `SQLite3_LIBRARY=.../Library/lib/sqlite3.lib`, and the header's `SQLITE_VERSION "3.51.1"`. Python reports `sqlite3.sqlite_version == '3.51.1'`.
   - The files matter because `sqlite_stat1` from the exporter's `analyze` (`D:634-649`, called from `diaphora_ida.py:1281`) steers the planner. OBSERVED: all 7 real exports have `sqlite_stat1` and 44 indices.
 
   It is not Python, so it satisfies the "native C++, minimal Python" rule. Caveats:

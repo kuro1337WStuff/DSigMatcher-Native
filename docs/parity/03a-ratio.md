@@ -16,7 +16,7 @@ I checked every claim below against the real `CBinDiff.check_ratio` and `compare
 
 Environment of record:
 - Diaphora `<diaphora-ref>`, commit `621ec26` (`git describe`: `3.4.2-4-g621ec26`).
-- Python 3.13.12 (`<python-home>/python.exe`), using stdlib `difflib` (cdifflib is **not** installed; `import cdifflib` raises `ModuleNotFoundError`).
+- Python 3.13.12 (`<conda>/python.exe`), using stdlib `difflib` (cdifflib is **not** installed; `import cdifflib` raises `ModuleNotFoundError`).
 - SQLite 3.51.1, from `sqlite3.sqlite_version`. This is the same version as `miniconda3/Library/include/sqlite3.h`, which the C++ build links.
 
 ---
@@ -93,7 +93,7 @@ def quick_ratio(buf1, buf2):
   return seq.quick_ratio()
 ```
 
-`SequenceMatcher` is `difflib.SequenceMatcher`, because cdifflib is absent (`diaphora.py:41-49`). Here is the stdlib code that runs, from `<python-home>\Lib\difflib.py` (Python 3.13.12):
+`SequenceMatcher` is `difflib.SequenceMatcher`, because cdifflib is absent (`diaphora.py:41-49`). Here is the stdlib code that runs, from `<conda>\Lib\difflib.py` (Python 3.13.12):
 
 ```python
 # difflib.py:39-42
@@ -523,7 +523,7 @@ Python `float()` also accepts `_` digit separators and `"infinity"`. `std::from_
 
 **Compare as doubles, never as strings.** In a sample of 3,000 random edge-order permutations, `str(Decimal sum)` differed in 712 cases while the doubles were identical in all of them. The mutation "compare md strings" changed 361-545 of 6,400 ratios.
 
-**Port.** At load time store both `md_sqlite` (read with `sqlite3_column_double`) and `md_py` (`std::from_chars` of the TEXT) per function. `sqlite3_column_double` and `CAST(... AS REAL)` share one converter: in the SQLite 3.53.0 amalgamation, `sqlite3VdbeMemRealify` does `pMem->u.r = sqlite3VdbeRealValue(pMem)`, and `sqlite3_value_double` returns `sqlite3VdbeRealValue((Mem*)pVal)`. Both reach `sqlite3AtoF`. I read this in the 3.53.0 amalgamation (`<sqlite-amalgamation>/sqlite3.c`: `sqlite3VdbeMemCast` case `SQLITE_AFF_REAL` gives `sqlite3VdbeMemRealify` at 86361-86385, `sqlite3VdbeMemRealify` at 86284-86292, `sqlite3VdbeRealValue` at 86205-86219, `sqlite3_column_double` gives `sqlite3_value_double` at 94904 and 93704-93706). **Verified empirically on 3.51.1 as well.** Through ctypes against `miniconda3/Library/bin/sqlite3.dll` (3.51.1, the same library Python's `_sqlite3` reports), I read 200,001 md strings stored in a TEXT column. `sqlite3_column_double(md_index)` and `CAST(md_index AS REAL)` were bit-identical for all of them; the 3.53.0 amalgamation, built here with MSVC, gave the same result. Use `md_sqlite` for SQL-heuristic callers and `md_py` for `compare_function_rows` callers. Because of the cache (§8), the first call for a pair wins.
+**Port.** At load time store both `md_sqlite` (read with `sqlite3_column_double`) and `md_py` (`std::from_chars` of the TEXT) per function. `sqlite3_column_double` and `CAST(... AS REAL)` share one converter: in the SQLite 3.53.0 amalgamation, `sqlite3VdbeMemRealify` does `pMem->u.r = sqlite3VdbeRealValue(pMem)`, and `sqlite3_value_double` returns `sqlite3VdbeRealValue((Mem*)pVal)`. Both reach `sqlite3AtoF`. I read this in the 3.53.0 amalgamation (`<home>/<other-project>/node_modules/better-sqlite3/deps/sqlite3/sqlite3.c`: `sqlite3VdbeMemCast` case `SQLITE_AFF_REAL` gives `sqlite3VdbeMemRealify` at 86361-86385, `sqlite3VdbeMemRealify` at 86284-86292, `sqlite3VdbeRealValue` at 86205-86219, `sqlite3_column_double` gives `sqlite3_value_double` at 94904 and 93704-93706). **Verified empirically on 3.51.1 as well.** Through ctypes against `miniconda3/Library/bin/sqlite3.dll` (3.51.1, the same library Python's `_sqlite3` reports), I read 200,001 md strings stored in a TEXT column. `sqlite3_column_double(md_index)` and `CAST(md_index AS REAL)` were bit-identical for all of them; the 3.53.0 amalgamation, built here with MSVC, gave the same result. Use `md_sqlite` for SQL-heuristic callers and `md_py` for `compare_function_rows` callers. Because of the cache (§8), the first call for a pair wins.
 
 **SQLite version dependence (measured).** I ran `CAST(? AS REAL)` over the same 200,000 synthetic 28-digit `str(Decimal)` strings with every 64-bit SQLite DLL on this PC (script `scratchpad/v03a/onedll.py`):
 

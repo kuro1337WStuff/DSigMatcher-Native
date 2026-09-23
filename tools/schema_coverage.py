@@ -12,7 +12,7 @@ import re
 import sqlite3
 import sys
 
-DIAPHORA_REF = r"<diaphora-ref>"
+DIAPHORA_REF = os.environ.get("DSIG_DIAPHORA_DIR", "diaphora-ref")  # unmodified Diaphora checkout
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 EXPORT_CPP = os.path.join(PROJECT_ROOT, "src", "ExportDatabase.cpp")

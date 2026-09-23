@@ -23,7 +23,7 @@
 ## 0. Provenance and method
 
 - **Reference.** `<diaphora-ref>`, `git describe` = `3.4.2-4-g621ec26`. `git diff 3.4.2 HEAD --stat` touches only `README.md` and `diaphora_ida.py`, so `diaphora_heuristics.py`, `diaphora.py`, `diaphora_config.py`, `jkutils/threads.py` and `db_support/schema.py` are the 3.4.2 files.
-- **Runtime.** `<python-home>/python.exe` is 3.13.12 with SQLite **3.51.1**. `pragma compile_options` shows no ICU and no STAT4, so `ANALYZE` writes `sqlite_stat1` only and LIKE folds ASCII only.
+- **Runtime.** `<conda>/python.exe` is 3.13.12 with SQLite **3.51.1**. `pragma compile_options` shows no ICU and no STAT4, so `ANALYZE` writes `sqlite_stat1` only and LIKE folds ASCII only.
 - **Experiments.** All ran on a `git archive` copy of the reference in the session scratchpad (`.../scratchpad/exp/`), with `PYTHONDONTWRITEBYTECODE=1`. The reference tree was not modified. Nothing was committed.
   - `order_probe.py` builds two synthetic exports with Diaphora's own `schema.TABLES` + `INDICES` + `analyze`, runs `CBinDiff.diff` and records which heuristic each `add_matches_from_*` call belongs to.
   - `unrel_probe.py` does the same for the Unreliable pass and also records the chooser of each `add_match`.
