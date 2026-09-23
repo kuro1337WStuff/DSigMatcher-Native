@@ -7,6 +7,7 @@
 
 #include <sqlite3.h>
 
+#include <cctype>
 #include <cstdint>
 #include <cstdio>
 #include <filesystem>
@@ -645,6 +646,322 @@ void TestPathSafety(const std::string& Dir) {
   CHECK_NUM_EQ(Cli::RunPortFromResults(Args(S.Ref, S.Target, Missing, S.Results)).ExitCode, Cli::kExitIo);
 }
 
+// Every regular file of a directory with its sha256: "nothing was deleted, created or changed".
+std::map<std::string, std::string> DirState(const std::string& Dir) {
+  std::map<std::string, std::string> State;
+  std::error_code Error;
+  for (const auto& Entry : std::filesystem::directory_iterator(Dir, Error)) {
+    if (Entry.is_regular_file(Error)) {
+      State[Entry.path().filename().string()] = FileSha(Entry.path().string());
+    }
+  }
+  return State;
+}
+
+std::string DescribeState(const std::map<std::string, std::string>& State) {
+  std::string Text;
+  for (const auto& [Name, Sha] : State) {
+    Text += (Text.empty() ? "" : ", ") + Name + "=" + Sha.substr(0, 8);
+  }
+  return Text;
+}
+
+// A target export whose last transaction still sits in its -wal (committed frames, not checkpointed).
+bool AddCommittedWalFrame(const std::string& Path) {
+#ifdef SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE
+  sqlite3* Db = nullptr;
+  if (sqlite3_open_v2(Path.c_str(), &Db, SQLITE_OPEN_READWRITE, nullptr) != SQLITE_OK) {
+    sqlite3_close(Db);
+    return false;
+  }
+  int Disabled = 0;
+  sqlite3_db_config(Db, SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, 1, &Disabled);
+  const bool Ok = Exec(Db, "update functions set comment = 'wal frame' where id = 1");
+  sqlite3_close(Db);
+  return Ok && Exists(Path + "-wal") && std::filesystem::file_size(Path + "-wal") > 0;
+#else
+  (void)Path;
+  return false;
+#endif
+}
+
+void TestAliasHelpers(const std::string& Dir) {
+  DSig::Test::Suite("path aliasing: DatabaseFileSet / SameFilePath / FindPathAlias");
+  std::error_code Error;
+  std::filesystem::create_directories(std::filesystem::path(Dir) / "sub", Error);
+  const std::string A = (std::filesystem::path(Dir) / "a.sqlite").string();
+  CHECK(CreateExport(A, {{R(1), "Alpha"}}, 0x10, false));
+
+  const std::vector<NamedPath> Set = DatabaseFileSet("the output", A);
+  CHECK_NUM_EQ(Set.size(), 4);
+  if (Set.size() == 4) {
+    CHECK_TEXT_EQ(Set[0].Path, A);
+    CHECK_TEXT_EQ(Set[1].Path, A + "-wal");
+    CHECK_TEXT_EQ(Set[2].Path, A + "-shm");
+    CHECK_TEXT_EQ(Set[3].Path, A + "-journal");
+    CHECK_TEXT_EQ(Set[3].Role, "the output's -journal file");
+  }
+  CHECK(DatabaseFileSet("x", "").empty());
+
+  const std::string Dotted = (std::filesystem::path(Dir) / "sub" / ".." / "." / "a.sqlite").string();
+  CHECK(SameFilePath(A, A));
+  CHECK(SameFilePath(A, Dotted));                    // exists: equivalent()
+  CHECK(SameFilePath(A + "-wal", Dotted + "-wal"));  // absent: canonical spelling
+  CHECK(!SameFilePath(A, A + "-wal"));
+  CHECK(!SameFilePath(A, (std::filesystem::path(Dir) / "sub" / "a.sqlite").string()));
+  const std::string Link = (std::filesystem::path(Dir) / "hard link.sqlite").string();
+  std::filesystem::create_hard_link(A, Link, Error);
+  if (!Error) {
+    CHECK(SameFilePath(A, Link));  // one file, two names
+  } else {
+    DSig::Test::Note("hard links not supported here: " + Error.message());
+  }
+#if defined(_WIN32)
+  std::string Upper = A;
+  for (char& Ch : Upper) {
+    Ch = static_cast<char>(std::toupper(static_cast<unsigned char>(Ch)));
+  }
+  CHECK(SameFilePath(A, Upper));                        // NTFS ignores case: exists
+  CHECK(SameFilePath(A + "-journal", Upper + "-JOURNAL"));  // ... and for a name that does not exist yet
+#endif
+  const auto Hit = FindPathAlias(DatabaseFileSet("the output", Dotted + "-wal"), DatabaseFileSet("the target database", A));
+  CHECK(Hit.has_value());
+  if (Hit) {
+    CHECK(Hit->find("the output '") == 0);
+    CHECK(Hit->find("is the target database's -wal file '") != std::string::npos);
+    CHECK(Hit->find("refusing to overwrite an input") != std::string::npos);
+  }
+  CHECK(!FindPathAlias(DatabaseFileSet("the output", (std::filesystem::path(Dir) / "b.sqlite").string()),
+                       DatabaseFileSet("the target database", A)));
+}
+
+// The verifier's reproduction and every other derived-path alias: the output, "<output>.dsig-tmp" and
+// the -wal/-shm/-journal sidecars of both against the reference, the target, the results file and
+// their sidecars. Each case runs in its own directory and must leave every file of it untouched.
+void TestDerivedPathAliases(const std::string& Dir) {
+  DSig::Test::Suite("port --results: no written file (temporary, sidecars) aliases an input or its sidecars");
+  struct Case {
+    const char* Label;
+    const char* Ref;
+    const char* Target;
+    const char* Results;
+    const char* Out;
+    bool TargetWal = false;  // leave committed frames in the target's -wal
+  };
+  const Case Cases[] = {
+      {"target is <out>.dsig-tmp (verifier)", "ref.sqlite", "out.sqlite.dsig-tmp", "r.diaphora", "out.sqlite"},
+      {"reference is <out>.dsig-tmp", "out.sqlite.dsig-tmp", "target.sqlite", "r.diaphora", "out.sqlite"},
+      {"results is <out>.dsig-tmp", "ref.sqlite", "target.sqlite", "out.sqlite.dsig-tmp", "out.sqlite"},
+      {"target is <out>-journal", "ref.sqlite", "out.sqlite-journal", "r.diaphora", "out.sqlite"},
+      {"target is <out>-wal", "ref.sqlite", "out.sqlite-wal", "r.diaphora", "out.sqlite"},
+      {"reference is <out>-shm", "out.sqlite-shm", "target.sqlite", "r.diaphora", "out.sqlite"},
+      {"target is <out>.dsig-tmp-journal", "ref.sqlite", "out.sqlite.dsig-tmp-journal", "r.diaphora", "out.sqlite"},
+      {"target is <out>.dsig-tmp-wal", "ref.sqlite", "out.sqlite.dsig-tmp-wal", "r.diaphora", "out.sqlite"},
+      {"results is <out>.dsig-tmp-shm", "ref.sqlite", "target.sqlite", "out.sqlite.dsig-tmp-shm", "out.sqlite"},
+      {"output is the target's committed -wal", "ref.sqlite", "target.sqlite", "r.diaphora", "target.sqlite-wal", true},
+      {"output is the reference's -journal (absent)", "ref.sqlite", "target.sqlite", "r.diaphora", "ref.sqlite-journal"},
+      {"output is the results' -wal (absent)", "ref.sqlite", "target.sqlite", "r.diaphora", "r.diaphora-wal"},
+      {"output is the target's -shm (absent)", "ref.sqlite", "target.sqlite", "r.diaphora", "target.sqlite-shm"},
+      {"<out>.dsig-tmp spelled through ..", "ref.sqlite", "out.sqlite.dsig-tmp", "r.diaphora", "sub/../out.sqlite"},
+#if defined(_WIN32)
+      {"<out>.dsig-tmp in another case (NTFS)", "ref.sqlite", "OUT.SQLITE.DSIG-TMP", "r.diaphora", "out.sqlite"},
+#endif
+  };
+  int Index = 0;
+  for (const Case& C : Cases) {
+    const std::string CaseDir = (std::filesystem::path(Dir) / ("case" + std::to_string(Index++))).string();
+    std::error_code Error;
+    std::filesystem::create_directories(std::filesystem::path(CaseDir) / "sub", Error);
+    const auto In = [&](const char* Name) { return (std::filesystem::path(CaseDir) / Name).string(); };
+    bool Built = CreateExport(In(C.Ref), ReferenceRows(), 0x10) && CreateExport(In(C.Target), TargetRows(), 0x20) &&
+                 CreateResults(In(C.Results), ScenarioResults());
+    if (C.TargetWal) {
+      Built = Built && AddCommittedWalFrame(In(C.Target));
+    }
+    CHECK(Built);
+    if (!Built) {
+      DSig::Test::Note(std::string(C.Label) + ": fixture not built");
+      continue;
+    }
+    const std::map<std::string, std::string> Before = DirState(CaseDir);
+    const Cli::CommandOutcome Outcome =
+        Cli::RunPortFromResults(Args(In(C.Ref), In(C.Target), In(C.Out), In(C.Results)));
+    const std::map<std::string, std::string> After = DirState(CaseDir);
+    CHECK_NUM_EQ(Outcome.ExitCode, Cli::kExitUsage);
+    CHECK(Outcome.Message.find("refusing to overwrite an input") != std::string::npos);
+    CHECK_TEXT_EQ(DescribeState(After), DescribeState(Before));  // nothing deleted, created or changed
+    if (Outcome.ExitCode != Cli::kExitUsage || After != Before) {
+      DSig::Test::Note(std::string(C.Label) + ": exit " + std::to_string(Outcome.ExitCode) + ": " + Outcome.Message);
+    }
+  }
+
+  // A hard link to the target named "<out>.dsig-tmp": one file under two names.
+  {
+    const std::string CaseDir = (std::filesystem::path(Dir) / "hardlink").string();
+    const Scenario S = MakeScenario(CaseDir);
+    CHECK(S.Ok);
+    const std::string Out = (std::filesystem::path(CaseDir) / "out.sqlite").string();
+    std::error_code Error;
+    std::filesystem::create_hard_link(S.Target, Out + ".dsig-tmp", Error);
+    if (Error) {
+      DSig::Test::Note("hard links not supported here: " + Error.message());
+    } else {
+      const std::map<std::string, std::string> Before = DirState(CaseDir);
+      const Cli::CommandOutcome Outcome = Cli::RunPortFromResults(Args(S.Ref, S.Target, Out, S.Results));
+      CHECK_NUM_EQ(Outcome.ExitCode, Cli::kExitUsage);
+      CHECK(Outcome.Message.find("the temporary output '") == 0);
+      CHECK_TEXT_EQ(DescribeState(DirState(CaseDir)), DescribeState(Before));
+    }
+  }
+
+  // Control: the same names without an alias still port.
+  {
+    const std::string CaseDir = (std::filesystem::path(Dir) / "control").string();
+    const Scenario S = MakeScenario(CaseDir);
+    CHECK(S.Ok);
+    const std::string Out = (std::filesystem::path(CaseDir) / "out.sqlite").string();
+    CHECK_NUM_EQ(Cli::RunPortFromResults(Args(S.Ref, S.Target, Out, S.Results)).ExitCode, Cli::kExitOk);
+    CHECK(Exists(Out) && !Exists(Out + ".dsig-tmp"));
+  }
+}
+
+// The legacy engine (port without --results) writes its output in place: the copy truncates it and
+// SQLite opens it read-write, so a hot "<output>-journal" would be played back and deleted and a WAL
+// output checkpoints and deletes "<output>-wal". The same audit applies.
+void TestLegacyPortAliases(const std::string& Dir) {
+  DSig::Test::Suite("legacy port: the output and its sidecars never alias an input or its sidecars");
+  struct Case {
+    const char* Label;
+    const char* Ref;
+    const char* Target;
+    const char* Out;
+    bool TargetWal = false;
+  };
+  const Case Cases[] = {
+      {"target is <out>-journal", "ref.sqlite", "out.sqlite-journal", "out.sqlite"},
+      {"target is <out>-wal", "ref.sqlite", "out.sqlite-wal", "out.sqlite"},
+      {"reference is <out>-journal", "out.sqlite-journal", "target.sqlite", "out.sqlite"},
+      {"output is the target's committed -wal", "ref.sqlite", "target.sqlite", "target.sqlite-wal", true},
+      {"output is the target", "ref.sqlite", "target.sqlite", "./target.sqlite"},
+  };
+  int Index = 0;
+  for (const Case& C : Cases) {
+    const std::string CaseDir = (std::filesystem::path(Dir) / ("legacy" + std::to_string(Index++))).string();
+    std::error_code Error;
+    std::filesystem::create_directories(CaseDir, Error);
+    const auto In = [&](const char* Name) { return (std::filesystem::path(CaseDir) / Name).string(); };
+    bool Built = CreateExport(In(C.Ref), ReferenceRows(), 0x10) && CreateExport(In(C.Target), TargetRows(), 0x20);
+    if (C.TargetWal) {
+      Built = Built && AddCommittedWalFrame(In(C.Target));
+    }
+    CHECK(Built);
+    if (!Built) {
+      continue;
+    }
+    const std::map<std::string, std::string> Before = DirState(CaseDir);
+    PortOptions Options;
+    Options.ReferencePath = In(C.Ref);
+    Options.TargetPath = In(C.Target);
+    Options.OutputPath = In(C.Out);
+    const PortResult Result = PortSymbols(Options);
+    const std::map<std::string, std::string> After = DirState(CaseDir);
+    CHECK(!Result.Ok);
+    CHECK(Result.Error.find("refusing to overwrite an input") != std::string::npos);
+    CHECK_TEXT_EQ(DescribeState(After), DescribeState(Before));
+    if (Result.Ok || After != Before) {
+      DSig::Test::Note(std::string(C.Label) + ": " + (Result.Ok ? std::string("ported") : Result.Error));
+    }
+  }
+}
+
+// Origin inheritance (Provenance.cpp PortLabels, "Inherit the reference's history only while the
+// reference still carries the name it recorded"): a reference function the user renamed after the
+// previous hop starts a new history (hop 1, confidence = this ratio, origin = the reference itself),
+// while an unchanged name keeps its parent's hops, confidence, origin and first-labelled time.
+void TestOriginInheritance(const std::string& Dir) {
+  DSig::Test::Suite("port --results: origin history is inherited only while the reference keeps the recorded name");
+  const Scenario S = MakeScenario(Dir);
+  CHECK(S.Ok);
+  const std::string Hop1 = (std::filesystem::path(Dir) / "hop1.sqlite").string();
+  CHECK_NUM_EQ(Cli::RunPortFromResults(Args(S.Ref, S.Target, Hop1, S.Results)).ExitCode, Cli::kExitOk);
+  const auto Hop1Origins = ReadNameOrigins(Hop1);
+  CHECK(Hop1Origins.count(std::to_string(T(3))) == 1 && Hop1Origins.count(std::to_string(T(1))) == 1);
+  if (Hop1Origins.count(std::to_string(T(3))) == 0 || Hop1Origins.count(std::to_string(T(1))) == 0) {
+    return;
+  }
+  CHECK_TEXT_EQ(Hop1Origins.at(std::to_string(T(3))).Name, "Gamma");
+  CHECK_NUM_EQ(Hop1Origins.at(std::to_string(T(3))).Hops, 1);
+  CHECK(Hop1Origins.at(std::to_string(T(3))).CumulativeRatio == 0.75);
+
+  // The user renames Gamma in the hop-1 database (IDA, then a re-export): dsig_name_origin still
+  // records "Gamma" for that address.
+  {
+    sqlite3* Db = nullptr;
+    CHECK(sqlite3_open_v2(Hop1.c_str(), &Db, SQLITE_OPEN_READWRITE, nullptr) == SQLITE_OK);
+    CHECK(Exec(Db, "update functions set name = 'GammaRenamed', mangled_function = 'GammaRenamed' "
+                   "where address = '" + std::to_string(T(3)) + "'"));
+    sqlite3_close(Db);
+  }
+  CHECK_TEXT_EQ(NameAt(Hop1, T(3)), "GammaRenamed");
+  CHECK_TEXT_EQ(One(Hop1, "select name from dsig_name_origin where address = '" + std::to_string(T(3)) + "'"),
+                "Gamma");
+
+  constexpr uint64_t kV3 = 0x180003000ull;
+  const auto U = [](int Index) { return kV3 + static_cast<uint64_t>(Index) * 0x100; };
+  const std::string V3 = (std::filesystem::path(Dir) / "v3.sqlite").string();
+  CHECK(CreateExport(V3, {{U(1), "sub_" + Hex8(U(1))}, {U(3), "sub_" + Hex8(U(3))}}, 0x30));
+  const std::string Results2 = (std::filesystem::path(Dir) / "hop1_vs_v3.diaphora").string();
+  CHECK(CreateResults(Results2, {
+                                    {"best", "00000", T(1), "Alpha", U(1), "sub_" + Hex8(U(1)), "1.0000000", "Bytes hash"},
+                                    {"partial", "00000", T(3), "GammaRenamed", U(3), "sub_" + Hex8(U(3)), "0.8000000",
+                                     "Loop count"},
+                                }));
+  const std::string Hop2 = (std::filesystem::path(Dir) / "hop2.sqlite").string();
+  const Cli::CommandOutcome Outcome = Cli::RunPortFromResults(Args(Hop1, V3, Hop2, Results2));
+  CHECK_NUM_EQ(Outcome.ExitCode, Cli::kExitOk);
+  if (Outcome.ExitCode != Cli::kExitOk) {
+    DSig::Test::Note(Outcome.Message);
+    return;
+  }
+  CHECK_TEXT_EQ(NameAt(Hop2, U(3)), "GammaRenamed");
+  const auto Origins = ReadNameOrigins(Hop2);
+  const auto Renamed = Origins.find(std::to_string(U(3)));
+  const auto Kept = Origins.find(std::to_string(U(1)));
+  CHECK(Renamed != Origins.end() && Kept != Origins.end());
+  if (Renamed == Origins.end() || Kept == Origins.end()) {
+    return;
+  }
+  // renamed: a new history that starts at the hop-1 database
+  CHECK_NUM_EQ(Renamed->second.Hops, 1);
+  CHECK(Renamed->second.CumulativeRatio == 0.8);  // not 0.75 x 0.8
+  CHECK_TEXT_EQ(Renamed->second.OriginAddress, std::to_string(T(3)));
+  CHECK_TEXT_EQ(Renamed->second.OriginName, "GammaRenamed");
+  CHECK_TEXT_EQ(Renamed->second.FirstLabelledAt, One(Hop2, "select applied_at from dsig_provenance where hop = 2"));
+  CHECK_TEXT_EQ(One(Hop2, "select hops || ' ' || confidence from dsig_port_log where address = '" +
+                              std::to_string(U(3)) + "'"),
+                "1 0.8");
+  // unchanged: the parent's history continues
+  CHECK_NUM_EQ(Kept->second.Hops, 2);
+  CHECK(Kept->second.CumulativeRatio == 1.0);
+  CHECK_TEXT_EQ(Kept->second.OriginAddress, std::to_string(R(1)));
+  CHECK_TEXT_EQ(Kept->second.FirstLabelledAt, Hop1Origins.at(std::to_string(T(1))).FirstLabelledAt);
+
+  // --max-hops 1 admits the renamed function (a first hop) and stops the inherited one (a second).
+  Cli::PortFromResultsArgs Capped = Args(Hop1, V3, (std::filesystem::path(Dir) / "hop2_capped.sqlite").string(), Results2);
+  Capped.MaxHops = 1;
+  const Cli::CommandOutcome CappedOutcome = Cli::RunPortFromResults(Capped);
+  CHECK_NUM_EQ(CappedOutcome.ExitCode, Cli::kExitOk);
+  CHECK_TEXT_EQ(Report(CappedOutcome, "skipped hop cap"), "skipped hop cap  : 1");
+  CHECK_TEXT_EQ(NameAt(Capped.Output, U(3)), "GammaRenamed");
+  CHECK_TEXT_EQ(NameAt(Capped.Output, U(1)), "sub_" + Hex8(U(1)));
+  // --min-ratio 0.7: 0.8 passes for the new history; the inherited 0.75 x 0.8 = 0.6 would not.
+  Cli::PortFromResultsArgs Floor = Args(Hop1, V3, (std::filesystem::path(Dir) / "hop2_floor.sqlite").string(), Results2);
+  Floor.MinRatio = 0.7;
+  const Cli::CommandOutcome FloorOutcome = Cli::RunPortFromResults(Floor);
+  CHECK_TEXT_EQ(Report(FloorOutcome, "skipped ratio"), "skipped ratio    : 0");
+  CHECK_TEXT_EQ(NameAt(Floor.Output, U(3)), "GammaRenamed");
+}
+
 void TestBadInputs(const std::string& Dir) {
   DSig::Test::Suite("port --results: bad inputs are refused and write nothing");
   const Scenario S = MakeScenario(Dir);
@@ -834,6 +1151,10 @@ int main() {
   TestOptInCategories((std::filesystem::path(Dir) / "optin").string());
   TestChain((std::filesystem::path(Dir) / "chain").string());
   TestPathSafety((std::filesystem::path(Dir) / "safety").string());
+  TestAliasHelpers((std::filesystem::path(Dir) / "alias-helpers").string());
+  TestDerivedPathAliases((std::filesystem::path(Dir) / "alias").string());
+  TestLegacyPortAliases((std::filesystem::path(Dir) / "alias-legacy").string());
+  TestOriginInheritance((std::filesystem::path(Dir) / "origin").string());
   TestBadInputs((std::filesystem::path(Dir) / "bad").string());
   TestWal((std::filesystem::path(Dir) / "wal").string());
   TestCorpus();

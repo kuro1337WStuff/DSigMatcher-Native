@@ -99,9 +99,13 @@ PortResult PortSymbols(const PortOptions& Options);
 // of the target export, so the output is itself a Diaphora export that can be the next hop's
 // reference.
 //
-// Carried over unchanged from PortSymbols: the output never aliases an input; a target that already
+// Carried over from PortSymbols: the output never aliases an input (since lane F1: neither the
+// output, the temporary "<output>.dsig-tmp" nor any -wal/-shm/-journal sidecar of the two is an input
+// or an input's sidecar; refused as PortFailure::Usage before any I/O); a target that already
 // carries the identical real name is a confirmation (no update, no origin row, no hop); hops are the
-// parent's + 1 and confidence is ratio x parent confidence (dsig_name_origin of the reference);
+// parent's + 1 and confidence is ratio x parent confidence (dsig_name_origin of the reference; unlike
+// PortSymbols, the parent's values are inherited only while the reference function still carries the
+// name its origin row recorded, else the name starts a new history at hop 1);
 // --max-hops, --min-ratio; a real target name is never replaced unless OverwriteExistingNames.
 // New for proposals: the first selected proposal in stored order claims its target function (a
 // later one is skipped_conflict), and a name that would end up on two functions of the output is
@@ -155,7 +159,8 @@ struct LabelPortOptions {
   std::string ReferencePath;
   std::string TargetPath;
   std::string OutputPath;
-  std::vector<std::string> OtherInputs;  // further inputs the output must not alias (the results file)
+  std::vector<std::string> OtherInputs;  // further inputs (the results file): no written file may alias
+                                         // one of them or its sidecars
   bool OverwriteExistingNames = false;
   double MinCumulativeRatio = 0.0;
   int64_t MaxHops = -1;
@@ -195,6 +200,29 @@ struct LabelPortResult {
 };
 
 LabelPortResult PortLabels(const LabelPortOptions& Options, const std::vector<LabelProposal>& Proposals);
+
+// ---------------------------------------------------------------------------------------------
+// Output / input aliasing (lane F1). A command that writes a database must refuse before any I/O
+// when one of the files it writes, deletes or lets SQLite create is an input or an input's sidecar.
+
+// A file and what it is, for messages ("the output's -wal file").
+struct NamedPath {
+  std::string Role;
+  std::string Path;
+};
+
+// The files SQLite may keep for the database at Path: the database itself and its "-wal", "-shm"
+// and "-journal" sidecars (https://www.sqlite.org/tempfiles.html §2.1-2.3). Empty for an empty path.
+std::vector<NamedPath> DatabaseFileSet(const std::string& Role, const std::string& Path);
+
+// True when A and B (UTF-8) name one file: std::filesystem::equivalent when both exist (hard links,
+// short names, a UNC share of a local drive), else weakly_canonical compared the way the platform's
+// file system compares names (case-insensitively on Windows and macOS).
+bool SameFilePath(const std::string& A, const std::string& B);
+
+// The first (written, input) pair that names one file, as a refusal message ending in "refusing to
+// overwrite an input (nothing was changed)"; nullopt when no written file aliases an input.
+std::optional<std::string> FindPathAlias(const std::vector<NamedPath>& Written, const std::vector<NamedPath>& Inputs);
 
 // A read-only SQLite URI for an input database (use with SQLITE_OPEN_READONLY | SQLITE_OPEN_URI).
 // A WAL-mode file whose -wal is absent or empty is opened `immutable=1`, so reading an export never
