@@ -8,12 +8,15 @@
 #include <algorithm>
 #include <cctype>
 #include <cstring>
+#include <filesystem>
 #include <string>
+#include <system_error>
 #include <unordered_set>
 
 #include "dsigmatcher/diff/Candidates.h"
 #include "dsigmatcher/diff/Errors.h"
 #include "dsigmatcher/diff/Pipeline.h"
+#include "FileIo.h"
 
 namespace DSig::Diff {
 
@@ -261,17 +264,53 @@ std::string PlainFileName(const std::string& Path, const char* What) {
   return Path;
 }
 
+// True when the file exists and holds at least one byte. Never throws: a path that cannot be
+// converted or examined counts as non-empty, which selects the ordinary read-only open.
+bool MayHoldData(const std::string& Utf8Path) {
+  try {
+    std::error_code Error;
+    const std::filesystem::path Path = Detail::PathFromUtf8(Utf8Path);
+    if (!std::filesystem::exists(Path, Error)) {
+      return Error.value() != 0;
+    }
+    const uintmax_t Size = std::filesystem::file_size(Path, Error);
+    return Error.value() != 0 || Size > 0;
+  } catch (const std::exception&) {
+    return true;
+  }
+}
+
+// The name handed to sqlite3_open_v2 / ATTACH for an input (lane F1). Reading an input must not
+// create files beside it: an ordinary read-only open of a WAL-mode export creates "<db>-wal" and
+// "<db>-shm" (SQLite opens the WAL with SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE even on a read-only
+// connection, wal.c sqlite3WalOpen) and, being read-only, cannot checkpoint and delete them on close.
+// The URI parameter immutable=1 (https://www.sqlite.org/uri.html, "immutable") reads the database file
+// alone, with no locks and no sidecar files; the pager then treats the file like a temporary database
+// and never looks for a WAL (pager.c sqlite3PagerOpen, act_like_temp_file). That is exact only when no
+// committed frame waits in a "-wal" and no hot "-journal" has to be rolled back first, so an input
+// with a non-empty -wal or -journal keeps the ordinary read-only open: committed WAL frames are read,
+// and a hot journal is refused by SQLite (SQLITE_READONLY_ROLLBACK) instead of being ignored.
+// UriForPath keeps drive, UNC and non-ASCII paths intact (file:/C:/..., file:////server/share/...,
+// raw UTF-8 bytes), and the connection is opened with SQLITE_OPEN_URI so ATTACH accepts the URI too;
+// a plain name never starts with "file:" (PlainFileName), so it is still a plain file name.
+std::string InputFileName(const std::string& Path, const char* What) {
+  const std::string Plain = PlainFileName(Path, What);
+  if (MayHoldData(Plain + "-wal") || MayHoldData(Plain + "-journal")) {
+    return Plain;
+  }
+  return DiffDatabase::UriForPath(Plain, true) + "&immutable=1";
+}
+
 }
 
 void DiffDatabase::OpenSingle(const std::string& MainPath) {
   Close();
-  // Read-only, without URI processing (lane R0 (f)): the old "file:<path>?mode=ro" URI broke UNC paths
-  // (the server became the URI authority). SQLITE_OPEN_READONLY is what mode=ro set, and ATTACH
-  // reuses these open flags (attach.c: flags = db->openFlags), so the attached diff database is
-  // read-only too.
-  const std::string Name = PlainFileName(MainPath, "database");
+  // Read-only (lane R0 (f)): SQLITE_OPEN_READONLY is what mode=ro set, and ATTACH reuses these open
+  // flags (attach.c: flags = db->openFlags), so the attached diff database is read-only too.
+  // InputFileName decides between the immutable URI and the plain file name (lane F1).
+  const std::string Name = InputFileName(MainPath, "database");
   sqlite3* Handle = nullptr;
-  const int Code = sqlite3_open_v2(Name.c_str(), &Handle, SQLITE_OPEN_READONLY, nullptr);
+  const int Code = sqlite3_open_v2(Name.c_str(), &Handle, SQLITE_OPEN_READONLY | SQLITE_OPEN_URI, nullptr);
   if (Code != SQLITE_OK) {
     const std::string Message = ErrorText(Handle);
     if (Handle != nullptr) {
@@ -299,8 +338,8 @@ void DiffDatabase::Open(const std::string& MainPath, const std::string& DiffPath
     throw IoFailure("cannot attach '" + DiffPath + "': " + Message);
   }
   // `attach "<db2>" as diff` (D:2441 / D:657), with the name bound (no quoting issues) and read-only
-  // through the connection's open flags.
-  const std::string Name = PlainFileName(DiffPath, "diff database");
+  // through the connection's open flags; immutable under the same rule as the main database.
+  const std::string Name = InputFileName(DiffPath, "diff database");
   sqlite3_bind_text(Attach, 1, Name.c_str(), static_cast<int>(Name.size()), SQLITE_TRANSIENT);
   const int Code = sqlite3_step(Attach);
   sqlite3_finalize(Attach);

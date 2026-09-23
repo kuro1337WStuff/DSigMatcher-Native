@@ -13,6 +13,9 @@
 //     byte for byte against a finished oracle capture (skipped without it); the final-results log
 //     order (D:3689 before D:3690); the SQLite warning under --quiet (skipped on the oracle's SQLite);
 //     missing side tables refused with exit 4; Unicode and UNC paths, in process and through the CLI.
+//   * lane F1: reading an input creates no -wal/-shm beside it (immutable=1 when no committed -wal
+//     frame or hot -journal waits), committed -wal frames are still read, a hot -journal is refused;
+//     non-ASCII and UNC paths through the immutable URI.
 
 #include <algorithm>
 #include <cmath>
@@ -1884,6 +1887,173 @@ void TestUnicodePaths() {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Lane F1: reading an input never creates files beside it (Database.cpp InputFileName)
+
+bool WalModeHeader(const std::string& Utf8Path) {
+  const std::string Bytes = ReadFile(Utf8Path).substr(0, 20);
+  return Bytes.size() == 20 && Bytes.compare(0, 15, "SQLite format 3") == 0 && Bytes[18] == 2 && Bytes[19] == 2;
+}
+
+bool NoSidecars(const std::string& Db) {
+  return !Exists(Db + "-wal") && !Exists(Db + "-shm") && !Exists(Db + "-journal");
+}
+
+uintmax_t SizeOf(const std::string& Utf8Path) {
+  std::error_code Error;
+  const uintmax_t Size = fs::file_size(Utf8ToPath(Utf8Path), Error);
+  return Error ? static_cast<uintmax_t>(-1) : Size;
+}
+
+void TestReadOnlyInputs() {
+  DSig::Test::Suite("read-only inputs: no -wal/-shm beside a WAL-mode input, committed -wal frames still read");
+  const std::string Base = DSig::Test::ScratchDir("foundation-readonly");
+  // A non-ASCII directory, so the immutable URI carries UTF-8 through as well.
+  const std::string Dir = Join(Base, "inp\xc3\xbcts \xd0\xb4 #1%");
+  std::error_code Error;
+  fs::create_directories(Utf8ToPath(Dir), Error);
+  FixturePair Pair = BuildFoundationFixtureIn(Dir, "m\xc3\xa4in.sqlite", "diff.sqlite");
+  CHECK(Pair.Ok);
+  if (!Pair.Ok) {
+    DSig::Test::RemoveScratchDir(Base);
+    return;
+  }
+  // Like a finished export: WAL mode in the header and no sidecar on disk.
+  CHECK(WalModeHeader(Pair.Main) && WalModeHeader(Pair.Diff));
+  CHECK(NoSidecars(Pair.Main) && NoSidecars(Pair.Diff));
+  const std::string MainSha = Sha256Of(ReadFile(Pair.Main));
+  const std::string DiffSha = Sha256Of(ReadFile(Pair.Diff));
+
+  {
+    DiffDatabase Db;
+    Db.Open(Pair.Main, Pair.Diff);
+    CHECK(Db.TableExists("main", "functions") && Db.TableExists("diff", "functions"));
+    Statement Count = Db.Prepare("select (select count(*) from main.functions), (select count(*) from diff.functions)");
+    CHECK(Count.Step() && Count.Int(0) > 0 && Count.Int(1) > 0);
+    CHECK(NoSidecars(Pair.Main) && NoSidecars(Pair.Diff));  // not even while the connection is open
+  }
+  DiffArgs Args;
+  Args.Db1 = Pair.Main;
+  Args.Db2 = Pair.Diff;
+  Args.Out = Join(Dir, "out.diaphora");
+  Args.Quiet = true;
+  Args.AllowSqliteMismatch = true;
+  const DiffOutcome Outcome = RunDiff(Args);
+  CHECK(Outcome.Status == DiffStatus::Ok);
+  if (Outcome.Status != DiffStatus::Ok) {
+    DSig::Test::Note("RunDiff: " + Outcome.Message);
+  }
+  CHECK(NoSidecars(Pair.Main));
+  CHECK(NoSidecars(Pair.Diff));
+  CHECK_TEXT_EQ(Sha256Of(ReadFile(Pair.Main)), MainSha);
+  CHECK_TEXT_EQ(Sha256Of(ReadFile(Pair.Diff)), DiffSha);
+  {
+    const DSig::Test::ResultsFile File = DSig::Test::ReadResultsFile(Args.Out);  // OpenSingle on a results file
+    CHECK(File.Error.empty());
+    CHECK(NoSidecars(Args.Out));
+  }
+
+  // Committed frames still in the -wal are read: that input keeps the ordinary read-only open.
+#ifdef SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE
+  {
+    const std::string Wal = Join(Dir, "committed.sqlite");
+    CHECK(DSig::Test::BuildFixtureDbFromText(ReadFile(DSig::Test::TestDataDir() + "/fixtures/foundation/main.sql"),
+                                             Wal)
+              .empty());
+    sqlite3* Writer = nullptr;
+    CHECK(sqlite3_open_v2(Wal.c_str(), &Writer, SQLITE_OPEN_READWRITE, nullptr) == SQLITE_OK);
+    int Disabled = 0;
+    sqlite3_db_config(Writer, SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, 1, &Disabled);
+    CHECK(sqlite3_exec(Writer, "update functions set name = 'only_in_the_wal' where id = (select min(id) from functions)",
+                       nullptr, nullptr, nullptr) == SQLITE_OK);
+    sqlite3_close(Writer);
+    CHECK(SizeOf(Wal + "-wal") > 0 && SizeOf(Wal + "-wal") != static_cast<uintmax_t>(-1));
+    DiffDatabase Db;
+    Db.OpenSingle(Wal);
+    Statement Name = Db.Prepare("select name from functions order by id limit 1");
+    CHECK(Name.Step() && Name.Text(0) == "only_in_the_wal");
+    Db.Close();
+    DiffDatabase Pairing;  // the attached side follows the same rule
+    Pairing.Open(Pair.Main, Wal);
+    Statement DiffName = Pairing.Prepare("select name from diff.functions order by id limit 1");
+    CHECK(DiffName.Step() && DiffName.Text(0) == "only_in_the_wal");
+  }
+#endif
+
+  // A zero-byte -wal (a reader of the old code left one): still read immutable, nothing added.
+  {
+    const std::string Empty = Join(Dir, "empty-wal.sqlite");
+    CHECK(DSig::Test::BuildFixtureDbFromText(ReadFile(DSig::Test::TestDataDir() + "/fixtures/foundation/diff.sql"),
+                                             Empty)
+              .empty());
+    WriteText(Empty + "-wal", "");
+    const std::string Sha = Sha256Of(ReadFile(Empty));
+    {
+      DiffDatabase Db;
+      Db.OpenSingle(Empty);
+      CHECK(Db.TableExists("main", "functions"));
+    }
+    CHECK(!Exists(Empty + "-shm"));
+    CHECK_NUM_EQ(SizeOf(Empty + "-wal"), 0);
+    CHECK_TEXT_EQ(Sha256Of(ReadFile(Empty)), Sha);
+  }
+
+  // A non-empty -journal beside a rollback-journal database is never read immutable (that would read
+  // a possibly half-written file): SQLite refuses the hot journal on a read-only connection, and the
+  // journal is left as it was.
+  {
+    const std::string Rollback = Join(Dir, "rollback.sqlite");
+    CHECK(DSig::Test::BuildFixtureDbFromText(ReadFile(DSig::Test::TestDataDir() + "/fixtures/foundation/diff.sql"),
+                                             Rollback, false)
+              .empty());
+    CHECK(!WalModeHeader(Rollback));
+    WriteText(Rollback + "-journal", "not a journal header, but a non-zero first byte");
+    const std::string JournalSha = Sha256Of(ReadFile(Rollback + "-journal"));
+    bool Refused = false;
+    try {
+      DiffDatabase Db;
+      Db.OpenSingle(Rollback);
+    } catch (const IoFailure&) {
+      Refused = true;
+    }
+    CHECK(Refused);
+    CHECK_TEXT_EQ(Sha256Of(ReadFile(Rollback + "-journal")), JournalSha);
+  }
+
+#ifdef _WIN32
+  // UNC: the same inputs through the local administrative share, \\localhost\<drive>$\...
+  if (Dir.size() > 2 && Dir[1] == ':') {
+    std::string Rest = Dir.substr(2);
+    std::replace(Rest.begin(), Rest.end(), '/', '\\');
+    const std::string UncDir = std::string("\\\\localhost\\") + Dir[0] + "$" + Rest;
+    const std::string UncMain = Join(UncDir, "m\xc3\xa4in.sqlite");
+    const std::string UncDiff = Join(UncDir, "diff.sqlite");
+    if (Exists(UncMain)) {
+      bool Opened = true;
+      try {
+        DiffDatabase Db;
+        Db.Open(UncMain, UncDiff);
+        Opened = Db.TableExists("main", "functions") && Db.TableExists("diff", "functions");
+      } catch (const std::exception& Failure) {
+        Opened = false;
+        DSig::Test::Note(std::string("UNC open: ") + Failure.what());
+      }
+      CHECK(Opened);
+      DiffArgs Unc = Args;
+      Unc.Db1 = UncMain;
+      Unc.Db2 = UncDiff;
+      Unc.Out = Join(UncDir, "unc.diaphora");
+      CHECK(RunDiff(Unc).Status == DiffStatus::Ok);
+      CHECK(NoSidecars(Pair.Main) && NoSidecars(Pair.Diff));
+      DSig::Test::Note("UNC read-only inputs checked through \\\\localhost\\" + std::string(1, Dir[0]) + "$");
+    } else {
+      DSig::Test::Note("UNC checks not run: \\\\localhost\\" + std::string(1, Dir[0]) + "$ is not reachable");
+    }
+  }
+#endif
+  DSig::Test::RemoveScratchDir(Base);
+}
+
+// ---------------------------------------------------------------------------------------------
 // Corpus: ingest census (plan §4 L0), skipped without the corpus
 
 std::string CensusCell(const IntColumn& Column, uint32_t Row, bool& Unrepresentable) {
@@ -2558,6 +2728,7 @@ int main() {
   TestMissingSideTables();
   TestSqliteWarning();
   TestUnicodePaths();
+  TestReadOnlyInputs();
   TestCorpusIngestCensus();
   TestRowSequenceCensus();
   TestSameNamePlan();
