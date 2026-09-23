@@ -61,6 +61,10 @@ bool Outranks(const Match& Candidate, size_t CandidateOrigin, const Match& Held,
   return CandidateOrigin < HeldOrigin;
 }
 
+bool PartitionedResolveEnabled() {
+  return false;
+}
+
 unsigned DetectedWorkerCount(unsigned ThreadCount) {
   if (ThreadCount != 0) {
     return ThreadCount;
@@ -261,7 +265,7 @@ void MatchStore::AddAll(const std::vector<Match>& Candidates) {
 std::vector<Match> MatchStore::Resolve(unsigned ThreadCount) const {
   const size_t Total = Raw_.size();
 
-  if (Total > MaxPartitionedTotal) {
+  if (!PartitionedResolveEnabled() || Total > MaxPartitionedTotal) {
     return ResolveSerial(Raw_);
   }
 

@@ -35,6 +35,7 @@ void Report(bool Ok, const char* Expression, const char* File, int Line) {
 
 void Suite(const char* Name) {
   std::printf("[%s]\n", Name);
+  std::fflush(stdout);
 }
 
 #define CHECK(Expr) Report(static_cast<bool>(Expr), #Expr, __FILE__, __LINE__)

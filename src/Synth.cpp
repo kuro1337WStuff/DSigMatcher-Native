@@ -50,7 +50,7 @@ std::string AddressToken(uint64_t Value) {
 enum class Kind { Identical, Recompiled, Ambiguous, OrphanReference, OrphanTarget };
 
 struct Spec {
-  Kind Kind = Kind::Identical;
+  Kind ItemKind = Kind::Identical;
   uint64_t Body = 0;
   uint64_t GroupKey = 0;
   size_t Instructions = 8;
@@ -108,7 +108,7 @@ SpecHashes DeriveTexts(const Spec& Item, const SynthOptions& Options) {
   Texts.KghHash = HexToken(Item.Body, Item.Body ^ 0x1234567890ABCDEFull);
   Texts.MdIndex = HexToken(Item.Body, 0x0E0E0E0E0E0E0E0Eull);
 
-  const uint64_t Identity = Item.Kind == Kind::Ambiguous ? Item.GroupKey : Item.Body;
+  const uint64_t Identity = Item.ItemKind == Kind::Ambiguous ? Item.GroupKey : Item.Body;
   const bool Scaled = Options.TextBytesPerInstruction > 0;
 
   Texts.Constants = MakeListing(Identity ^ 0x5555555555555555ull, 4, 12);
@@ -122,7 +122,7 @@ SpecHashes DeriveTexts(const Spec& Item, const SynthOptions& Options) {
     Texts.CleanPseudo =
         MakeListing(Identity ^ 0x3333333333333333ull, Item.PseudoLines, Options.PseudoBytesPerLine);
     Texts.Mnemonics = MakeListing(Identity ^ 0x4444444444444444ull, 1, AssemblyBytes / 4 + 8);
-  } else if (Item.Kind == Kind::Ambiguous) {
+  } else if (Item.ItemKind == Kind::Ambiguous) {
     Texts.CleanAssembly = "asm-group-" + HexToken(Item.GroupKey, 4);
     Texts.CleanMicrocode = "micro-group-" + HexToken(Item.GroupKey, 5);
     Texts.CleanPseudo = "pseudo-group-" + HexToken(Item.GroupKey, 6);
@@ -213,7 +213,7 @@ SynthPair MakeSyntheticPair(const SynthOptions& Options) {
   const auto AddGroup = [&](Kind ItemKind, size_t Count) {
     for (size_t Index = 0; Index < Count; ++Index) {
       Spec Item;
-      Item.Kind = ItemKind;
+      Item.ItemKind = ItemKind;
       Item.Body = Random.Next();
 
       const size_t GroupIndex = Specs.size() / GroupSize;
@@ -258,7 +258,7 @@ SynthPair MakeSyntheticPair(const SynthOptions& Options) {
     Entry.ReferenceTexts = DeriveTexts(Entry.Item, Options);
     Entry.TargetTexts = Entry.ReferenceTexts;
 
-    if (Entry.Item.Kind == Kind::Recompiled || Entry.Item.Kind == Kind::Ambiguous) {
+    if (Entry.Item.ItemKind == Kind::Recompiled || Entry.Item.ItemKind == Kind::Ambiguous) {
       Spec Mutated = Entry.Item;
       Mutated.Body ^= 0xDEADBEEFCAFEBABEull;
       SpecHashes MutatedTexts = DeriveTexts(Mutated, Options);
@@ -266,7 +266,7 @@ SynthPair MakeSyntheticPair(const SynthOptions& Options) {
       MutatedTexts.CleanAssembly = Entry.ReferenceTexts.CleanAssembly;
       MutatedTexts.CleanMicrocode = Entry.ReferenceTexts.CleanMicrocode;
       MutatedTexts.CleanPseudo = Entry.ReferenceTexts.CleanPseudo;
-      if (Entry.Item.Kind == Kind::Recompiled) {
+      if (Entry.Item.ItemKind == Kind::Recompiled) {
         MutatedTexts.Mnemonics = Entry.ReferenceTexts.Mnemonics;
       }
       Entry.TargetTexts = MutatedTexts;
@@ -279,8 +279,8 @@ SynthPair MakeSyntheticPair(const SynthOptions& Options) {
                   static_cast<unsigned long long>(Entry.Item.TargetAddress & 0xFFFFFFull));
     Entry.TargetName = NameBuffer;
 
-    Entry.EmitReference = Entry.Item.Kind != Kind::OrphanTarget;
-    Entry.EmitTarget = Entry.Item.Kind != Kind::OrphanReference;
+    Entry.EmitReference = Entry.Item.ItemKind != Kind::OrphanTarget;
+    Entry.EmitTarget = Entry.Item.ItemKind != Kind::OrphanReference;
     Items.push_back(std::move(Entry));
   }
 
