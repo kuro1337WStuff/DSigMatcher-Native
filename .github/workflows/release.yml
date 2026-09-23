@@ -4,7 +4,8 @@ name: Release
 # that each binary depends on nothing but the operating system, writes SHA256SUMS and creates a DRAFT
 # GitHub release. Nothing is ever published automatically: a maintainer reviews the draft and publishes it.
 #
-#   push of a tag vX.Y.Z   the tag must equal v<project(VERSION) in CMakeLists.txt>; creates the draft
+#   push of a tag vX.Y.Z   the tag must equal v<project(VERSION) in CMakeLists.txt>; creates the draft,
+#                          whose notes are docs/release/vX.Y.Z.md (required: the run fails without it)
 #   workflow_dispatch      builds and uploads the archives as workflow artifacts (a dry run); with
 #                          create_draft it also creates the draft for tag v<version> at the dispatched
 #                          commit (GitHub creates the tag only when the draft is published)
@@ -70,6 +71,21 @@ jobs:
             fi
           done
           exit $missing
+
+      # The draft's body is docs/release/<tag>.md. Checked here, before the builds, whenever a draft will
+      # be created (tag push, or dispatch with create_draft); the draft job checks it again.
+      - name: Release notes must exist
+        if: github.ref_type == 'tag' || inputs.create_draft
+        shell: bash
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          notes_file="docs/release/$TAG.md"
+          if [ ! -s "$notes_file" ]; then
+            echo "::error file=$notes_file::the release notes $notes_file are missing or empty; write them before releasing $TAG"
+            exit 1
+          fi
+          echo "release notes: $notes_file"
 
   windows:
     name: Windows x64 (MSVC, static CRT)
@@ -232,16 +248,17 @@ jobs:
           if-no-files-found: error
 
   macos:
-    # One universal2 binary (arm64 + x86_64). The deployment target is 26.0 because the parity engine uses
-    # floating-point std::from_chars (src/diff/Json.cpp), which Apple's libc++ provides from macOS 26.0 on;
-    # an older target fails to compile. libc++ and libSystem are part of the OS, SQLite is linked statically.
+    # One universal2 binary (arm64 + x86_64) for macOS 13.0 or later. The engine uses no C++ library
+    # feature newer than that (no floating-point std::from_chars, which Apple's libc++ only has from
+    # macOS 26.0 on), so an older-target build that compiles is the proof. libc++ and libSystem are part
+    # of the OS, SQLite is linked statically. The minos of both slices is checked below.
     name: macOS universal2 (arm64 + x86_64)
     needs: version
     runs-on: macos-26
     env:
       VERSION: ${{ needs.version.outputs.version }}
       PACKAGE: dsigmatcher-${{ needs.version.outputs.version }}-macos-universal2
-      MACOS_DEPLOYMENT_TARGET: '26.0'
+      MACOS_DEPLOYMENT_TARGET: '13.0'
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -289,6 +306,11 @@ jobs:
           for arch in arm64 x86_64; do
             echo "--- $arch"
             otool -arch "$arch" -l "$bin" | grep -A4 LC_BUILD_VERSION | grep -E 'minos|sdk' || true
+            minos=$(otool -arch "$arch" -l "$bin" | awk '/LC_BUILD_VERSION/ {f=1} f && $1 == "minos" {print $2; exit}')
+            if [ "$minos" != "$MACOS_DEPLOYMENT_TARGET" ]; then
+              echo "::error::$arch slice has minos '$minos', expected $MACOS_DEPLOYMENT_TARGET"
+              status=1
+            fi
             deps=$(otool -arch "$arch" -L "$bin" | tail -n +2 | awk '{print $1}')
             echo "$deps"
             unexpected=$(printf '%s\n' "$deps" | grep -v -E '^/usr/lib/(libc\+\+\.1|libSystem\.B)\.dylib$' || true)
@@ -377,9 +399,10 @@ jobs:
             echo "::error::a release for $TAG already exists; delete the old draft first"
             exit 1
           fi
-          notes=(--generate-notes)
-          if [ -f "docs/release-notes/$TAG.md" ]; then
-            notes=(--notes-file "docs/release-notes/$TAG.md")
+          notes_file="docs/release/$TAG.md"
+          if [ ! -s "$notes_file" ]; then
+            echo "::error file=$notes_file::the release notes $notes_file are missing or empty; write them before releasing $TAG"
+            exit 1
           fi
           target=()
           if [ "$GITHUB_REF_TYPE" = "tag" ]; then
@@ -391,5 +414,5 @@ jobs:
             fi
             target=(--target "$GITHUB_SHA")
           fi
-          gh release create "$TAG" --draft --title "DSigMatcher Native $TAG" "${notes[@]}" "${target[@]}" dist/*
+          gh release create "$TAG" --draft --title "DSigMatcher Native $TAG" --notes-file "$notes_file" "${target[@]}" dist/*
           echo "Draft created for $TAG; review and publish it on GitHub."
