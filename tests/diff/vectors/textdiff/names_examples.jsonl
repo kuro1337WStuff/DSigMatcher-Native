@@ -1,0 +1,1032 @@
+{"s": "call Foo::Barbaz::x", "names": ["call", "Barbaz::x"]}
+{"s": "call abc::defg", "names": ["call", "defg"]}
+{"s": "push qword ptr [rax]", "names": ["push", "qword"]}
+{"s": "mov eax, 0x401000", "names": ["x401000"]}
+{"s": "12abcd", "names": ["abcd"]}
+{"s": "jmp mov call push lea test", "names": ["call", "push", "test"]}
+{"s": "std::vector::push_back", "names": ["vector::push_back"]}
+{"s": "0x401000 call sub_401000 ab_c", "names": ["x401000", "call", "sub_401000", "ab_c"]}
+{"s": "\u017fub_1234", "names": ["\u017fub_1234"]}
+{"s": "\u212aernel", "names": ["\u212aernel"]}
+{"s": "\u0130\u0131\u017f\u212a", "names": ["\u0130\u0131\u017f\u212a"]}
+{"s": "\u0130\u0131\u017f", "names": []}
+{"s": "abc", "names": []}
+{"s": "abcd", "names": ["abcd"]}
+{"s": "abcd::", "names": ["abcd"]}
+{"s": "abcd::e", "names": ["abcd::e"]}
+{"s": "abcd:::e", "names": ["abcd"]}
+{"s": "abcd::::e", "names": ["abcd"]}
+{"s": "a::bcde", "names": ["bcde"]}
+{"s": "abcd::\u0130x", "names": ["abcd::\u0130x"]}
+{"s": "\u00e9abcd", "names": ["abcd"]}
+{"s": "ab\u00e9cdef", "names": ["cdef"]}
+{"s": "abcd\n::efg", "names": ["abcd"]}
+{"s": "nullsub_12", "names": ["nullsub_12"]}
+{"s": "__imp_Foo", "names": ["__imp_Foo"]}
+{"s": "", "names": []}
+{"s": "::", "names": []}
+{"s": "____", "names": ["____"]}
+{"s": "_1234", "names": ["_1234"]}
+{"s": "1234", "names": []}
+{"s": "call    j_sub_1800\u212a0", "names": ["call", "j_sub_1800\u212a0"]}
+{"s": "\u4e2dabcd\u4e2d", "names": ["abcd"]}
+{"s": ")H9\u0100\u2028\u2129\r\ud83d\ude00", "names": []}
+{"s": "hX\u1e9e--\u03a38\u0130H::", "names": []}
+{"s": "\u00aaA;:::\u0131\u012f\tX\u00aaj_e<\ud83d\ude00push \u012f>h&X3", "names": ["push"]}
+{"s": "nullsub_I", "names": ["nullsub_I"]}
+{"s": "s", "names": []}
+{"s": "#nullsub_\u00aa\u00e9v\u012fV1\u0180\u0180\u2126\u21265\u00e9\u2126<<f ", "names": ["nullsub_"]}
+{"s": "\u0345A\u03a3\u212aA\u0085abc::defgd+", "names": ["defgd"]}
+{"s": ":::\u00aa\u017fsub_:::h0<icall 0\u0149vj_V\u01325\u2126 \u0345H\u00b2", "names": ["\u017fsub_", "icall", "vj_V"]}
+{"s": "s:::\u03c2\u017f()38Foo::Barbaz::xKa>3)\u0180\uff21.\u21296::.x\u00df1loc_", "names": ["Barbaz::xKa", "loc_"]}
+{"s": "\u017f:::call \u00e9", "names": ["call"]}
+{"s": "abc::defgcisub_\u0085\t\u013f\u2129", "names": ["defgcisub_"]}
+{"s": "\t\u03a3\u0131\u0149a", "names": []}
+{"s": "", "names": []}
+{"s": "\t,\u03a3i_", "names": []}
+{"s": "3\u212add\u00b212abcd\u2129\u2129\u03c2\u4e2d2F]\u00dfFoo::Barbaz::x12abcdloc_>", "names": ["abcd", "Barbaz::x12abcdloc_"]}
+{"s": "\u0132,2sub_)k4\u00aa;e.\u0100::\u017e\u00b2A:::\u2126\uff21\u017f", "names": ["sub_"]}
+{"s": "\u0131\u00e9", "names": []}
+{"s": " -Foo::Barbaz::xnullsub_\uff21H\n\u0345;push e\u00e9\u0130\u03a3,\u017f\uff21call :push V7push \n\u0345\u0100", "names": ["Barbaz::xnullsub_", "push", "call", "push", "V7push"]}
+{"s": "\n\u0131nullsub_.:2::+:::;f.b\u2126<b\u03a3\u0149:::5", "names": ["\u0131nullsub_"]}
+{"s": ",\tSKj_\u00b2sub_nullsub_+X\tA\u03c29\u012fkj_\u0100:::\u4e2d0\u2129\uff21c\u0131:d\u00df", "names": ["SKj_", "sub_nullsub_"]}
+{"s": ">\u03c2x\u03c2k", "names": []}
+{"s": "hH_std::abc::defg**\u212aS+\u01304#0x40100002.\u00b2X ", "names": ["hH_std::abc::defg", "x40100002"]}
+{"s": "\u012fabc::defg0x401000abc::defg\u00ba\u4e2dv\r<Foo::Barbaz::x\u2126vstd::", "names": ["defg0x401000abc::defg", "Barbaz::x", "vstd"]}
+{"s": "\u01325\u0130]+h", "names": []}
+{"s": "\u00aa)Foo::Barbaz::x\ud83d\ude00\u017f std::\u0661K12abcdH\u0661\u0149nullsub_", "names": ["Barbaz::x", "K12abcdH", "nullsub_"]}
+{"s": "f#Hc\n\u0085\u0100", "names": []}
+{"s": "*\u2126\u017f+b#\u00aahnullsub_s\ud83d\ude00qword7push \u03a3+qword\u20282xpush 4<i\u4e2d\u0085\u2028", "names": ["hnullsub_s", "qword7push", "qword", "xpush"]}
+{"s": "(", "names": []}
+{"s": "\nFoo::Barbaz::x\u03a3Sx+\u4e2d#X5\n\u0100F::\n;push \u212a.]_\u0661", "names": ["Barbaz::x", "push"]}
+{"s": "\u2129\u00e9hS\u1e9eFoo::Barbaz::xh\nsub_;[,\u0130]k\u00df\u2126\u212b\u00ba\u0149((4\u2129", "names": ["Barbaz::xh", "sub_"]}
+{"s": "\u212b\u00aa\u2129:abc::defg\u00aa43\u2028\u0661push e)&\u212b<\u01307(0x401000\u2028qword+,", "names": ["defg", "push", "x401000", "qword"]}
+{"s": "12abcd1\u0100\u013f\ud83d\ude0070x401000", "names": ["abcd1", "x401000"]}
+{"s": "k+", "names": []}
+{"s": "dXi\tS\u012f5\u017f\u0085\u0132abc::defg:::::&\u03c2dFoo::Barbaz::x8", "names": ["defg", "dFoo::Barbaz::x8"]}
+{"s": "\u03c2\u0085<6H]\u012f\u0661call 0x401000\u0132\u2129\u0131\u0100:::hkk:::push \u0345", "names": ["call", "x401000", "push"]}
+{"s": "\u0085\u1e9e\u0100\u0100\u212b\nbj_v\n\u013fsub_\u017e\u00b2kqword0nullsub_ \uff21\u0661_std::", "names": ["bj_v", "sub_", "kqword0nullsub_", "_std"]}
+{"s": "i\u017e\tIj_\u00aa\u2028\rX8\u0132\u00ba[3Foo::Barbaz::xf;_d.\u013f5\u03a3\u0345d\u0100\u03459", "names": ["Barbaz::xf"]}
+{"s": "Fqword#\u0085\u00b2\u1e9e\u0661j_\u00aasub_c\u2126>\u0085j_nullsub_\u0130", "names": ["Fqword", "sub_c", "j_nullsub_\u0130"]}
+{"s": "\u0100\u00df,push <s\u00ba\uff21&\u00b2:::&\u00aa\u2126f\u0085\u2129)\n:::j_\r\u017e#", "names": ["push"]}
+{"s": "&h", "names": []}
+{"s": "#53::H>_d\u0345", "names": []}
+{"s": "*\u0180\u00df\u0149\u0100_e\u00aa\u00e9\u00aa\u00ba9\u0149.-:::\u212912abcd)\t\u0130kA\u013f\u00dfcall ", "names": ["abcd", "call"]}
+{"s": "\u0345\n\u03a39Xh\u0149sKS&F\u0180-Ib7\u0100*\u012f\u0149[S7s\u03a3SA\u0661", "names": []}
+{"s": "#;", "names": []}
+{"s": "", "names": []}
+{"s": "i\u00bad[nullsub_*&8Fstd::\n(,\u017f;i-&*\u017e\u013f\u013f-+2 ", "names": ["nullsub_", "Fstd"]}
+{"s": "\u017fx\u017fcall i\ud83d\ude00\u01310x401000f", "names": ["\u017fx\u017fcall", "\u01310x401000f"]}
+{"s": "v:\u00aa67k\u00b2 \t", "names": []}
+{"s": "\r5\u017f7Inullsub_\u013fFoo::Barbaz::x\u212ax:\u03c23#\u0100\u00b2\u00b2:::a\u066112abcd\u4e2db;", "names": ["\u017f7Inullsub_", "Barbaz::x\u212ax", "abcd"]}
+{"s": "\u0130FI\u017e\u017e8\ud83d\ude00j_F85&e\ud83d\ude00#\u212a_#\u012f\u0100f\u00b2\t", "names": ["j_F85"]}
+{"s": "\u017ec\u03a3\u0661:::<2\u03a3v::std::\u2129\u2129qwordI\u017f+6", "names": ["qwordI\u017f"]}
+{"s": "Foo::Barbaz::x", "names": ["Barbaz::x"]}
+{"s": "\u2126\u03c2K\u00bae\u0132\t:1_\u03a3", "names": []}
+{"s": " nullsub_c::K>\u012f\u212a5abc::defgk*3abc::defg4+(]1k\u00b2\u2028I\u00ba ", "names": ["nullsub_c::K", "\u212a5abc::defgk", "defg4"]}
+{"s": "b312abcdj_push b<0\u2126\u03a3x6k", "names": ["b312abcdj_push"]}
+{"s": "Foo::Barbaz::x\u1e9eab0x401000:\u03a3][+[::\u0149ie\uff21\ud83d\ude00Xstd::dH,\u2126V\u00b2std::\u017ef[\u0345", "names": ["Barbaz::x", "ab0x401000", "Xstd::dH"]}
+{"s": "\u2129 \u00df\u2129\u2129x-12abcdj_]+\u4e2dabc::defg\u0149,\u0131xdX\u012f\u20281", "names": ["abcdj_", "defg", "\u0131xdX"]}
+{"s": "2", "names": []}
+{"s": "\u0130,\u017eSK-\u0661\u1e9eS\u4e2d\u03458a:qword)call \u0132\u017f7\u017f\u0131\u2129H:j_\u0149", "names": ["qword", "call", "\u017f7\u017f\u0131"]}
+{"s": "[j_\u00dfnullsub_&S:::I(:::KV\td6std::\u0132abc::defg\u0180\u00aa6\u2028s\u00df", "names": ["nullsub_", "d6std", "defg"]}
+{"s": ")\uff212\u03c2\u012f\u00dfsub_\u0180\u2129\u013f,F\u212bs\u4e2dsub_\u00ba\u0132<,::84j_\u0661", "names": ["sub_", "sub_"]}
+{"s": ":\u2126;\u0661loc_\u00df\u0149F;\u03c2\nnullsub_Foo::Barbaz::xabc::defg\u017ek__#x\u0132f\r61i\u0345Foo::Barbaz::x", "names": ["loc_", "nullsub_Foo::Barbaz::xabc::defg", "Barbaz::x"]}
+{"s": "", "names": []}
+{"s": ",c\u012fKstd::", "names": ["Kstd"]}
+{"s": "dabc::defg\t:\u0085K\u0130\u2129\u0661\n_ \u0180\u2126Fi&f:\u2126\ud83d\ude00\u00ba\u012fV\u0131qword\u013f\u00df", "names": ["dabc::defg", "V\u0131qword"]}
+{"s": "cx\u00df\u0085:\u0100fSc\u013fcpush \u2126loc_\u017eloc_7", "names": ["cpush", "loc_", "loc_7"]}
+{"s": "abc::defg_\n[s><0x401000:::\u00dfsub_call #H", "names": ["defg_", "x401000", "sub_call"]}
+{"s": "b\u06610x401000-\u017f,abc::defg:::f\u0180I;\u0085", "names": ["x401000", "defg"]}
+{"s": "\uff21.8\u00e9<\u0345\u012f\u03c2as-Hnullsub_\uff21a12abcd\u212b_ab\u0661KH]Xhabc::defgnullsub_", "names": ["Hnullsub_", "a12abcd", "Xhabc::defgnullsub_"]}
+{"s": "i>K\u00ba\u212bd](\u212bf\ud83d\ude00\u2129", "names": []}
+{"s": "c\u2129sub_abc::defge\u017f\u00aa", "names": ["sub_abc::defge\u017f"]}
+{"s": "call 9 6\u212b\u013238<abc::defg<sub_\u0085A\u00ba::\u03c2\t\nH\n", "names": ["call", "defg", "sub_"]}
+{"s": "\u0132i\u012f\u212a]vsub_<0d\u017f", "names": ["vsub_"]}
+{"s": "\u00df\u01310\u00df\u2028\r\u0180v\u1e9eh \u00df4\ud83d\ude009;\tKX", "names": []}
+{"s": "[\u00ba*\u012f\u01300abc::defg\u00b2\u0130\u2028kpush <::\ud83d\ude00s-,", "names": ["\u01300abc::defg", "kpush"]}
+{"s": "-\u0132", "names": []}
+{"s": "X\u013f8\u0100*Ss2\u0130", "names": ["Ss2\u0130"]}
+{"s": "\u0085\u012f5;8[::&Khs", "names": []}
+{"s": "0x401000nullsub_>h\u2028:::xx\u212bK\u2028h", "names": ["x401000nullsub_"]}
+{"s": " 602\u2126xcall \u03a3\uff21\u20280(b\u00ba*H\u017f", "names": ["xcall"]}
+{"s": "\u0100f::,\u01801\n\u00ba\u0085k", "names": []}
+{"s": "hi\u0345\u0661\u212a7\u20280x401000\u0345]h9)#SS\n8", "names": ["x401000"]}
+{"s": "h\u0345.2]\u00aa-push ", "names": ["push"]}
+{"s": "\u00df1\u00b2\u212b2\u4e2de\u1e9estd::", "names": []}
+{"s": "\u2126\u2129\u2028_", "names": []}
+{"s": "\u00e9\u2126\u0100d1Foo::Barbaz::xx*;d\u0131", "names": ["d1Foo::Barbaz::xx"]}
+{"s": "\u012f0+<5\u0132\u013f-v ;\u2126Fe\u0085", "names": []}
+{"s": "312abcdf\nxKfstd::\u21294", "names": ["abcdf", "xKfstd"]}
+{"s": "k\ud83d\ude00<", "names": []}
+{"s": "2asub_a\u013fqwordstd::vFoo::Barbaz::x)::loc_0\u212912abcd9\ud83d\ude0053\u4e2d,-call Kj_i8&i", "names": ["asub_a", "qwordstd::vFoo::Barbaz::x", "loc_0", "abcd9", "call", "Kj_i8"]}
+{"s": ";\u0132\u00e95v:::]j_\u06614)\u0345Fnullsub_\u212b\u03c2Fstd::loc_loc_4\u212a", "names": ["Fnullsub_", "Fstd::loc_loc_4\u212a"]}
+{"s": "12abcd\u0100+\u0130", "names": ["abcd"]}
+{"s": "2\u0345", "names": []}
+{"s": "\u212a\u0100F\u017fabc::defg0x401000s\u0130\u4e2d\u00ba\n<SX\u013fh\u4e2d-iFoo::Barbaz::xxK4\u013f\u2028call .nullsub_8", "names": ["F\u017fabc::defg0x401000s\u0130", "iFoo::Barbaz::xxK4", "call", "nullsub_8"]}
+{"s": "cs\u21265\u0130&\u0149:::c", "names": []}
+{"s": "\u2028sub_<12abcdloc_\u03c2\u01305-<\u00df]Kb91abc::defgd\u2028\ud83d\ude00,Foo::Barbaz::x\t", "names": ["sub_", "abcdloc_", "Kb91abc::defgd", "Barbaz::x"]}
+{"s": "\tc-38\uff21\t\u017fj_*\u0132Hx", "names": []}
+{"s": "\u013f)\u0661\u4e2d,\u2126s5Foo::Barbaz::xK\u00ba\u2126.::::\u017f87abc::defg<9\u0131:", "names": ["s5Foo::Barbaz::xK", "\u017f87abc::defg"]}
+{"s": "]\u212b:::i\u00ba8\u0100_abc::defgnullsub_20x401000\u2126hpush 67Ac\u0130>XV\u017f3\u0100&\u00e9", "names": ["_abc::defgnullsub_20x401000", "hpush", "XV\u017f3"]}
+{"s": "\u01000\u0085:::sub_\u212b0\u017e\u03a3\u00aavI3", "names": ["sub_"]}
+{"s": "1v[<9\u0149\u00dfloc_\u017efnullsub_\u0149\u00e9\uff21nullsub_[:S0x401000Vpush ", "names": ["loc_", "fnullsub_", "nullsub_", "S0x401000Vpush"]}
+{"s": "\u2129\u2028\u0132S:abc::defg(\na\u012f(H\u4e2d\u212bS:Iqword", "names": ["defg", "Iqword"]}
+{"s": "\t*sFoo::Barbaz::x\u012f:::\u0661\n\u03a3d,8\u4e2d\u017e\u0661e\u2126_\u1e9e\u00e9_FS&HS\u2126sb", "names": ["sFoo::Barbaz::x"]}
+{"s": "\u1e9e7v\ud83d\ude007std::std::\u0149\u0085\u00ba:7I\u0131loc_\u00aa\u0100as\u03a3Fcall ><\u0149<S0x401000\u0661", "names": ["I\u0131loc_", "Fcall", "S0x401000"]}
+{"s": "\u0131abc::defg3;nullsub_\u0131<#(\u212a\u012fj__:qwordh", "names": ["\u0131abc::defg3", "nullsub_\u0131", "qwordh"]}
+{"s": "\u00b2*:::\u212b\t)]x\u0100std::e\ud83d\ude00\u0180\u00df\u017eqword", "names": ["qword"]}
+{"s": "\u212bipush 8S:\u0132H]\u212b\u212anullsub_(c(4\u212b", "names": ["ipush", "\u212anullsub_"]}
+{"s": "", "names": []}
+{"s": "\u00df5\u212bh\u017f::v\u212a0\n\u0100e\u20289\r[\u4e2d]", "names": []}
+{"s": "sub_qwordFoo::Barbaz::x\u00b2\u0180e\u0180k5\u00e9i0)\u03c2;\u00aa7hFoo::Barbaz::xAS:6\n\r\u212b\u2126\r\u0345\u4e2d", "names": ["sub_qwordFoo::Barbaz::x", "hFoo::Barbaz::xAS"]}
+{"s": "c\u0345\uff21<\u0100\uff21j_", "names": []}
+{"s": "cj_\u0149112abcd__\u4e2dabc::defgqword\u0132\u03c2S:\u017f\r\nf+,", "names": ["abcd__", "defgqword"]}
+{"s": ",:::X\u017f0loc_.", "names": ["X\u017f0loc_"]}
+{"s": "3\u03a3 \ud83d\ude00\tj_\u1e9e\u212a\u0180std::0x401000V\u0130\u03a3H\u013f\nnullsub_abc::defg4\n\u4e2dH*d\rcall push qword", "names": ["x401000V\u0130", "nullsub_abc::defg4", "call", "push", "qword"]}
+{"s": "\u212aa\u00df\u0661-Foo::Barbaz::x-1.Vsub_", "names": ["Barbaz::x", "Vsub_"]}
+{"s": "\u017floc_\u00e9s\u00e9 \u0149\u0149:::Kdaa\u0661", "names": ["\u017floc_", "Kdaa"]}
+{"s": "&\uff21kx12abcdcall \u0130])loc_\r\u0661\u013f\u0180ccpush \uff21a4#\u0085v", "names": ["kx12abcdcall", "loc_", "ccpush"]}
+{"s": "8)\u0149\u00aaF\u0180(6", "names": []}
+{"s": "K\rV\uff21\u03c2>\rAH\u2129\u2126::i8\r\u21295d>2\u03a3b\u00df\u00e9call d", "names": ["call"]}
+{"s": "\u017f\u2126", "names": []}
+{"s": "\u2129\u2126&1\u212bi", "names": []}
+{"s": "\u20286\ud83d\ude00", "names": []}
+{"s": "0x401000call F\u0100\u017fnullsub_Vh\u0345icall hc\uff21nullsub_a\u0661>\u0100\nSf\u01494(\u0661&a#", "names": ["x401000call", "\u017fnullsub_Vh", "icall", "nullsub_a"]}
+{"s": ".\u00baqword5c\u00e9\u212b::\u2028X:::\ud83d\ude00\u212a[F\u03a31\u1e9eFv0x4010006c\u017e\uff21abc::defg", "names": ["qword5c", "Fv0x4010006c", "defg"]}
+{"s": "xdi \u2126v", "names": []}
+{"s": "enullsub_\u212b:\u00bapush \u012fHAcall F\u2028\r\u212a#&)[;\u21260x401000", "names": ["enullsub_", "push", "HAcall", "x401000"]}
+{"s": "a&K1Hnullsub_\u0130:::j_7\u01800.9:\u4e2d87\u2129<k3Hstd::\u0130_s\ud83d\ude00\u0130", "names": ["K1Hnullsub_\u0130", "k3Hstd::\u0130_s"]}
+{"s": "\ud83d\ude00\u03a3b\u212a\u00ba\tFoo::Barbaz::xV\u00e9\u0661\u00df\uff214K++v\u0130\t2\ud83d\ude00[ :::f8\u0131(1", "names": ["Barbaz::xV"]}
+{"s": "e\u0132H\u03c2\u0149I\u4e2d\r::*\u0130c\u017fFV-\u00b2;\u017fa5\u0149", "names": ["\u0130c\u017fFV"]}
+{"s": "\u03a3\u2129\u06612,V\u0130-Foo::Barbaz::x,5_call +(call [(\ud83d\ude00\u03c2v.d\u2028 6V2", "names": ["Barbaz::x", "_call", "call"]}
+{"s": "\u03a3call ::\u2126j_\t\u00aa2\u0100f\u00ba\u00ba\u0149push \u03a3\u0130push \u00df12abcd\u00ba\u0661Fpush \u03a3sub_\u2126\r9push \u03a3", "names": ["call", "push", "\u0130push", "abcd", "Fpush", "sub_", "push"]}
+{"s": "0x401000\ud83d\ude00H\u212b8[\u012f\u01807Hc)1\u0149", "names": ["x401000"]}
+{"s": "7b1\u00baa+4\u01325)ex\u0085[nullsub_\u212a3std:::3", "names": ["nullsub_\u212a3std"]}
+{"s": "\t4", "names": []}
+{"s": "", "names": []}
+{"s": "12abcdAb0x401000Foo::Barbaz::x1\u0130\u0661>\t[Foo::Barbaz::x\uff21push 7>\u00853S::12abcd", "names": ["abcdAb0x401000Foo::Barbaz::x1\u0130", "Barbaz::x", "push", "abcd"]}
+{"s": "\u03a31*\u212a4)c\u0131\rnullsub_\u0149s ", "names": ["nullsub_"]}
+{"s": "", "names": []}
+{"s": "HFoo::Barbaz::x\u017ed_5]7dh\u0131k\u212a&0\u4e2d&\u0149\u0661;\u00e9sub_f \u00e9\u0149loc_\u01320j_", "names": ["HFoo::Barbaz::x", "dh\u0131k\u212a", "sub_f", "loc_"]}
+{"s": "]+vsub_\u01493fh.I Foo::Barbaz::x\u2126\u2126::6a8nullsub_\u2126I\u03c2;", "names": ["vsub_", "Barbaz::x", "a8nullsub_"]}
+{"s": "#]x6\u212ax\u00b2:a7>4\u4e2da2loc_\u4e2dabc::defg", "names": ["x6\u212ax", "a2loc_", "defg"]}
+{"s": "A\u00dfa&b\u03a3\t\u017e12abcd\t\u0131\u4e2d\u00ba\u00df7>V", "names": ["abcd"]}
+{"s": "\u03a3\r\u012fIi\u212a:: d,&\u0130\u03a3H\u0085", "names": []}
+{"s": "\u00e9\u2129\u017f.push \u00aa\u00dfX\u0149;6\u013fs7f<\u0180Xxkf", "names": ["push", "Xxkf"]}
+{"s": "xkX0x401000\n;1\u00aa;0x401000\u017e\u0149", "names": ["xkX0x401000", "x401000"]}
+{"s": "8.6+ 12abcd\u00ba12abcdabc::defg6;\u0132\u017e\u00dfF\u2028", "names": ["abcd", "abcdabc::defg6"]}
+{"s": "nullsub_I8\u013f\u00df\u0130\u2129\u1e9ebsub_k;\u00ba-\u2129call (5)012abcd\u017f\u00df;12abcd1_h", "names": ["nullsub_I8", "bsub_k", "call", "abcd\u017f", "abcd1_h"]}
+{"s": "\u2028\u0180>", "names": []}
+{"s": "\u017ef\u00df4call \u0149\u212b", "names": ["call"]}
+{"s": "v:::dj_\ud83d\ude00*k\u013f", "names": []}
+{"s": "A+:std::;\u212b\u212bV\r\u066158X:::e\u00df5push \u03c2A#)\r+\u1e9eK\u00b2)12abcd", "names": ["push", "abcd"]}
+{"s": "khH1loc_x\u03a3Sa::\u012f\u0100j_<c\u00b2*iFoo::Barbaz::x\u212bqwordb", "names": ["khH1loc_x", "iFoo::Barbaz::x", "qwordb"]}
+{"s": "\u2126\t\ud83d\ude00\u013f,:\u0149\uff210x401000\u0180\u0661fqword\u00dffc\u00df\u00aaqwordstd::(3b,((", "names": ["x401000", "fqword", "qwordstd"]}
+{"s": ".7\u0131+9\u03c2\u0132\u0085\t&Sloc_12abcd\u01007", "names": ["Sloc_12abcd"]}
+{"s": "\u0180 \u1e9e\u03c2\u0100\u0180+*qword\u00aa\u1e9e", "names": ["qword"]}
+{"s": "aA*s\u2129", "names": []}
+{"s": "\u0130.\u0345\u212a", "names": []}
+{"s": "4\u0085call AfS7::6\u0180\u017f\u01006abc::defg2V\u00b2\u00857I0call \u012f\u212b21h\u012f", "names": ["call", "AfS7::6", "defg2V", "I0call"]}
+{"s": "7\u0085nullsub_K\u03a3(\u4e2dV2A&12abcd12abcd\u4e2d\u0661\u212b\u4e2d::::25+I\u212b&push \n", "names": ["nullsub_K", "abcd12abcd", "push"]}
+{"s": "12abcd\u00e9\u0100k3\uff21", "names": ["abcd"]}
+{"s": "\u017e", "names": []}
+{"s": "\u4e2d\u00b2<f\uff21 a\u017e\u017eX", "names": []}
+{"s": "Xj_\u0180\u1e9evH\u0345\u2129", "names": []}
+{"s": "f\u01318nullsub_8*#push Foo::Barbaz::xe", "names": ["f\u01318nullsub_8", "push", "Barbaz::xe"]}
+{"s": "nullsub_\tx\u03455>):::\u00e9+", "names": ["nullsub_"]}
+{"s": "\u0132e1;F\u03a312abcd\u03a3Kj_f\u017fFoo::Barbaz::x12abcd", "names": ["abcd", "Kj_f\u017fFoo::Barbaz::x12abcd"]}
+{"s": "", "names": []}
+{"s": ".floc_f\u017f:ef7]", "names": ["floc_f\u017f"]}
+{"s": "\u00e9\u017eIH)\u4e2d", "names": []}
+{"s": "\u00b2<x\u00e9std::8\u012fA\u03c2\u0085\u00df0[d2&\u03c2k\u0132\u01307+\u0149[", "names": []}
+{"s": "\uff21\u00ba\u1e9e,", "names": []}
+{"s": "\uff21;1qwordqwordV&:::j__\u00b2FI>2b9\u00aa5\u03c2\u013f\u00dfj_dfika8\u1e9e", "names": ["qwordqwordV", "j_dfika8"]}
+{"s": ">abc::defg8nullsub_\ns]\u0132\u00e9call K0x401000\u0345\t&k\u00b2\u017f12abcda\uff21&de.\u00e9Foo::Barbaz::x[\u212bV", "names": ["defg8nullsub_", "call", "K0x401000", "\u017f12abcda", "Barbaz::x"]}
+{"s": "\u01313<", "names": []}
+{"s": "[\r\u00aa(\uff2194\u212a0\u2129F\txA6\u2129", "names": []}
+{"s": "\u212bS\u2129+;h112abcd\u0131;::\u00b2\u00aaX\u2028,\u2129+\u0100d&,\u017e", "names": ["h112abcd\u0131"]}
+{"s": "6\u00aa\u212bvF\u0132#S3\u0131\u012f_V+\u03a3nullsub_1\tpush \u013f8]>", "names": ["nullsub_1", "push"]}
+{"s": "\uff2112abcd>\u013fVastd::(\u212b12abcdcall *2d", "names": ["abcd", "Vastd", "abcdcall"]}
+{"s": "", "names": []}
+{"s": "\u0661\u01490\u00df\u017ec[4\u0149", "names": []}
+{"s": "F*std::nullsub_\u00aa5,k\u0132Xc\u4e2d\uff21\t", "names": ["nullsub_"]}
+{"s": "\u00dfV\u212a)+0a\u00ba3e", "names": []}
+{"s": ";\u0149_d\u0131\u20289\u00ba\u1e9ec3::\t\uff21", "names": []}
+{"s": "6\u2129a-h1\ud83d\ude00\u0180f885\r hx\n", "names": ["f885"]}
+{"s": "7.V\n\u03a30#\u2028\u0085", "names": []}
+{"s": "\nsub_.::36\u0100F\u2028A,8;k\nnullsub_\u00b2", "names": ["sub_", "nullsub_"]}
+{"s": "-2\u0661b)3loc_a\u012f3\u4e2d+\u03a3ie[\u0085", "names": ["loc_a"]}
+{"s": "a\u0661\u03c2\u0100:::;j_0,\u2126\u03a3\u0149:::ecall \u03a312abcd\u2129+\u0130+\u1e9e", "names": ["ecall", "abcd"]}
+{"s": ";,Foo::Barbaz::x2\u4e2dA\u00b2\u00ba;6\ud83d\ude00Iabc::defgstd::call 1qwordpush 1std::\u03a3V.", "names": ["Barbaz::x2", "Iabc::defgstd::call", "qwordpush"]}
+{"s": "\u0661v\u00e9a*\u2028 \u2129A5]6\u00e9Foo::Barbaz::x\ndj_;_nullsub_>e\u00dfpush :::Hh\u00ba4", "names": ["Barbaz::x", "_nullsub_", "push"]}
+{"s": "-:::0x401000v\u2126:::K\u00b2\u013f(5-*x]\u018058hX\u03c2]\u0085\ud83d\ude00\uff21\u013fV\u0085\u0100", "names": ["x401000v"]}
+{"s": "H<\u00dfnullsub_\rIA\u2129\u00e9\uff21>\uff21\u2129abc::defg7\u1e9e::b\u0100\u00b2\u012fSs\u03a3\u2126", "names": ["nullsub_", "defg7"]}
+{"s": "&;\u2028", "names": []}
+{"s": "*qword\u2028b-\u012f", "names": ["qword"]}
+{"s": "\u0085Shx5\u0130\r7\u0345\uff21\u00e9-3\u017fV\u1e9e3V9", "names": ["Shx5\u0130"]}
+{"s": "0x401000X;i4\ud83d\ude00*\u212b[\t[j_i1Sj_0x401000a0\u212a\u0180\u00ba&X- ", "names": ["x401000X", "j_i1Sj_0x401000a0\u212a"]}
+{"s": "c-s\uff21I:::\u00e9\u03c27j_\u03a3<qword9\u2028&\u2126i4\u013f*Vcall j_h\u01009", "names": ["qword9", "Vcall"]}
+{"s": "Va\u012fK \ud83d\ude00[qword0V8:\u00aa2I\u034599", "names": ["qword0V8"]}
+{"s": "push *\u4e2dbe\u013f*)sF3\u0130\u00e9\u0149H", "names": ["push", "sF3\u0130"]}
+{"s": "", "names": []}
+{"s": "", "names": []}
+{"s": "K4\u212a \u0132\u0085\u2129push d2\u0132&(1\u212a3v\u212b+j_", "names": ["push"]}
+{"s": "\ud83d\ude007\r0x4010003vb\t\ud83d\ude00\uff21", "names": ["x4010003vb"]}
+{"s": "0\u013f2b\u0345.\u017e\u1e9e*qword\r\u0345\u2028H\u0132\u0131\u00b2\u2129<1&", "names": ["qword"]}
+{"s": "\u212bj_[d&A)std::9\u017e\u212b\u0100A0sj_sub_\u03a3-call \u2129", "names": ["A0sj_sub_", "call"]}
+{"s": "[:::\u0132call \u0100eiSSx\u2028call \uff213Heb[d", "names": ["call", "eiSSx", "call"]}
+{"s": "-0\u017e<\u017esub_::0\u00aaf\u03a3\u0131s7<\u1e9e", "names": ["sub_::0"]}
+{"s": "\u0131cck9Kk", "names": ["\u0131cck9Kk"]}
+{"s": "push ", "names": ["push"]}
+{"s": "\u01328\u2126", "names": []}
+{"s": "I>_eF>\u03c2*\u0180,", "names": []}
+{"s": "\nsub_::qwordI\u212ad\u017f:8\u0661nullsub_\u0085\u013f\u013f", "names": ["sub_::qwordI\u212ad\u017f", "nullsub_"]}
+{"s": "1::a9\u00b2\u0180X\u212b*push )push \u0100\u0100d9", "names": ["push", "push"]}
+{"s": "\u4e2d", "names": []}
+{"s": "\u01312v\u1e9e\u0131::a\u0132\u0130:::hFoo::Barbaz::x\uff21<\u03c2:\u1e9e\u1e9eF f", "names": ["hFoo::Barbaz::x"]}
+{"s": "+>;::\u0345\u4e2d\u2129e]", "names": []}
+{"s": "&12abcde\thj_estd::4j_IV\u2126push \uff21\u00df\u212b_\n\u0131b", "names": ["abcde", "hj_estd::4j_IV", "push"]}
+{"s": "X\u00ba_\u0131K\u0132Foo::Barbaz::x0\t\u012f[5\u212aVabc::defg\u0345i", "names": ["Barbaz::x0", "\u212aVabc::defg"]}
+{"s": "\u013f\t*dF\u03a3nullsub_\u03c2qword,abc::defg)::F\u212bX\u0149call \u0149\u01806\ud83d\ude00sub_", "names": ["nullsub_", "qword", "defg", "call", "sub_"]}
+{"s": "+Ia]\u0100std::(\u017e\u00aa\u2126c\t\r\r", "names": []}
+{"s": ":::\u2028push k>\u0345-\u01800d<", "names": ["push"]}
+{"s": "Fe\u00b2I*)qwordloc_sub_vI\u1e9e)I\u0130:::I\u00ba1 call 3\u4e2d\u212b:::", "names": ["qwordloc_sub_vI", "call"]}
+{"s": "\u013f\u0180", "names": []}
+{"s": "I", "names": []}
+{"s": "c12abcd\u2126adpush -\u0130bc\u0132dxv\u2126)\rabc::defg+push call Ack9)6i\u2129#", "names": ["c12abcd", "adpush", "defg", "push", "call", "Ack9"]}
+{"s": "V\u0085A5\uff21\rX\u00b2sub_\u013fv*\u013f\t>1vqwordh+be\u1e9edI", "names": ["sub_", "vqwordh"]}
+{"s": "K\u212b\u2028&\u0661\u212b\u017f\r\u00df\u0100icall VI\u03a3std::fqwordk-loc_\u0131", "names": ["icall", "fqwordk", "loc_\u0131"]}
+{"s": "[\u0130\u03c21F\u0149\u013f\u0100\u1e9e", "names": []}
+{"s": "Sa::x", "names": []}
+{"s": "+j_\u00e9\u0149\u0661iFoo::Barbaz::xK::6\u00aa09 9:\u03a3\u00df\u00b2\u03a39-\u0085:.nullsub_\u0345d", "names": ["iFoo::Barbaz::xK::6", "nullsub_"]}
+{"s": "4\r::::::\n\u017fj_\t\u00bas\u0130XI A\u0132\u017fa\u4e2d:::H\u00ba\u03c2nullsub_V", "names": ["s\u0130XI", "nullsub_V"]}
+{"s": "push \u0180#\u0085nullsub_\nstd::\u00b2\u00b2Foo::Barbaz::x\u0661[v[i", "names": ["push", "nullsub_", "Barbaz::x"]}
+{"s": ";I&Hd-0\u017f\u03a3push \t\u01003\u017f8\u017e:::;qword]8\u00ba\u00aa\u2129Foo::Barbaz::xloc_push 6", "names": ["push", "qword", "Barbaz::xloc_push"]}
+{"s": "*#", "names": []}
+{"s": "X\u00aa\u00df[e0x401000\r\u01323*2\t,", "names": ["e0x401000"]}
+{"s": "4\u2028\u00e9\u017eFoo::Barbaz::x\n\u00df5abc::defg2]9Sxb]+V\u00aax", "names": ["Barbaz::x", "defg2"]}
+{"s": "d5F>\u013fF\u00dfA\u2129\u0180\r9\ud83d\ude00\u21262e12abcdVs\u00ba3[", "names": ["e12abcdVs"]}
+{"s": "\u0661-\u0661\rb5A*abc::defg\u0149(\u0085\u212a&#12abcd9IF\u0661+cs\u0085_\r2\u017e\u0100", "names": ["defg", "abcd9IF"]}
+{"s": "abc::defg_", "names": ["defg_"]}
+{"s": "Foo::Barbaz::x\u212aXnullsub_abc::defg)[\u03c2\u00e9)Acall \u0085#\tK[X5\n\t\u03c212abcd", "names": ["Barbaz::x\u212aXnullsub_abc::defg", "Acall", "abcd"]}
+{"s": "F;j_2s\ud83d\ude00::\u0132AX.-:i_:\u2126\u00e9Astd::Aj_", "names": ["j_2s", "Astd::Aj_"]}
+{"s": "Fsub_.[\u0149v", "names": ["Fsub_"]}
+{"s": "0\u00baS", "names": []}
+{"s": "\u4e2d\u017fkstd::\n\u03459f9qwordb\u2129qword\ud83d\ude00", "names": ["\u017fkstd", "f9qwordb", "qword"]}
+{"s": "[\u012fe::\u0149as", "names": []}
+{"s": "\u0131\u2126V\u0131)]e\u00df\u0345\u212a\u0085*:\u212a<:::8Xabc::defg2\u00851std::\u03c2::i+nullsub_\u03c2call ", "names": ["Xabc::defg2", "nullsub_", "call"]}
+{"s": "K]", "names": []}
+{"s": "12abcd5# *\u00ba&\n]6push \u212a1\t \u0180<\u01497;x\u03a3\u2126;d", "names": ["abcd5", "push"]}
+{"s": "\u00b2\u012f\u0345&", "names": []}
+{"s": "-2kk\n\t12abcd_0#0x401000\u4e2d::\u0180\n\u4e2d\u20283\u013ffv0\ud83d\ude00:0:::loc_V", "names": ["abcd_0", "x401000", "loc_V"]}
+{"s": "8\u212b#)]nullsub_std::-\u00df2.\u0130", "names": ["nullsub_std"]}
+{"s": "[a](*", "names": []}
+{"s": "\u0180Sv\u06615e.iqword\u212b7+;56\u017fnullsub_loc_Foo::Barbaz::x\u0345_\n\u00b2\u0132\u4e2d\u0345", "names": ["iqword", "\u017fnullsub_loc_Foo::Barbaz::x"]}
+{"s": "ShXpush \u0130\tcall \n\tvff\u00e9_ eK:::412abcd\u4e2d;s\u0131", "names": ["ShXpush", "call", "abcd"]}
+{"s": "\u00ba0call Xloc_e\u00b2\uff21A9\u0131\u00df\ud83d\ude00\uff21\u2129\u03c2\u00df\u017f><hKI\u0100\u0661*\u012f\u017f:::f", "names": ["call", "Xloc_e"]}
+{"s": "212abcd*:K.76\u01803\u0132sub_call _Hfd(", "names": ["abcd", "sub_call", "_Hfd"]}
+{"s": "(\u014965>9i\u017epush qword:::<5\u03a3", "names": ["push", "qword"]}
+{"s": "\t", "names": []}
+{"s": "*K12abcd.cnullsub__;Sdstd::4aKx\u013f\u0345\u017f\u00dfsub_push ", "names": ["K12abcd", "cnullsub__", "Sdstd::4aKx", "sub_push"]}
+{"s": "f\u0131\u00b2\u2126\u0085AVKH:::;", "names": ["AVKH"]}
+{"s": "V\npush v\u017f\u4e2dk\u212b\u03a3v\uff21aloc_\u0130::c6H\u212a", "names": ["push", "aloc_\u0130::c6H\u212a"]}
+{"s": "\u0661He\rs", "names": []}
+{"s": ";b\u01329\u00aa\u00e9&<]\r*H\u1e9ek\u03a3h\u00b2)\u03c2\u0132\u00ba\u03a3 \uff21HA\ud83d\ude003", "names": []}
+{"s": "\u012f3;\u0132\u017f.K9fcnullsub_-eabc::defg\u017e\u012f7xd:::\u0661nullsub_\u2126Ss_\u0130", "names": ["K9fcnullsub_", "eabc::defg", "nullsub_", "Ss_\u0130"]}
+{"s": "V\u212a4\t\uff21\u212a;\u212bk\u0345x]0x401000&sanullsub_h", "names": ["x401000", "sanullsub_h"]}
+{"s": "Vj_4,", "names": ["Vj_4"]}
+{"s": "\u0130::H7enullsub_6:::v", "names": ["H7enullsub_6"]}
+{"s": "(\u06617I", "names": []}
+{"s": "Kecall eX):::(2\u0345\u212bd\u00e9\u017fnullsub_\u0149", "names": ["Kecall", "\u017fnullsub_"]}
+{"s": "-\r\u0130*\u0345\u03c2\t\u03a3\u03c2Ij__<\u017e\u2129\u014912abcd\u0132*\u212aA\u1e9e\u017eS2Foo::Barbaz::xcall ", "names": ["Ij__", "abcd", "S2Foo::Barbaz::xcall"]}
+{"s": "\u0130call \u0180-Fabc::defgnullsub_Snullsub_H3\u2126kcall std::", "names": ["\u0130call", "Fabc::defgnullsub_Snullsub_H3", "kcall"]}
+{"s": "\u00aa", "names": []}
+{"s": "Fa\u017e0x401000(Hh\u0345\u0149k0\u00b2-k0\u00df\u01303d[\u0131\u2129+\u0661", "names": ["x401000"]}
+{"s": "\u03a3)K\u4e2dFnullsub_(1\u2126_::\rK\u03a3&", "names": ["Fnullsub_"]}
+{"s": "_H0a12abcdFoo::Barbaz::x0loc_\u017f d", "names": ["_H0a12abcdFoo::Barbaz::x0loc_\u017f"]}
+{"s": "\u0180\u0131V&\u0100Iloc_9\u0149\uff21Foo::Barbaz::xK\u212bav\uff21c", "names": ["Iloc_9", "Barbaz::xK"]}
+{"s": "9<-(\u0085b44\u013fS\u0661\u03c29-", "names": []}
+{"s": ",Foo::Barbaz::x5\u2028\u2126e\u1e9ecnullsub_ <S3\u013286e\uff21\u212b\u2129Fb\u03454sub_i\u0130*#*", "names": ["Barbaz::x5", "cnullsub_", "sub_i\u0130"]}
+{"s": "X9", "names": []}
+{"s": "s12abcddpush 0\t9vFI6I0-s]nullsub_nullsub_-#[\ud83d\ude00", "names": ["s12abcddpush", "vFI6I0", "nullsub_nullsub_"]}
+{"s": "Foo::Barbaz::x::-*(\uff21\u01493AF\u012f\u212b\u212a[", "names": ["Barbaz::x"]}
+{"s": "..\u2129,#\u2129abc::defg>f[(\u0149\u0345\tloc_#push 6j_k\u00e93", "names": ["defg", "loc_", "push"]}
+{"s": "2nullsub_::(\u212a12abcd\u212b\u03a3<-nullsub_\u017fk\ud83d\ude00qwordc\u00dff&]::-]nullsub_\u0131", "names": ["nullsub_", "\u212a12abcd", "nullsub_\u017fk", "qwordc", "nullsub_\u0131"]}
+{"s": "#\u212b<ecj_0\u0149+\u0345", "names": ["ecj_0"]}
+{"s": "\u00b2\u017f4)\u0149\u0180::\u0149.\u212bc\u01006k0", "names": []}
+{"s": "\u2028\u00df0x401000", "names": ["x401000"]}
+{"s": "e<\u2129\u017e\u2126\uff21x9f<+\u0180(2.call \n", "names": ["call"]}
+{"s": "a\t\uff21push \u03c29abc::defg7A;b0x401000_K.\u0149,I\u00aa\u0345\u00e9F", "names": ["push", "defg7A", "b0x401000_K"]}
+{"s": "\u0345\u0345+\u0100[\u0131\u00ba\u017ev04s\u20282\u03a3x\u0180\u0345\u012f]s\u1e9e\nfFpush ,1k", "names": ["v04s", "fFpush"]}
+{"s": "\u012f\u017f\r\u0131Sx", "names": []}
+{"s": "\r(3\u017e\u013f.2\u4e2d\u2028\u2028c_]e\u0131X\u017e1", "names": []}
+{"s": "qwordj_Asub_", "names": ["qwordj_Asub_"]}
+{"s": "\u00ba\u2129\uff21>6]\u2126\u2126\u2129Foo::Barbaz::xK6\u00b2&\u00aa2\u017f>As\t\u00aah>b]qword2Ksub_", "names": ["Barbaz::xK6", "qword2Ksub_"]}
+{"s": "\u212bFF>i\u2028\u00ba#2Vc-std::*e0x401000H4\r:\u00b2\u0180Av\u00ba00loc_*", "names": ["e0x401000H4", "loc_"]}
+{"s": "\u0661]\u00ba\u0149abc::defg\u212b:::&07::\u017ei\u0132]*]XV1,\u2028a:7\uff21\u00bav\u1e9e", "names": ["defg"]}
+{"s": "\u1e9esub_H\u00e99\u0131sub_abc::defgf#+", "names": ["sub_H", "\u0131sub_abc::defgf"]}
+{"s": "-:::>\u2126loc_S:", "names": ["loc_S"]}
+{"s": "12abcdsub_)::\uff21047#4*(#<74\u017f\u212bV\u03a3\u2129\u212a\uff21H:::x", "names": ["abcdsub_"]}
+{"s": "j_\u4e2dAIstd::\u0100\u0132 b,fj_\u01309\u017f\u00b2:::\u00aa1\u012f\u00b2h\u03450\u017e::i\r", "names": ["AIstd", "fj_\u01309\u017f"]}
+{"s": "0x4010001k0x401000\ud83d\ude00j_\u017f\u0100\u212b\u2126(\u03c2call \u2129Foo::Barbaz::xF\u00e9abc::defgc\u212a5\u00e9::&S1", "names": ["x4010001k0x401000", "call", "Barbaz::xF", "defgc\u212a5"]}
+{"s": "", "names": []}
+{"s": "j_-s)<]", "names": []}
+{"s": "7bd\u212b\u2028\u0345\u0130xV-\u013f\u00e9\u017e\u4e2d\u2129\r\u2126", "names": []}
+{"s": "::\u00e94I\u013f2\u013f\u00df \uff21\u0085S\uff217\n>9k&\u212a3b\u00bakb\u00b2H\u017e\u00b2", "names": []}
+{"s": "\u03a3Xcall \u1e9e;j_\u0149\u0661d 3S\u4e2dv(A\u2028\u00b2\u017e2F\u2028S", "names": ["Xcall"]}
+{"s": "a.\u2126I\u0130::\u00b2<9Foo::Barbaz::x", "names": ["Barbaz::x"]}
+{"s": "\u03c211\u00aa\u00ba\u4e2d\u1e9e", "names": []}
+{"s": "\u0085\u21263\u0130\u0100\u1e9e+loc_\u0100\ud83d\ude00\u4e2d\u212b12abcdqwordc6]KS7Foo::Barbaz::x\u0085Ax42[(\n\u1e9e", "names": ["loc_", "abcdqwordc6", "KS7Foo::Barbaz::x", "Ax42"]}
+{"s": "\u2126qword8hF\u0661>4:::K\u013fnullsub_a\u00b2\u0131qword.", "names": ["qword8hF", "nullsub_a", "\u0131qword"]}
+{"s": "_)>Sstd::.-Kj_I\u0130b\u017eFoo::Barbaz::xsub_ ,9\u017f>A", "names": ["Sstd", "Kj_I\u0130b", "Barbaz::xsub_"]}
+{"s": ":::5\u00e9c1va,\u0085-;\u0132*fi\u0100.X\u06614::8\u2129e\u0132V::", "names": ["c1va"]}
+{"s": "52\uff21\u00baK\u0100\u00b2X9\u013fabc::defg<\u013f:::", "names": ["defg"]}
+{"s": "4\u2028\u017fstd::call iK\u00e9", "names": ["\u017fstd::call"]}
+{"s": "*sub_H\u21260x401000\u0345(", "names": ["sub_H", "x401000"]}
+{"s": "F\u212b\u0132Foo::Barbaz::xs#\u0180\u03a3push \u00e9Foo::Barbaz::xloc_\u212bx+\u0100)+\ud83d\ude003call (v\u00ba", "names": ["Barbaz::xs", "push", "Barbaz::xloc_", "call"]}
+{"s": "75\uff21", "names": []}
+{"s": ",0\u0149Foo::Barbaz::x+\u00df8\u0661", "names": ["Barbaz::x"]}
+{"s": "F\u1e9e,:;K9>F_ccall :::*[[\u2028v\t(\u0132\u0132\u2126", "names": ["F_ccall"]}
+{"s": "0,0x401000\u00b2\u0180,\u00aa", "names": ["x401000"]}
+{"s": "", "names": []}
+{"s": "\u0180:12abcd0x401000<)\u1e9eXapush )>abc::defg73:::4\u0180\u00b2\u0100)", "names": ["abcd0x401000", "Xapush", "defg73"]}
+{"s": "\n\u0661A\u017e]3(\u017f;_ \u03c25\u01809\u00aa\uff21Af", "names": []}
+{"s": "_*\t\u00baV&abc::defg", "names": ["defg"]}
+{"s": "f\u03450x401000\u212b\u017e<\u212b", "names": ["x401000"]}
+{"s": "x\u00e9]i\u00dfK,-e\u00dfloc_\u0345\u00b2std::\u0180]12abcd8\u21263\u2126\n\u017f\u0132\u0345", "names": ["loc_", "abcd8"]}
+{"s": "I#x4\u00ba\u012fF\u0132\u00b2sub_\u017e", "names": ["sub_"]}
+{"s": ":", "names": []}
+{"s": "\u0180\u00aa3c6bsf1j_9\ud83d\ude008\ud83d\ude00push \u212b7\u00e9\u01805:::\u00dfSA\u017fca\u00ba3", "names": ["c6bsf1j_9", "push", "SA\u017fca"]}
+{"s": "", "names": []}
+{"s": "_\u0132\u0149\r\r6::call \n\u1e9eloc_\u012f[:12abcd\u1e9e\u00bai0x401000\u0661hiv\u212bXA", "names": ["call", "loc_", "abcd", "i0x401000"]}
+{"s": "S*H\u0180s_\u4e2d\u20285k3KK5I\ud83d\ude00-\u012f6\u0100", "names": ["k3KK5I"]}
+{"s": "std::\ud83d\ude00#\r-X5\u012f::Foo::Barbaz::xX6vF,\u0100abc::defg\u0130qword::\u01494f<\u0085v\uff214iK", "names": ["Barbaz::xX6vF", "defg\u0130qword"]}
+{"s": "3V]d\u0661\uff216call \ud83d\ude00\u03c2\u2126\u00aa59*#\u0130\t\u00b2i\u00b2\u4e2d;.\u2028Foo::Barbaz::x\u017f\u017f\u00aa", "names": ["call", "Barbaz::x\u017f\u017f"]}
+{"s": "h\u03a3F7qword4\u1e9e&h2\u00b2\u2028d+\u017e0x401000", "names": ["F7qword4", "x401000"]}
+{"s": "kpush V\u03c2-Xsub_\u212a", "names": ["kpush", "Xsub_\u212a"]}
+{"s": ":\u2028H&\u0130\u017e\u0345K\u03a3\u017ecK]j_\u013f\u00b2A4\u212a\u212aIHX,]\u2028K1>", "names": ["A4\u212a\u212aIHX"]}
+{"s": "\u013ff\u0149", "names": []}
+{"s": "X<];:push \u0149S:::\u1e9epush 12abcd\u00e9\u2028call 6,\u4e2d\n3\u0345", "names": ["push", "push", "abcd", "call"]}
+{"s": ":::\u012f2 6**sabc::defgc\u0131\t>\u0180\u0132", "names": ["sabc::defgc\u0131"]}
+{"s": "\n\u1e9e&-+\u012f\u0132>3\u00b2&;\u017fkloc_;1\u0661\u03c2sub_,>8call \u012f_", "names": ["\u017fkloc_", "sub_", "call"]}
+{"s": "\u21263Vda\u212b)\u00850\u0661", "names": []}
+{"s": "::1A12abcd*\u00df\u0661\u00b2\u0132\u00df*8A(", "names": ["A12abcd"]}
+{"s": "\u00ba", "names": []}
+{"s": ":std::\u03c2x\n\u00ba", "names": []}
+{"s": "a\ud83d\ude00\u00aa23Ad&b9b\uff21K-+;std:: \tc\n8-k\u0130V\u21260c\uff21", "names": []}
+{"s": "dsub_b", "names": ["dsub_b"]}
+{"s": "\u2129\u013fK<\u0180 \u2028qwordb\naA0\u212b::\u212a1\nK2cf6j_\u03a3push std::\u212b", "names": ["qwordb", "K2cf6j_", "push"]}
+{"s": " \u0130\u1e9eA[I0\u017f\u012fa\u0149\u013fb\ud83d\ude00i\u00aa5\u00e9\u00dfabc::defgv_i\u017f\u06613\u0132", "names": ["defgv_i\u017f"]}
+{"s": "Inullsub_\u00bab<\u2126x[qword8 \u012fd\u03a3A\u017ea\u4e2d\u0100\u012f\u017e\u0130", "names": ["Inullsub_", "qword8"]}
+{"s": "c4\u0131abc::defg\u00bax\u00aa\u00e9&0x401000\u00aa\u017f\uff21>\u00baloc_c\u0130std:: Iloc_98\u013fabc::defg\u0132H]4", "names": ["c4\u0131abc::defg", "x401000", "loc_c\u0130std", "Iloc_98", "defg"]}
+{"s": "\uff21\u03a3\u2028\u212b\u0131Knullsub_hstd::19\u2126>\u017fFdpush #)\u03c2\u212a0x401000qword", "names": ["\u0131Knullsub_hstd::19", "\u017fFdpush", "\u212a0x401000qword"]}
+{"s": "2h0\r\u212ae\u2126\u01007.\u013039K\u2126;8:::<6<\u0131f\u0180", "names": ["\u013039K"]}
+{"s": "nullsub_1c12abcd", "names": ["nullsub_1c12abcd"]}
+{"s": "[qword\u0149\ud83d\ude00\u0661X\u212b12qword2\u017fIkA\u03a312abcd,", "names": ["qword", "qword2\u017fIkA", "abcd"]}
+{"s": "\u1e9e\u017f\u013f", "names": []}
+{"s": "3\u0180A\ud83d\ude00\u03a3\u03a3di\ud83d\ude00\u2028", "names": []}
+{"s": "_2+\u017ecall c.\u017e0<KK\u017f\n)s,\u0085.\u0132e4", "names": ["call"]}
+{"s": "X\u212b9-:::0x401000\u0180\r)\u2129", "names": ["x401000"]}
+{"s": "\u018000x401000S\n\u017f(\u0130\u0131,\u212a\u202812abcd\u0180", "names": ["x401000S", "abcd"]}
+{"s": "v> ::53S\r\ud83d\ude005\u00aa\u017f#&]b3\u03a312abcd]\u013f\u013f*1\u00aa\u2129", "names": ["abcd"]}
+{"s": ":::iFoo::Barbaz::x\u0132j_\uff21\u012f:12abcd3h::F\u0085>\t:::\u212b11\u00df+i::", "names": ["iFoo::Barbaz::x", "abcd3h::F"]}
+{"s": "", "names": []}
+{"s": "\u0149b", "names": []}
+{"s": "abc::defg>+X\ne\u0132)FA\u0130<5\u013f sub_\u01800\u0100\u0130\u012fk", "names": ["defg", "sub_"]}
+{"s": "hV\u0132\u2129", "names": []}
+{"s": "\u212b)", "names": []}
+{"s": "loc_\u00ba\t\u0100\u2126_\u017fabc::defgd\u03c27b\u0132", "names": ["loc_", "_\u017fabc::defgd"]}
+{"s": "_]\u1e9estd::v", "names": []}
+{"s": "I\u0131\u4e2d\u0180", "names": []}
+{"s": "\u012f", "names": []}
+{"s": "Foo::Barbaz::x\u1e9eFoo::Barbaz::x\u013135", "names": ["Barbaz::x", "Barbaz::x\u013135"]}
+{"s": "K5:::::loc_)12abcd\u0130", "names": ["loc_", "abcd\u0130"]}
+{"s": "j_\u0661\uff21+\u0100push \u017e\u012f\u2126bf", "names": ["push"]}
+{"s": "+\u212b*H", "names": []}
+{"s": "2_b\u013f:::[", "names": []}
+{"s": "Foo::Barbaz::xh\ud83d\ude00\u1e9e\u212bxX", "names": ["Barbaz::xh"]}
+{"s": "j_KV>\u017e\u03a3\u00aa\u1e9eKabc::defg\n\uff21f12abcd#)*x\uff21\u4e2d([", "names": ["j_KV", "Kabc::defg", "f12abcd"]}
+{"s": "\u0130*\u00dfh.\u00b2\u1e9e\u00b2*:::qword&\u212aiabc::defg\u03c2\u0132\u017f\u0132bFoo::Barbaz::xi\u212acall \r\uff21", "names": ["qword", "\u212aiabc::defg", "bFoo::Barbaz::xi\u212acall"]}
+{"s": "\u017fF-*\u2126\u03c2V\u4e2d\u00aa\u00ba.e*\u03c2Foo::Barbaz::x", "names": ["Barbaz::x"]}
+{"s": "7F8e:::1656Fnullsub_\u03c26\u212b\u0085qword\u2129\ud83d\ude009\t0x401000\u00ba", "names": ["Fnullsub_", "qword", "x401000"]}
+{"s": "::\u2126\u00df \u06616\u2129\u4e2d8abc::defg_\u0100hh1\u0130_*.\u013f\u212a\u00b2\u212b\u00df\u0661I\u03c2\u2126\u0130F", "names": ["defg_", "hh1\u0130_"]}
+{"s": "i\u00dfj_\u00b2\u2028\u4e2d\uff2178\u00e9s f", "names": []}
+{"s": ".\u0130I#a\u00ba13\u00aa\r;V<ix\u212aev1", "names": ["ix\u212aev1"]}
+{"s": "\u2028e98hFoo::Barbaz::x9", "names": ["e98hFoo::Barbaz::x9"]}
+{"s": "-\u0149", "names": []}
+{"s": "loc_*8call \u013f7\u2028\u012f-0x401000call \u0149\r\u00e9-\u2129\rloc_[:\u0149::\u0130*\u0661", "names": ["loc_", "call", "x401000call", "loc_"]}
+{"s": "&2\u01300As(call 6#\u00df\u212bc\u017e \u0100\u00aa\ud83d\ude00\u03c28(2 ", "names": ["\u01300As", "call"]}
+{"s": "#,0c\u0131H4nullsub_h(ck8\u0131\u0149", "names": ["c\u0131H4nullsub_h", "ck8\u0131"]}
+{"s": "-\u00b2\u00ba3\u00aacall 9X.\u1e9e+0x401000V\u00dfsub_\u0100", "names": ["call", "x401000V", "sub_"]}
+{"s": "c\u00aa\u212apush \ri\u00baFpush \u066112abcd<&std::\u0130\u00df3\u212b_\u00e9*\u03c2\u0661\u0131[\u00df", "names": ["\u212apush", "Fpush", "abcd"]}
+{"s": "push .", "names": ["push"]}
+{"s": "_", "names": []}
+{"s": "sub_[\u00b2\u4e2d\u012fsub_-\u017fv[abc::defg\u0132c0kqword\u017fnullsub_1push ]*xqword:85\u0149", "names": ["sub_", "sub_", "defg", "c0kqword\u017fnullsub_1push", "xqword"]}
+{"s": "12abcd\u1e9eh412abcd\u00aa\u00ba2\u012f4iv\u212a*k\uff21:::", "names": ["abcd", "h412abcd"]}
+{"s": "\u013ff\u03a3:::\u0100i\u0085dj_41\u1e9eA,", "names": ["dj_41"]}
+{"s": "+\ud83d\ude003hic9&\uff21\u2126S7:\u0345\u1e9e:::h_\u03c2\u212b\u01302x", "names": ["hic9"]}
+{"s": "\u0149loc_63)S\u0345F\u2126dhx\u012fe2kloc_", "names": ["loc_63", "e2kloc_"]}
+{"s": "\u012f12abcd\u20281i", "names": ["abcd"]}
+{"s": "9<0\u012fX\u0149abc::defg\u2129 \u00df", "names": ["defg"]}
+{"s": "\t\u00df\u0132qword", "names": ["qword"]}
+{"s": "\uff21\u00b2 ", "names": []}
+{"s": "\u00ba\n[\u017f\u1e9e\u2129", "names": []}
+{"s": ";:", "names": []}
+{"s": "\u4e2d>\u00ba]\u0345-\u0132b", "names": []}
+{"s": "-Foo::Barbaz::xdesub_\u1e9e\u212b\u212912abcdXF>12abcd3\ud83d\ude00abc::defgs.std::\u03c2", "names": ["Barbaz::xdesub_", "abcdXF", "abcd3", "defgs"]}
+{"s": "loc_58\u0100Xks\u00aa\n\u03c2\u0130]loc_6nullsub_\u017e\u06613\u0100\t;\u013fpush ;b:::\u2028\u0131", "names": ["loc_58", "loc_6nullsub_", "push"]}
+{"s": "", "names": []}
+{"s": "F14Aa>#;\u008512abcdcall \u2028\u2028push ", "names": ["F14Aa", "abcdcall", "push"]}
+{"s": "ch\u00e9a\u2028a]]\rx", "names": []}
+{"s": "0xsub_\u2028:::h:::V\u0100\u0130h[\u0131;\u013f)0x401000", "names": ["xsub_", "x401000"]}
+{"s": "X\u2129\u0345kaloc_\n1S\u0180\u0085", "names": ["kaloc_"]}
+{"s": "hX\u066165A\u0180\u2028S[", "names": []}
+{"s": "6call push \u017f\u0345(\u017eV\u00ba.fcpush \u2126\thfh", "names": ["call", "push", "fcpush"]}
+{"s": "xnullsub_17\u212b;\u0132\u0132", "names": ["xnullsub_17"]}
+{"s": "\uff21\u00bastd::112abcd\ne:\u2126fpush 1bh\u00aa\r\u0345efstd::j_\u0345k<", "names": ["abcd", "fpush", "efstd::j_"]}
+{"s": "V", "names": []}
+{"s": "std::\r\u012f\u0345\u0132\u00e9\u00aa+cnullsub_v\u00baK2\u017e:::", "names": ["cnullsub_v"]}
+{"s": "\u212baloc_,_:::c\ud83d\ude00qword\u0085\u0085-d(7A\u00b2b\u0085\u0149abc::defg\u0661\u2126Foo::Barbaz::x\u00aaId", "names": ["aloc_", "qword", "defg", "Barbaz::x"]}
+{"s": "\n\t#std::\ud83d\ude00\u00b2", "names": []}
+{"s": "\u00baK-\u03a3\ud83d\ude00+d(0vc\u00df\u00e9bd\rqword\ud83d\ude00\u03c2ki\u0100::><f\u013fs \u00aa", "names": ["qword"]}
+{"s": "6h\u1e9e\u212b\u0149\u012f&\ud83d\ude00\u0132loc_\r3\u212a\u0132", "names": ["loc_"]}
+{"s": "8f\u03a3&+_I\u012f\u01322\u2126\u013226sFoo::Barbaz::xcall 4x\uff21abc::defg-\u00e9std::7[\u212ax- ", "names": ["sFoo::Barbaz::xcall", "defg"]}
+{"s": "\u00dfloc_3push \u4e2d\u2028\r#,\u0661\u00aa\u00e9push \u0130\u0130H\u013f\u00ba\u00bac&H,I\u4e2d4\u00baFoo::Barbaz::x\u00852", "names": ["loc_3push", "push", "Barbaz::x"]}
+{"s": "8sub_\u00b2\u0149::h\u017e\u013f\u0100j_bi]:::\u1e9e", "names": ["sub_", "j_bi"]}
+{"s": "\u0345call hpush nullsub_", "names": ["call", "hpush", "nullsub_"]}
+{"s": "", "names": []}
+{"s": "nullsub_\ud83d\ude00", "names": ["nullsub_"]}
+{"s": "4", "names": []}
+{"s": ")&::nullsub_5\u00ba,3call 0\uff21s\u03a3ei,2\nK+", "names": ["nullsub_5", "call"]}
+{"s": "Ff9\u0149h\u00df46-\u0661\u03a31", "names": []}
+{"s": ",\r\u03a3f\u00e94\u1e9e\u2028\u1e9es\u0100\u03c2j_\u212b", "names": []}
+{"s": "e4I\u012f\u00df\ud83d\ude00\tj_\u013fsub_", "names": ["sub_"]}
+{"s": "4\u0149H\u00b2,i:::\u06611\u00aae86", "names": []}
+{"s": "\u013f\u00df\u03c2*\u2129x(\u212b\u00e9\u017e]", "names": []}
+{"s": "8push \t\u03c2\u2129\u017e\u00aa\u017fd\u0661\u0130loc_\u017e\u00ba\n\u03a38&a\u4e2dfXVKKqword\u00aa2", "names": ["push", "\u0130loc_", "fXVKKqword"]}
+{"s": "\u2129\uff21\u212bScqword<;\u00e9j_xstd::\u0132\u212b\u0130\u00df4sub_*\n+I5d\ud83d\ude00\u00aab\n\u2129\u2126", "names": ["Scqword", "j_xstd", "sub_"]}
+{"s": ",H,\u00aacall +ci\u013f\u0149\u0180\u212aK1\ud83d\ude00x\u212a\u212ai\nk12abcd-\u2028\u00bastd::-\u017fnullsub_", "names": ["call", "x\u212a\u212ai", "k12abcd", "\u017fnullsub_"]}
+{"s": "A", "names": []}
+{"s": "FH\u00aaV,\u212a1\u2028\u0131", "names": []}
+{"s": "", "names": []}
+{"s": "vc-b9-0x401000\u03c2\uff21A&&call ::f##sub_;8;d\u00df*Xe6", "names": ["x401000", "call", "sub_"]}
+{"s": "\u4e2dqwordS:*\u013fk\u00df1if\u03c2\u0100V\u2126&\u00ba\u03c2d\u00e9", "names": ["qwordS"]}
+{"s": "\u0661kHk", "names": []}
+{"s": "::(F>I.Foo::Barbaz::x\u0085+\u03c2*\u017e#\r", "names": ["Barbaz::x"]}
+{"s": ":Vc\u00e9\u03c2push std::Foo::Barbaz::x\u0661\u0100 \u013fa\u2028", "names": ["push", "Barbaz::x"]}
+{"s": "e\u00b212abcd\u21291e\u01002abc::defg\u0180\u00df. \u2028loc_\u017f_e\u4e2d\t::\u2129\u2028X.", "names": ["abcd", "defg", "loc_\u017f_e"]}
+{"s": "_12abcd0\u0130i\uff21\u00aa-:\u017ee\u2126+push \u4e2d[4j_(\u00e9nullsub_\u017e6\u017fA\u03c2x>", "names": ["_12abcd0\u0130i", "push", "nullsub_"]}
+{"s": "&\u00e9\u2028std::bvsstd::k&3", "names": ["bvsstd::k"]}
+{"s": "\u03a3sub_,<F8_", "names": ["sub_"]}
+{"s": "3A-", "names": []}
+{"s": "&fi\uff21\u4e2dv.#\u4e2d7\u2129\u00ba\u0130\u01809X;\u00b2:::\u0661", "names": []}
+{"s": "\u4e2dFi\u00e9_\u00df:\t12abcd0\u0130\ud83d\ude00\r\u212aA\u212b&sub_s\u03a3sub_loc_", "names": ["abcd0\u0130", "sub_s", "sub_loc_"]}
+{"s": "b\u00b2.[> ", "names": []}
+{"s": "\u00ba", "names": []}
+{"s": ">\n\r9b\u017eA\u1e9eA&\u01497K\u0345\u00b2\u017fHf\u0345\u4e2dv\u0661Foo::Barbaz::xhV", "names": ["Barbaz::xhV"]}
+{"s": "\u0130Hloc_\u00ba:::\u2028H::\tva\u00df::*F:iacall )5[\u212b\u03a3push \u00df3", "names": ["\u0130Hloc_", "iacall", "push"]}
+{"s": "\u00aa1K#,\u4e2d\u0180\u00ba\nF\n\u2129\u00ba\u03a3\u2028+8\u4e2d\u4e2dAi3x\u00e9[\u0149kpush 7call ", "names": ["Ai3x", "kpush", "call"]}
+{"s": "\u013fj_\u212b:\u0345\u0149 qwordbS\u013f", "names": ["qwordbS"]}
+{"s": "\u0180H*+sub_Fqword5a\u03a3\n\u00dfsub_s12abcd\u018012abcd:::<0x401000;4\u0130qword0std::\u0149S&", "names": ["sub_Fqword5a", "sub_s12abcd", "abcd", "x401000", "\u0130qword0std"]}
+{"s": "0x401000\u2028\ud83d\ude00\uff21\u00dfabc::defg\u01804\u0661:", "names": ["x401000", "defg"]}
+{"s": "\u0180A\u00baj_2\u1e9ex>kj_9\u03450Ii", "names": ["kj_9"]}
+{"s": "]", "names": []}
+{"s": "\u03c2i9h :::\u00ba\u20280x401000Inullsub_HH", "names": ["x401000Inullsub_HH"]}
+{"s": "\u4e2dcj_std::\u212bnullsub_#<0x4010002\u212a::\u212b\u1e9e\u0131\u212650x401000push sub_[\u00ba\u00e9dk", "names": ["cj_std", "nullsub_", "x4010002\u212a", "x401000push", "sub_"]}
+{"s": ";\u03a37I7\u0180]b\u00df<\ud83d\ude00\u017e\u0085\u017fa::", "names": []}
+{"s": "AX:::s\u017e\u012fk", "names": []}
+{"s": "aSXpush >nullsub_abc::defg0x401000std::6\u013f\u0130<F", "names": ["aSXpush", "nullsub_abc::defg0x401000std::6"]}
+{"s": "\u0132;\u00ba3c[\u2028]\u03c2\u013210x401000x::\u0100\u2028&8SKc\u212a_call \u2129a4\u1e9e\u4e2d", "names": ["x401000x", "SKc\u212a_call"]}
+{"s": "0x401000Hstd::\u00baS\u0085\t\u0085\u013f\uff21020x401000j_d8\u0149\tb2\u00e9,", "names": ["x401000Hstd", "x401000j_d8"]}
+{"s": ")j_a>7j_xFoo::Barbaz::x\u03459;[", "names": ["j_xFoo::Barbaz::x"]}
+{"s": "\u2126\u0132\nsqword\u00e9\u00aafd", "names": ["sqword"]}
+{"s": "\u0085\u0180::[\u2129\u212bK 0x401000\u0130s\u017fqword\u017e\u00aa\u0345\u06616I aH\u00df8\u012f\u0149", "names": ["x401000\u0130s\u017fqword"]}
+{"s": ",\u0130\u4e2dabc::defgsub_qwordfKnullsub_I0x401000\u2028.\u017f\u012f\u0085nullsub_\u0149sk\r\u0100\u00df\u0180\u2028j_h\u0085", "names": ["defgsub_qwordfKnullsub_I0x401000", "nullsub_"]}
+{"s": "3X", "names": []}
+{"s": "1std::\u2129\u017f\u212a<\u012f", "names": []}
+{"s": "[-:x2\u013fpush If\u013f", "names": ["push"]}
+{"s": "v1\u017eloc_\u0130j_sub_5\u0130\u1e9e\u00858-ae+\u0131abc::defg\uff21\u212bpush 1\u0149Ksub_*call \u2028\u4e2d1", "names": ["loc_\u0130j_sub_5\u0130", "\u0131abc::defg", "push", "Ksub_", "call"]}
+{"s": "std::i:::.", "names": []}
+{"s": "f:::\u01308qword\u212b", "names": ["\u01308qword"]}
+{"s": ")\u212bX\u01800x401000 call \u2028vd", "names": ["x401000", "call"]}
+{"s": "Foo::Barbaz::x\u0661+#[FA\u017f\ud83d\ude008\u0085\ud83d\ude00\u00ba1qword760\u0131\u00e9 6\u2129*(", "names": ["Barbaz::x", "qword760\u0131"]}
+{"s": "\u013fpush \u00856f\u00ba:Iav+\u0661\ud83d\ude003\u2129\u0180\u03c2\u034504push \u03a3\u0100\u017f(5K\u03c2", "names": ["push", "push"]}
+{"s": "", "names": []}
+{"s": "&sub_\tS<-d\u00df\tj_", "names": ["sub_"]}
+{"s": "\ud83d\ude000x401000>*\u0131j_\u2126j_\u00e9S1nullsub_\u017fnullsub_\u00aaxX\u00e9\t\u2129:::7V", "names": ["x401000", "S1nullsub_\u017fnullsub_"]}
+{"s": "S\r*\u1e9e;\u03c2j_;", "names": []}
+{"s": "\u00e9< \u0149nullsub_:f\ud83d\ude00\u013f<Foo::Barbaz::x)x8", "names": ["nullsub_", "Barbaz::x"]}
+{"s": "I\u012f\u012f30x401000\ud83d\ude00::\u0180e7KI.\u4e2d12abcd4(\u00b2\u0149Kcall \u212b)\u0132>3\u03c2", "names": ["x401000", "e7KI", "abcd4", "Kcall"]}
+{"s": "&\u4e2d[bFoo::Barbaz::x3", "names": ["bFoo::Barbaz::x3"]}
+{"s": "3\u00ba\u0130a(\n", "names": []}
+{"s": "7k\u012fiSHqword", "names": ["iSHqword"]}
+{"s": "\u0100::bFoo::Barbaz::x2v]vqwords\u2129I\u0100call \u0131):::\u0661a\u0132epush s.\u017f\u2129:", "names": ["bFoo::Barbaz::x2v", "vqwords", "call", "epush"]}
+{"s": "\u00ba", "names": []}
+{"s": "\u00aa\r\u4e2d::A8\uff21b\u0130", "names": []}
+{"s": "v*\u2129>\ud83d\ude00 >#3I73loc_+", "names": ["I73loc_"]}
+{"s": "4)\u013f\u0149[::h7(\u03c2\u00b2k\u0131e+", "names": []}
+{"s": "\u0132\ud83d\ude00cqword:::h", "names": ["cqword"]}
+{"s": "\uff21\u00aahnullsub_\u0100\u2028acA12abcd>\u2028\u212a\u0345\u0180loc_\u0180)S_loc_+*I*abc::defg", "names": ["hnullsub_", "acA12abcd", "loc_", "S_loc_", "defg"]}
+{"s": "i\u1e9e6]\u03a3-j_\u4e2d\uff21\u0180_b\u00baHabc::defgbloc_\u013fI\u2126", "names": ["Habc::defgbloc_"]}
+{"s": "v\u017eb\u0130*\u012f+\u0180_\u017eF &\u017e\u0131[x\t\u1e9es]\ud83d\ude00", "names": []}
+{"s": "-\u0100si\ud83d\ude00\u00df\u4e2d\u4e2df\u2028 Ki,:::7.\u013f8f2abc::defg\u2028h0x401000::sub_", "names": ["f2abc::defg", "h0x401000::sub_"]}
+{"s": "\u212a\u4e2d[x>e\u012f12abcdV5\uff21\n\u03c2\n0x4010006\u0100;\u4e2dF\u0100\u0149 ff)\u0661\u00aaV:::", "names": ["abcdV5", "x4010006"]}
+{"s": "\n-X4\u017e::x &+::", "names": []}
+{"s": "\u017e\u21260eA\u00aa\uff21I\u0085\u03a3\u212b*+call ", "names": ["call"]}
+{"s": "8ifqword\u0130Hpush \u212a\u0149\u0085nullsub_", "names": ["ifqword\u0130Hpush", "nullsub_"]}
+{"s": "K\u0130\u017f4*\u212aS\u012f5;]\u0131#3S#\u00ba\u1e9e\ud83d\ude00", "names": ["K\u0130\u017f4"]}
+{"s": "\u2028 push ]\u017f\u0085.\u2028\u1e9e;S\u01314x*call call \u017f\u4e2dcall ", "names": ["push", "S\u01314x", "call", "call", "call"]}
+{"s": "Xsub_3\u03c2", "names": ["Xsub_3"]}
+{"s": "\u00df\t\u00df0x401000\u0130d\nFoo::Barbaz::x\r\u1e9eAV\n\u2028x9\u013081", "names": ["x401000\u0130d", "Barbaz::x", "x9\u013081"]}
+{"s": "HhV\u1e9eX\u00aasub_\u0131::>1X0I\u2028\uff21,b", "names": ["sub_\u0131"]}
+{"s": "\u0131db2\tS&\u0180K0x401000Foo::Barbaz::x4", "names": ["\u0131db2", "K0x401000Foo::Barbaz::x4"]}
+{"s": "\ud83d\ude00&>h)j_abc::defg\u0085loc_82j_\u0085\u0131", "names": ["j_abc::defg", "loc_82j_"]}
+{"s": "1]#>S", "names": []}
+{"s": "*\u01313iX>V\n\ud83d\ude00", "names": ["\u01313iX"]}
+{"s": "\u0132.9+\u0085\u2129\u2028\u03a3S", "names": []}
+{"s": "8\u0661\n_h;\u0661)6x:\nj_1\u2129Foo::Barbaz::x_\u06610x401000Ae\u013f::\u0149\u017f,-\u0131loc_", "names": ["Barbaz::x_", "x401000Ae", "\u0131loc_"]}
+{"s": "\u00aaFoo::Barbaz::xh", "names": ["Barbaz::xh"]}
+{"s": "v]\u0130Ae", "names": []}
+{"s": "\rfak\u0085\u013f[Sc\u0149\u00b2std::f12abcdc0x401000X4H\u00b2\npush :::call \u0661abc::defge", "names": ["f12abcdc0x401000X4H", "push", "call", "defge"]}
+{"s": ">\u00b2Fs\n\uff21.\u2028\u017ecf1\u0132", "names": []}
+{"s": "\u00baabc::defg", "names": ["defg"]}
+{"s": "\u2126sub_S\u0661\u00ba", "names": ["sub_S"]}
+{"s": "i\u03c2.9 \u2126call ,>]S1\u0132", "names": ["call"]}
+{"s": "\t\uff21::<\u212a#2\u0085*4f\u00df\u03a3kI0x40100012abcd", "names": ["kI0x40100012abcd"]}
+{"s": "sub_SFoo::Barbaz::x\u212b_F[12abcdX\u2129F\rsabc::defg8x\u017fqword\u017f\u00ba\u013f\u4e2d\u00b2\u03c2x", "names": ["sub_SFoo::Barbaz::x", "abcdX", "sabc::defg8x\u017fqword\u017f"]}
+{"s": "#j_Vspush >s\u017eH;\u212aqword]::i\u00aa-d\u00b2+\u00b2\u013f\u0100\nA]-6", "names": ["j_Vspush", "\u212aqword"]}
+{"s": "", "names": []}
+{"s": "a7f0:::-8\u00ba\u0132V \tstd::", "names": ["a7f0"]}
+{"s": "0cc\u0180d\u00b2\u0132 Kc0\u212a\u0345h::", "names": ["Kc0\u212a"]}
+{"s": "\u00b2bj_0\u0100b\u0100I\u1e9e\u0132j_F:[0x401000A\u0100\u212b\u1e9e)v", "names": ["bj_0", "x401000A"]}
+{"s": "[3)\u0132kxnullsub_\u00aas", "names": ["kxnullsub_"]}
+{"s": "\u013f\u0130e\u1e9e\u0149,x\u017f>b>\t\u017f\u0149\uff21<\u017f*\u2028 ", "names": []}
+{"s": ">\u00ba\u0345<e:0x401000abc::defg1f:\u012fs\u0131\u013266\u2129", "names": ["x401000abc::defg1f"]}
+{"s": "::9\u2129\u2129call qwordpush -&::j_4I:S7", "names": ["call", "qwordpush", "j_4I"]}
+{"s": "push Foo::Barbaz::x\n\u00aa12abcd\u212b,\u013012abcdS", "names": ["push", "Barbaz::x", "abcd", "\u013012abcdS"]}
+{"s": "a", "names": []}
+{"s": "\u00854enullsub_push #\u017eIsub_f&\u0661#\u212bK*\u00ba-12abcd", "names": ["enullsub_push", "Isub_f", "abcd"]}
+{"s": "\u00df\u03c2V\u0131abc::defg::;\u0131b-", "names": ["V\u0131abc::defg"]}
+{"s": "\t1\u03c2&i\u00aa\u00e9<\u0131\u03c2", "names": []}
+{"s": "Isub_-,\u0085\u00e9\u0100", "names": ["Isub_"]}
+{"s": "f#,\u0131\u01495push HX2j_\u03c2;\u018076abc::defgbaH\t1V:::>\t\u0131\u2028*", "names": ["push", "HX2j_", "defgbaH"]}
+{"s": "\u00e9:::\u212b99(1H0>v(Sxj_4", "names": ["Sxj_4"]}
+{"s": "[x85\u0180+6call \u00e9\t\u1e9e\u1e9ej_\u0131F\u00df#\ud83d\ude00V\u2126\u017eX std::j_::", "names": ["call", "j_\u0131F"]}
+{"s": "\u00aa76std::34\u0345XkV\u00ba5+KiX\u2028>09\u2126K54\u00baFx\u00aa", "names": []}
+{"s": "\u0661Ia\u06617i>1&\u03a3+\u00b2&\u03456\u00baj_std::", "names": ["j_std"]}
+{"s": "\u03c2sVqwordI7\u0149,12abcdSpush *A\u212bej_<\u01804\u012f<\u0100\u2129", "names": ["sVqwordI7", "abcdSpush"]}
+{"s": "<\u00e9std::FS\u017e\n\u0180\u00df03V8+S-\u0100nullsub_Snullsub_\tpush \u4e2d\u01005\u0345b\u03a3_h", "names": ["nullsub_Snullsub_", "push"]}
+{"s": "6b9\u00baloc_\n\u013f\n:::&&\u01315cFoo::Barbaz::xc6sub_call [)\u0149]\u00aa<i&12abcd<(", "names": ["loc_", "\u01315cFoo::Barbaz::xc6sub_call", "abcd"]}
+{"s": "\t< abc::defg", "names": ["defg"]}
+{"s": "12abcd\u017f\ud83d\ude00\u012fnullsub_1 &qword(\uff21nullsub_std::\u212b\u0149+", "names": ["abcd\u017f", "nullsub_1", "qword", "nullsub_std"]}
+{"s": "\r7H6*\u01305\u017f.7::\u0100\u03a3nullsub_", "names": ["nullsub_"]}
+{"s": "fF\u212a\u21296a\u2126call fstd::\u03a3\u4e2d.e\u012f", "names": ["call", "fstd"]}
+{"s": "12abcdqword0x4010009Foo::Barbaz::xc3c\nv\u2126V48Hh]-\n)*][\u212b", "names": ["abcdqword0x4010009Foo::Barbaz::xc3c", "V48Hh"]}
+{"s": "\u00aa>76[<V\u00dfloc_(_ 0\u0149 +#", "names": ["loc_"]}
+{"s": "sub_sub_\u0132\u017epush )push 7V", "names": ["sub_sub_", "push", "push"]}
+{"s": "x\u017fj_-:::\u00e9\u00b2I\u00dfFoo::Barbaz::x)+", "names": ["x\u017fj_", "Barbaz::x"]}
+{"s": "sabc::defgV12abcd", "names": ["sabc::defgV12abcd"]}
+{"s": "d\u03a3\u0131F#\u017f(\u00ba8e.+ abc::defg-\u00df\u2028abc::defg;\u00aa53\u0149iS\u0130", "names": ["defg", "defg"]}
+{"s": "\u0180>[)2\u0100x\u1e9e0848V\u0661IFoo::Barbaz::x", "names": ["IFoo::Barbaz::x"]}
+{"s": ",b+\u0130sub_5\u00e9\u212a\u212bnullsub_]Fabc::defg\u4e2d+sub_\r", "names": ["\u0130sub_5", "nullsub_", "Fabc::defg", "sub_"]}
+{"s": "b8).\u4e2d\u4e2d", "names": []}
+{"s": "\u00bah.\u212b0x401000\u017f\u00aadI", "names": ["x401000\u017f"]}
+{"s": "X", "names": []}
+{"s": "eai\n)epush \u012f7nullsub_\u0132\u212a\u00ba\u00dfsc,:dHIc", "names": ["epush", "nullsub_", "dHIc"]}
+{"s": "8I\u017e0x401000\u00e9\u017enullsub_push 2.\u2028j_\u00b2b.8\u2129]6#", "names": ["x401000", "nullsub_push"]}
+{"s": ")#_", "names": []}
+{"s": "e16vnullsub_\u2126\u00df\u00e9\u2129fi\t< c:::v\u212a\u2028K", "names": ["e16vnullsub_"]}
+{"s": "+ik5\uff21\u2126\u212bA:Foo::Barbaz::x;\ud83d\ude00K\u0085Fb>\uff2112abcd(push j_ qword\u013fpush \u00b2>\u0661\u00df", "names": ["Barbaz::x", "abcd", "push", "qword", "push"]}
+{"s": "3\rI\u4e2d\u4e2dI\u00ba88d9V\u0131", "names": ["d9V\u0131"]}
+{"s": "c6b\u03c2A \u2126\u00e9:s6::[0)-", "names": []}
+{"s": "\u212a\u012fs::\u012fK:_9\u4e2d0\uff2104", "names": []}
+{"s": "push \u0131j_qword\u1e9e)\u017f\u013f12abcd12abcd\u0661*8.\u00dff\u00bai\u0345\u0131>SK\u0100abc::defg\uff21\ncs", "names": ["push", "\u0131j_qword", "abcd12abcd", "defg"]}
+{"s": "A\u0085\u00ba12abcd\u0345Foo::Barbaz::xabc::defg0\uff21abc::defg\r\u0661\u0132dA\t:sub_)\u212bF", "names": ["abcd", "Barbaz::xabc::defg0", "defg", "sub_"]}
+{"s": "std:: ::\u00df#12abcd\u00b2s(Av\u4e2dv:::;9", "names": ["abcd"]}
+{"s": "\ud83d\ude00x_i\u0180push \u21290x401000\u012f\u00e9S.hVcsub_\u212bdsub_nullsub_H\u2028\u00ba\u0132F\u0100;", "names": ["push", "x401000", "hVcsub_", "dsub_nullsub_H"]}
+{"s": "\u2028\u03a3]\u0085\t)f\u013f0\u1e9e\u0085<abc::defg0\u00aa].\u066112abcda,\u0180", "names": ["defg0", "abcda"]}
+{"s": "eH63\u00e94\u00dfs\u012fi-:::0", "names": ["eH63"]}
+{"s": "+\ne12abcdv#,5i2(X>;;0\u00ba[>Foo::Barbaz::xsub_,", "names": ["e12abcdv", "Barbaz::xsub_"]}
+{"s": "FH\u0345\u017fX:\u0100\u03a3", "names": []}
+{"s": "\r\u0180 _#\u0149\u0132k7\u00aa5&\t81,\u2126:A\ud83d\ude00\u03a3\u0180std::\u0130Foo::Barbaz::x", "names": ["\u0130Foo::Barbaz::x"]}
+{"s": "nullsub_\u012f\r:::(\uff21", "names": ["nullsub_"]}
+{"s": "[call \u03c20::h", "names": ["call"]}
+{"s": ",0x401000hqword\u212bI;\u212a.\t\ud83d\ude00d.", "names": ["x401000hqword"]}
+{"s": "\u00dfKfX:\u0132\u0132;[\u00e9v8\u0130abc::defg\u212a\u2126[><nullsub_\u00b2", "names": ["v8\u0130abc::defg\u212a", "nullsub_"]}
+{"s": "loc_\u00e9\u00dfa8\u0085vf>\u0180.\u00dfKc_\u03a360x401000\u4e2d12abcdloc_2:i", "names": ["loc_", "x401000", "abcdloc_2"]}
+{"s": "a12abcd4 anullsub_", "names": ["a12abcd4", "anullsub_"]}
+{"s": "\u03a3 \u0149loc_>V+v,\u212a\u03a3f8.0x401000\u1e9e\u0149\rI\u0130", "names": ["loc_", "x401000"]}
+{"s": " fVstd::\u212a", "names": ["fVstd::\u212a"]}
+{"s": "<x,\u012f\u0132]Hh] c", "names": []}
+{"s": "f6\u4e2dek\u0180call 2", "names": ["call"]}
+{"s": "e9:\u0149 loc_\u4e2d\u017ee\t12abcdAHK51\u00b2Xpush \u0085f9+nullsub_*h\u0149-", "names": ["loc_", "abcdAHK51", "Xpush", "nullsub_"]}
+{"s": "f:::\ud83d\ude00\u00df\u00b2#>*k12abcd3\u00banullsub_ba4h:\tfd\u0100\u00df2\u0345H\u0085std::\u0085", "names": ["k12abcd3", "nullsub_ba4h"]}
+{"s": "\u1e9e<\u0130)\u0085(70A>j_\u0149\u0130[\u017fK\ud83d\ude00\u0132\u00ba\ud83d\ude001::Vj_(\u212bibd&", "names": []}
+{"s": "\u4e2d\u00dfI;sub_\u1e9eabc::defgs\u00b247d", "names": ["sub_", "defgs"]}
+{"s": ":::s+push \npush \u012fpush >", "names": ["push", "push", "push"]}
+{"s": ":", "names": []}
+{"s": "6abc::defg\u2129&VF\tX\u212b::::std::h\thloc_1\u4e2de(-\u2028x\u212b\u2129dIh\u012f", "names": ["defg", "hloc_1"]}
+{"s": "V_7*\u00aa", "names": []}
+{"s": "]<bsub_&\u4e2d\u00b2\uff21e;+e", "names": ["bsub_"]}
+{"s": "\u4e2dv", "names": []}
+{"s": "j_b_i\u03a3snullsub_9*<_af9\u0149::fX\u4e2d_\u017f\u03a3#3]_i<", "names": ["j_b_i", "snullsub_9", "_af9"]}
+{"s": "H\u0180abc::defgF4loc_<\u0131\u017f\uff21)--push qword&.:", "names": ["defgF4loc_", "push", "qword"]}
+{"s": "\u00ba\u0100\u212b,qword7H\u0100;KH\u00e9cvX\u212a::\u0131", "names": ["qword7H", "cvX\u212a::\u0131"]}
+{"s": "kf\u00e9\u0132\u0345X\u013fIstd::8\u03a3 \u00df\u03a3e\u00e9\u4e2di&]\u0100I\u00b2S+\u00b2+_", "names": ["Istd::8"]}
+{"s": "0x401000&Hk;>\rKvX-\u03a39 \u00aab[:::\u0132\u017e", "names": ["x401000"]}
+{"s": ",I\rbS\u00aa\u03c2Foo::Barbaz::x\u00e9\u0149\n3_\u03c2\r\t)qword\u0180\u2028", "names": ["Barbaz::x", "qword"]}
+{"s": "qword\u0180\u01004\u212bqword\r:::.V(8,\u0345\u00df\u013fnullsub_*\u1e9e", "names": ["qword", "qword", "nullsub_"]}
+{"s": "\u0149\u0345\ud83d\ude00Ai\u0661X0x401000.s[\u00dfH00\u0131:e0.*\u0131a7d,\u017eV\u0132\u03a3", "names": ["X0x401000", "H00\u0131", "\u0131a7d"]}
+{"s": "\t\u00e9[\u00aaqwordloc_\u0132\u0130v\t\n4\rnullsub_\u00aa\u00e9k928\u00aafc", "names": ["qwordloc_", "nullsub_", "k928"]}
+{"s": "\u00e9]H\u00ba\u00aasub_\u00b2\uff21\u0100<1(si", "names": ["sub_"]}
+{"s": "0x401000ks:::IS412abcd90x401000*\u0085*\u0345>call &[\u0180kb\u012f,0x401000", "names": ["x401000ks", "IS412abcd90x401000", "call", "x401000"]}
+{"s": "\u212aFoo::Barbaz::x\u017e,bqword6\u2126\u2129j_", "names": ["\u212aFoo::Barbaz::x", "bqword6"]}
+{"s": "\u2129\u00baj_9Foo::Barbaz::x\u0100\u0132\ud83d\ude008\uff21push 4\u0131\u0149]cf\u0100\u0132hhd\u01313\u012f\u0130", "names": ["j_9Foo::Barbaz::x", "push", "hhd\u01313"]}
+{"s": "b4X\u017e", "names": []}
+{"s": "2\u00aastd::nullsub_\u00aa#F4_abc::defg\u0131<\u0180\u017f\u00df\u0180\u212afqwordnullsub_ \u00aa0\u4e2d\u0130k\t&\u00ba", "names": ["nullsub_", "F4_abc::defg\u0131", "\u212afqwordnullsub_"]}
+{"s": "", "names": []}
+{"s": "j_\u0345Foo::Barbaz::x\u00ba<\u00e94\u00e9\u00aa\u00aa\u0345\u00aa(\u00df\u00df\n.K ", "names": ["Barbaz::x"]}
+{"s": "sub_X+\u2028sV:::Foo::Barbaz::x\u212bf9x\u0661\u01494\uff2124iabc::defg", "names": ["sub_X", "Barbaz::x", "iabc::defg"]}
+{"s": "j_\u00df\u0149:::\u00b20h\u00e9\u0132f\u0180loc_>A6\u012f\u012f\u00b2dnullsub_\u2126Vb12abcd\u2028&", "names": ["loc_", "dnullsub_", "Vb12abcd"]}
+{"s": "k8\u2126\u0130\r\u212a*va&\u00b2\u2028f2j_loc_\u0100sub_Foo::Barbaz::xd:_8)9&\u0100&", "names": ["f2j_loc_", "sub_Foo::Barbaz::xd"]}
+{"s": "5\u00e9abc::defg9Foo::Barbaz::x\u00b2\u2129\u01492a\u0131\u013f\u212a\r\u00859]_S8(Ki12abcd[", "names": ["defg9Foo::Barbaz::x", "Ki12abcd"]}
+{"s": "\n_5sub_K.<f0\u0149", "names": ["_5sub_K"]}
+{"s": "\u00ba\u00aa\u00e9bloc_0x401000\u06618\u4e2d\u00e9sub_0b", "names": ["bloc_0x401000", "sub_0b"]}
+{"s": "\u012fabc::defghb9,[0x401000\u2028\u00e9v\u212bstd::vv[", "names": ["defghb9", "x401000"]}
+{"s": "(+:::12abcd\u2129K\u0132Foo::Barbaz::xpush \u212a) \u00dfFK(\u013f\ud83d\ude00k95", "names": ["abcd", "Barbaz::xpush"]}
+{"s": "\t\ud83d\ude00.sub_\u017e\u0131\n\u0180\u0661*\u4e2dj_std::6,I \ud83d\ude00::\u2129i0e,::", "names": ["sub_", "j_std::6"]}
+{"s": "4)3\u0180a.\u0085f\u0130", "names": []}
+{"s": "A<0x401000\u013fx+X<; loc_\u2126:", "names": ["x401000", "loc_"]}
+{"s": "\u017e12abcd\u0085\u212a[F\u0132*\u00e9nullsub_d\u0130\u00e9f\u0661x 8\u00e9\ud83d\ude00X82\u00ba +h.", "names": ["abcd", "nullsub_d\u0130"]}
+{"s": "d\u03c2S(\u03c2", "names": []}
+{"s": "+\u4e2d3-\uff21std::7.\u00b2", "names": []}
+{"s": "c\u212b[\u212aV1d\u013019\u0131\u0132\u0345F\u013finullsub_std::A1&b", "names": ["\u212aV1d\u013019\u0131", "inullsub_std::A1"]}
+{"s": "0x401000\u4e2d\u017f0x401000:::aa\u212ah\u212bvpush h*1]\u013fFoo::Barbaz::x\u00b2\u212aif\u2129;F", "names": ["x401000", "\u017f0x401000", "aa\u212ah", "vpush", "Barbaz::x"]}
+{"s": "X 8\u00e9\u0149V\u0661&\u00df[\u03a3qword\u0085v\u017fj_i", "names": ["qword", "v\u017fj_i"]}
+{"s": "V\u1e9eXd20j_<", "names": ["Xd20j_"]}
+{"s": "03A4#i::(\u00b2\t\u03a3hS\u00dfK\u0345V\u03a3", "names": []}
+{"s": ":h\u00df\u013fFoo::Barbaz::x12abcd1\u017e\u0345v12abcd\u2028\uff21\u212b\u017e", "names": ["Barbaz::x12abcd1", "v12abcd"]}
+{"s": "", "names": []}
+{"s": ";\u00dfS::(3I\u2129>\uff21abc::defgh3\r]-]", "names": ["defgh3"]}
+{"s": "+d\u0132c(;\u03a31", "names": []}
+{"s": "0fF\u017f#\r12abcdhd\u03a3j_nullsub_\u06619)8\u2129\u0661\u0085", "names": ["abcdhd", "j_nullsub_"]}
+{"s": "\u00df12abcd\u0149_\uff21\u013fk<sf\u212675\u00df\u00b2\u00b2\u212a12abcd", "names": ["abcd", "\u212a12abcd"]}
+{"s": ",\u0100\u0132v\u0345Foo::Barbaz::x\u01311\u0180\u0131\u013f6\u03c2f", "names": ["Barbaz::x\u01311"]}
+{"s": "_::abc::defgpush #\r.\u00df\u012f\u0180", "names": ["defgpush"]}
+{"s": "\u00aaKd.\ud83d\ude00_\u0100std:: \u0180", "names": []}
+{"s": "std::H\u017f&V*::nullsub_\u017enullsub_", "names": ["nullsub_", "nullsub_"]}
+{"s": "\t>.(\u00e9\u018062\u012f\u012f-F[\u2126\u0132\u00ba\nkqword\u017e\u2028X\u2126\u2129\u0130", "names": ["kqword"]}
+{"s": "\u2126V9v:j_x\u0100\u0085*\u1e9e:::5H\u03a3push \u01306anullsub_*2", "names": ["push", "\u01306anullsub_"]}
+{"s": " Ad\u00aa0x401000\u2028\u1e9e\u01004\nX\u2129(50x401000\u00ba-f", "names": ["x401000", "x401000"]}
+{"s": "\u0345sub_\u03a3h;\u014912abcdstd::0x401000", "names": ["sub_", "abcdstd::0x401000"]}
+{"s": "", "names": []}
+{"s": "", "names": []}
+{"s": "0x401000h\tHstd::e<\u1e9e\u013f\u01308\u2028H*\t\u0085push ", "names": ["x401000h", "Hstd::e", "push"]}
+{"s": "\u012f\u0131\u212b-qwordK<\u00aa\u00aa\u01322\u03c2\u013f\u03c2\u4e2d5\u03450x401000\t\u03c22\u0085v-\u01318", "names": ["qwordK", "x401000"]}
+{"s": "7\u212a((\u2028\t9x", "names": []}
+{"s": "\u00e91\u0345bf\u012f\u1e9e_\u00e9::AFoo::Barbaz::x", "names": ["AFoo::Barbaz::x"]}
+{"s": "\u00e9\u013200x401000\u03a367\u03c2\u4e2dcall \u017fi.\u00ba,)\u013f8\u0345&S9", "names": ["x401000", "call"]}
+{"s": "&\u0149\u0131vstd::(a\u2126\u1e9ei\u00aa(f2\u0661*bi.i", "names": ["\u0131vstd"]}
+{"s": "03\u017f\u00baKsub_qword\u00dfHa\u0131>F\u0085\u013f\n\u00aa]\u4e2d\u4e2d\u00ba\t\u0661\u212apush 34Foo::Barbaz::xqword4", "names": ["Ksub_qword", "\u212apush", "Barbaz::xqword4"]}
+{"s": "\u4e2d\u0149x#e+c1s", "names": []}
+{"s": "VK\u00ba2\u2126aSSKstd::\u0100std::Floc_loc_", "names": ["aSSKstd", "Floc_loc_"]}
+{"s": "[)S7-12abcd)\u03c2_:::_\u00b2 0b", "names": ["abcd"]}
+{"s": "\u00aa\u0180Kf\u03a3j_S\u0180b\u0661s,j_.loc_\u012f\u0131\u00ba)K\ud83d\ude00\r.\u0131\u0345", "names": ["loc_"]}
+{"s": "*0:v\u212bx", "names": []}
+{"s": "Snullsub_Foo::Barbaz::x,12abcd\u0149\u2126\u0100912abcd\u06619\u0085", "names": ["Snullsub_Foo::Barbaz::x", "abcd", "abcd"]}
+{"s": "\t\u0345S\u0130abc::defg3\u0180\u013fIloc_\u0085;IS[]\u0100loc_-\u00df\u0661loc_\u013fe8<sub_[", "names": ["S\u0130abc::defg3", "Iloc_", "loc_", "loc_", "sub_"]}
+{"s": ":::std::abc::defg4k\u2129V\u00ba", "names": ["defg4k"]}
+{"s": ",\ne##2>)\r12abcd9:::[\u0131>hqword\u2129*", "names": ["abcd9", "hqword"]}
+{"s": "A", "names": []}
+{"s": ">.k\u0661.k:dnullsub_\u0100\u212b)8\u00aaF1\u012f\u0661call v\u012f0x401000\ud83d\ude005\u012f:::call loc_;", "names": ["dnullsub_", "call", "x401000", "call", "loc_"]}
+{"s": " ::K\u1e9eA\u00baqword\u2129f\r", "names": ["qword"]}
+{"s": ":::XS]\u01301V\u0100push 12abcdAXci.\u00df\rF)  nullsub_\u012f\u00b2[", "names": ["push", "abcdAXci", "nullsub_"]}
+{"s": ",\u01310x401000\u0132call s12abcd80;eei(.0x401000loc_I", "names": ["\u01310x401000", "call", "s12abcd80", "x401000loc_I"]}
+{"s": "call \u1e9e\u0130\u2129;,:h7\u017f#\u00aa7\u0130\u00aa", "names": ["call"]}
+{"s": " A\u00b2\u212a,\u0130K(ee[\ud83d\ude00\u017f\nF\t\u00e9\u0131<(", "names": []}
+{"s": "0x401000\r\u00aa41\n\u012f4qword\u0661V+\u03c2\u1e9e.h\u2126\u0131I::\u0661\u00aa_sub_6\u0130I", "names": ["x401000", "qword", "_sub_6\u0130I"]}
+{"s": "csub_8-K)", "names": ["csub_8"]}
+{"s": "loc_\u2028\u2129\u03a38\u017e)6", "names": ["loc_"]}
+{"s": "X\nabc::defg\u0100#c:\u4e2dc,nullsub_7", "names": ["defg", "nullsub_7"]}
+{"s": "h<::eS\u03c2\u4e2dxi6abc::defgs\u212a:::-f", "names": ["xi6abc::defgs\u212a"]}
+{"s": "\u03c2xabc::defgS\u212bsub_\u03c2)\u0180*Kdnullsub_v12abcd*\u00ba\u00aa:: \u212bnullsub_ 1\u00b2&xFoo::Barbaz::x", "names": ["xabc::defgS", "sub_", "Kdnullsub_v12abcd", "nullsub_", "xFoo::Barbaz::x"]}
+{"s": "e*V8\ud83d\ude00call \u0132\u00dfc-abc::defge[j_+sub_12abcdcall ", "names": ["call", "defge", "sub_12abcdcall"]}
+{"s": "\u0149(8\u2129push -\u4e2d*\u2129", "names": ["push"]}
+{"s": "7push abc::defg 12abcdX\u0131", "names": ["push", "defg", "abcdX\u0131"]}
+{"s": "bK0\u00b23:\rb\u03c2", "names": []}
+{"s": "abc::defg.\u0132A12abcd\n,", "names": ["defg", "A12abcd"]}
+{"s": "\u00ba-xAqword\u0130 ", "names": ["xAqword\u0130"]}
+{"s": "H\ud83d\ude003_", "names": []}
+{"s": "k\u00ba1bj_\u0100\u0085j_8c,3", "names": ["j_8c"]}
+{"s": "v[std::8[[S\rs\u00aa-\u0661\u0132V+c0babc::defgstd::\u212bsub_X\u03c2a\t:::-0x401000K", "names": ["c0babc::defgstd", "sub_X", "x401000K"]}
+{"s": "\u0130[9\rpush \u4e2d", "names": ["push"]}
+{"s": "push \u212a4<[push vloc_d", "names": ["push", "push", "vloc_d"]}
+{"s": "\r", "names": []}
+{"s": "\u03c2 j_a:.\u0131loc_loc_Foo::Barbaz::x8\ned", "names": ["\u0131loc_loc_Foo::Barbaz::x8"]}
+{"s": "\u00df\u03c22:::Ak\u03a3\u0149\u03c2::", "names": []}
+{"s": "\u00b2#6.\u21262\u017fvloc_*Foo::Barbaz::x", "names": ["\u017fvloc_", "Barbaz::x"]}
+{"s": "\u4e2d\u2028K", "names": []}
+{"s": "\u0100Aqword\u2028\u017e +;12abcdA\ud83d\ude0085-\u00bav", "names": ["Aqword", "abcdA"]}
+{"s": ")\u017eb\u0100\u0131S2\ta\u03c2;6\u012f5++\n\n\u212b5vH\u0100\u03a3", "names": []}
+{"s": "\u00e9e<H;\u017f)s\u4e2dstd::\u0132FF\u017eSdK\u00ba3X*", "names": []}
+{"s": "\u00ba+f\u03458\r49:::\u03a3:::)", "names": []}
+{"s": "-\u0085\u212b\u0661<:::\u03c2\uff21call H;S\ud83d\ude00;;\u2126std::bloc_52sub_x8", "names": ["call", "bloc_52sub_x8"]}
+{"s": "qword7\u0149b\u03a3\u0085\u00dfX\u017fH\r[:::", "names": ["qword7"]}
+{"s": "\u0100\u013fc_:,\u0130&(Kh:::x(\u03c20abc::defg\u0131\u03a3\u2126Ix", "names": ["defg\u0131"]}
+{"s": "\u012f qword4<\uff21vk_push 2\u0100Foo::Barbaz::xv>\u0130\u00aac\u4e2d\u212a\u2129d*\u0100+", "names": ["qword4", "vk_push", "Barbaz::xv"]}
+{"s": "\t1>\u0130+F<\u0661_::\r9\u0130", "names": []}
+{"s": "\u2028qword4\u0345std::f]h::loc_\u4e2d>\u00e9Vfnullsub_&\u212b\u0180+\u21296\u212ax", "names": ["qword4", "loc_", "Vfnullsub_"]}
+{"s": ":::abc::defgF):::\u0661x-eA", "names": ["defgF"]}
+{"s": "(a\u1e9eIcall \u2129)A\tpush loc_V\u212aa\u00ba\u0100qword\u0180Kh;call \u0085", "names": ["Icall", "push", "loc_V\u212aa", "qword", "call"]}
+{"s": "\tloc_\u017e,96\u2028#j_\ncall 8qwordi\u0130K;26kb\u03a3", "names": ["loc_", "call", "qwordi\u0130K"]}
+{"s": "9a.9\u212b\u00df:: Scall &\u012f\u0345k::xFoo::Barbaz::x12abcd\u212aev\u03c2:(kk&b", "names": ["Scall", "xFoo::Barbaz::x12abcd\u212aev"]}
+{"s": "a\u00e9#\u0149\u0345 \u2028,X\u012f\uff21:", "names": []}
+{"s": "V[>khcall \u0085loc_0\n\u01002\u0085\nv7ii\u2028xbxqword2", "names": ["khcall", "loc_0", "v7ii", "xbxqword2"]}
+{"s": ")\u0180\u0149i7\u0180I.5_:::8.b+ix\u013f\u0085I", "names": []}
+{"s": "\tIloc_\u00aaHH\u03a3ek\u012fF]\u4e2diH0\t\u0130\u0130", "names": ["Iloc_"]}
+{"s": "\u00dfloc_1std::\u0131\uff21\u0180\u03c2S\uff21Acall ,b12abcd1\u0661_qword:d9\u00e9call \u03a3:::", "names": ["loc_1std::\u0131", "Acall", "b12abcd1", "_qword", "call"]}
+{"s": "0x401000", "names": ["x401000"]}
+{"s": ")) loc_j_]xpush &\u2129Kloc_\u017f\u0132 ", "names": ["loc_j_", "xpush", "Kloc_\u017f"]}
+{"s": "6std::dfF_epush sub_9H\u0085\u2129+:::\u00ba0x401000xpush 12abcd \ud83d\ude000x401000abc::defgV<f", "names": ["dfF_epush", "sub_9H", "x401000xpush", "abcd", "x401000abc::defgV"]}
+{"s": "Kstd::A\u212a\u00aav\u00e9\u21260loc_A\u0661\u03a3.6]::;b#j_\u0132*", "names": ["Kstd::A\u212a", "loc_A"]}
+{"s": "\u03c2nullsub_\u0100", "names": ["nullsub_"]}
+{"s": ">&:Apush )\u0100[", "names": ["Apush"]}
+{"s": "\uff21(4I\u03c2kxIFoo::Barbaz::x.1,([\u2126v\u00aa\u01320\u0132c12abcdb\u2126", "names": ["kxIFoo::Barbaz::x", "c12abcdb"]}
+{"s": "\ud83d\ude00K;\u017ebcsub_\u2126", "names": ["bcsub_"]}
+{"s": "loc_&\nFoo::Barbaz::x\u017e.-\u03a3", "names": ["loc_", "Barbaz::x"]}
+{"s": "<\u2028Ak\u0100call push I v*", "names": ["call", "push"]}
+{"s": "\u0180\uff21", "names": []}
+{"s": "j_\u2028\u2126c)6sub_212abcd[)\u212aFoo::Barbaz::x\u03a3\u0132*[loc_\u03a312abcdnullsub_abc::defgxS\u017e\u00ba\u0100*", "names": ["sub_212abcd", "\u212aFoo::Barbaz::x", "loc_", "abcdnullsub_abc::defgxS"]}
+{"s": ";nullsub_\ud83d\ude00>&17\u017f\u2028e\u017e\u00ba", "names": ["nullsub_"]}
+{"s": "40\u2028j_\u212b\uff21\u0085\u012f\u21265]\u0661&\u4e2d\u0149nullsub_]sub_,K\u212b\u4e2d\u00aa::4-\u4e2db", "names": ["nullsub_", "sub_"]}
+{"s": "aF\u2129\u1e9ex\u00e9\u0085<\u00df\n#loc_\u00aapush \n", "names": ["loc_", "push"]}
+{"s": "\u03c2)s+\u0132\u1e9e12abcd,\u1e9ee\u00aa\u212a\u20282kKfsf", "names": ["abcd", "kKfsf"]}
+{"s": "A\uff21V\t\u03a3:::loc_<Shs\u0132a]\n-j_K#F::\u212b\u01800x401000F44", "names": ["loc_", "x401000F44"]}
+{"s": "", "names": []}
+{"s": "loc_\u0132;12abcd6Foo::Barbaz::x\u0085", "names": ["loc_", "abcd6Foo::Barbaz::x"]}
+{"s": ":::\u013f\u0149d\u017ec\u0180As\u0149push ", "names": ["push"]}
+{"s": "0\u03a3KS\u1e9e\u03a3\u013f12abcdstd::", "names": ["abcdstd"]}
+{"s": "\u0149call ,x+&\u2028\u00e9call bH\u0130)std::4", "names": ["call", "call"]}
+{"s": "\nabc::defg\u00e9\u00aa\u00b25\n", "names": ["defg"]}
+{"s": "<call X\u00ba", "names": ["call"]}
+{"s": "\u0345-]\tstd::\t&baVabc::defg\u212b\u0130]6\nloc_\u1e9e\u2129\u013212abcd\u1e9e1(cK.d\u0100]", "names": ["baVabc::defg", "loc_", "abcd"]}
+{"s": "#Foo::Barbaz::xX::\u00dfabc::defgS\r8)\u0100if\u017f\u03a3>\u212b\u00e92v*\u1e9e\u212b\u0131::I#\u2028", "names": ["Barbaz::xX", "defgS"]}
+{"s": "\u212bh\u017f#call b::d\u0661v::F::\u1e9esub_::\u0661X\tf\u0100qword,]", "names": ["call", "sub_", "qword"]}
+{"s": "\u03a3 \ud83d\ude00+", "names": []}
+{"s": "\u012f::v\u4e2d_ \u2126>I", "names": []}
+{"s": "\u01320Foo::Barbaz::x\u212a\u1e9e_6,(\u2126\u012f", "names": ["Barbaz::x\u212a"]}
+{"s": "d8\u0345\u1e9e\u2028\u0132h\u0149\u0149\u0661call \u00df0FVqword(h_", "names": ["call", "FVqword"]}
+{"s": ",&\u0180(\uff211abc::defgXa&kcall \u212a\u01493j_\u0085240hS:\nj_\u0180\u0131", "names": ["defgXa", "kcall"]}
+{"s": ">0x401000Scall \u00df\u0131c;\tj_\u03c2K\u00e9std::\u013fsub_\u212bj_<\u0130\u0149:::", "names": ["x401000Scall", "sub_"]}
+{"s": "1\u00df[\u0131loc_\t0x401000\u03a3(\u2129nullsub_(.\u212a\u017f0x40100012abcdloc_\u00ba7\u00aaShqword\u014912abcd(4\u0345loc_", "names": ["\u0131loc_", "x401000", "nullsub_", "\u212a\u017f0x40100012abcdloc_", "Shqword", "abcd", "loc_"]}
+{"s": "0\u2129v\u03c2\u0131<\u1e9e++Vscall \u00dfqword\u00df", "names": ["Vscall", "qword"]}
+{"s": "\n\u012f7\u0661f\u017e", "names": []}
+{"s": "\u212babc::defgA\u0130Ad\u017e4abc::defg(qword:;j_h)b6>d", "names": ["defgA\u0130Ad", "defg", "qword"]}
+{"s": "s4f+h\ud83d\ude00call (\rpush \uff21e", "names": ["call", "push"]}
+{"s": "\u212b[ ]-sub_\u0132\t\u012f0x401000\u2126abc::defg\uff21h12abcd\u0131]", "names": ["sub_", "x401000", "defg", "h12abcd\u0131"]}
+{"s": "0ec\r\u2126&\u00e9\u0149\u0132 ki2)j_&,\u00df", "names": []}
+{"s": "\u013f\u0130\rloc_#V\u212b\u00dfA\u212a\u00b2e7_::\u00df", "names": ["loc_"]}
+{"s": "b&\u0149\u01320x401000s\r7:i\u00aa", "names": ["x401000s"]}
+{"s": ":,d", "names": []}
+{"s": "AV_F\u03c2:A\u0180\uff21call call 6\u0132:\u017e\u013f\u0180#nullsub_call <[H\u212b\u21298:::\u00b2sub_", "names": ["AV_F", "call", "call", "nullsub_call", "sub_"]}
+{"s": "1,9::b", "names": []}
+{"s": "K\t\u017f)\u4e2d>\u012f\u00e91\u2129i\u0085\u00e9*+\u017f\u0149\rv2Kf[I", "names": ["v2Kf"]}
+{"s": ";0", "names": []}
+{"s": ">", "names": []}
+{"s": "\u03451\nK3", "names": []}
+{"s": "0x401000]_abc::defg\u00ba4std::\n]nullsub_\u2028\t,;68\u212a\u212b0x401000+5.]\tA[\ud83d\ude00F\rf", "names": ["x401000", "_abc::defg", "nullsub_", "x401000"]}
+{"s": "v\u017fs#\n\u03a3abc::defgpush \u00aa\u2028>\u0345F\u0180-nullsub_)", "names": ["defgpush", "nullsub_"]}
+{"s": "\u0180\u00df4[+\ud83d\ude00\u03c2loc_\u4e2da\u012fj_kh3x\u2129\u013f9\u212a.push \u0085", "names": ["loc_", "j_kh3x", "push"]}
+{"s": "\u013fF", "names": []}
+{"s": "\u017ff\u00ba\u0180 nullsub_nullsub_)3j_\ud83d\ude00dH:::\u212b1]\u212a\u0149>", "names": ["nullsub_nullsub_"]}
+{"s": "\u0180\u0130.VH-\u4e2dKV\u2129\u212bK>sub_(8\u2129S7h0x401000)\u212b\u1e9e:\n", "names": ["sub_", "S7h0x401000"]}
+{"s": "x8", "names": []}
+{"s": "\u017fA5\u00ba:::\u212b\u012f]\u013f", "names": []}
+{"s": "_\u212a4\u1e9e\u0132<A\u2126j_[nullsub_-", "names": ["nullsub_"]}
+{"s": "\u03a3\u2028\u212bd\u4e2dFabc::defg\u03c2\u03a3s", "names": ["Fabc::defg"]}
+{"s": "0call d\u00b2\u0149\u212aqword\u00e9s8-\u0345\u01322\u0085,\u0130", "names": ["call", "\u212aqword"]}
+{"s": "nullsub_i\r\uff21Foo::Barbaz::x\u0132&>8)call ", "names": ["nullsub_i", "Barbaz::x", "call"]}
+{"s": "std::+nullsub_qword7x\u00aaI]4,4push -call \u03c2\u03a3d\u0180\t<1>", "names": ["nullsub_qword7x", "push", "call"]}
+{"s": "\u01801\u00b2\tV;]F<[\u00ba_\u00ba8", "names": []}
+{"s": "x4\ud83d\ude00\u00b2\rk2V-\u2129\u0131x\u1e9e\u03a3*7+:\u0661_::std::::\u0661\u0149", "names": []}
+{"s": "x::", "names": []}
+{"s": "\u0131push Fx\u0130x\u017f ::1V7nullsub_\u0132abc::defg\u2129-Sbqword>call *7push -:v14", "names": ["\u0131push", "Fx\u0130x\u017f", "V7nullsub_", "defg", "Sbqword", "call", "push"]}
+{"s": "", "names": []}
+{"s": "\u0149-\u2028\u1e9enullsub_::\u00b2\tx[;12abcd,::\r)A", "names": ["nullsub_", "abcd"]}
+{"s": ".\u03c2\tf\u013f\u2129\u017e\u4e2d\u0149756f<0s12abcd\u00aa\r1\u0149F)#\u013f]]H", "names": ["s12abcd"]}
+{"s": "\u0100\u00baF\u0100\u00basub_7\u017f\u21290x401000\u0661;\u0345i.<H\u1e9e\u4e2dstd::4", "names": ["sub_7\u017f", "x401000"]}
+{"s": "9\u00b2abc::defgpush qword[\u2028)k>00x401000\u0131", "names": ["defgpush", "qword", "x401000\u0131"]}
+{"s": "4\u00b2::\t][*\u03c2loc_\u0661\u0149\t", "names": ["loc_"]}
+{"s": "\u0131;\u03a3\u00b2X\u01304\ud83d\ude00\u0132\u0085d\u017e\u0661\u2028xf*sub_nullsub_\u017f+K12abcd\u2028", "names": ["sub_nullsub_\u017f", "K12abcd"]}
+{"s": "nullsub_\u1e9eloc_\u0132I\ud83d\ude00\u0180abc::defg\u0130X0I\u00e9 \u03c2)08\u1e9e\u013fe\u017e\u212a\u2129\u00e9+0x4010003k\u212b", "names": ["nullsub_", "loc_", "defg\u0130X0I", "x4010003k"]}
+{"s": "12abcdqword\u0100 \u0085abc::defg\u212a\u00b2\u00e9-h\uff21\u00ba,\u0345\u212bSnullsub_Scall *\u4e2d\u00ba", "names": ["abcdqword", "defg\u212a", "Snullsub_Scall"]}
+{"s": "af\n,:h9#kqword:\u013f04442sub_)loc_\u2028\u0085[nullsub_\u00b2", "names": ["kqword", "sub_", "loc_", "nullsub_"]}
+{"s": ":\u00b2\u4e2d<\u012f(12abcd\r\u00e9:::\u1e9e00", "names": ["abcd"]}
+{"s": "I\u1e9e\u0180\u03a3sub_s", "names": ["sub_s"]}
+{"s": "sa]call \u0149\u017e5(Hpush \u0132\u00df\nK", "names": ["call", "Hpush"]}
+{"s": "h<\u012f103h::\u03a3S:::eS\u03a3nullsub_768.push \u00857\u0180std::\u1e9e\u4e2dv", "names": ["nullsub_768", "push"]}
+{"s": "Foo::Barbaz::x]sub_f5\u2126\r3\u017f\n\u0130\u0661,c[0 \u012fabc::defg.\u0131.:V.\u0180S\uff21", "names": ["Barbaz::x", "sub_f5", "defg"]}
+{"s": "86\u00e9+", "names": []}
+{"s": " 0\u0130[#call \n\u2129\u013f1\u00e9v\u212a56", "names": ["call", "v\u212a56"]}
+{"s": "b\u03c212abcd\u0100 \u017f0H12abcdv\u0132j_\u00b2ae0x401000Foo::Barbaz::x\u212b]\n1\u1e9ej_&)\u03c2H\u0180\u017ej_", "names": ["abcd", "\u017f0H12abcdv", "ae0x401000Foo::Barbaz::x"]}
+{"s": ".>a)j_kj_cj_.i[\u1e9eS\u03a3nullsub_\u00ba70FX\u00ba", "names": ["j_kj_cj_", "nullsub_"]}
+{"s": "Acall ik", "names": ["Acall"]}
+{"s": "\uff21\u2126\u212a:::&\u03c29abc::defg\u1e9ev\uff21\u03a34", "names": ["defg"]}
+{"s": "\ud83d\ude00he\u013f\u0100\u018099\u00e99b3\u017ec&\u21295qword#::\r7+,b8call ", "names": ["qword", "b8call"]}
+{"s": "", "names": []}
+{"s": "\u00aastd::12abcd<H_]\u013f", "names": ["abcd"]}
+{"s": "F]nullsub_\uff21\u20289i\u4e2d\u0345\u00ba-\t>\ud83d\ude00k\u0180", "names": ["nullsub_"]}
+{"s": "bif", "names": []}
+{"s": "\u00850x401000.H ,\u0100>V>bs(I", "names": ["x401000"]}
+{"s": "-\u0149", "names": []}
+{"s": "\u0180*):::\u017ef\n[X\ud83d\ude00 12abcd\u21299\tK\u00ba\u0180hi1\u0085\u03c2", "names": ["abcd"]}
+{"s": "\u4e2dv434std::7\u0345*\u013f\u013fIc.<Ipush \r\u0085\u017e>V-\u013f\u017e", "names": ["v434std::7", "Ipush"]}
+{"s": "call v(\u2028std::\ud83d\ude000x401000\u0132\u00aa0V\u0085a\u0661\u00e9xx\u4e2d\u212b1f]A(b:::d", "names": ["call", "x401000"]}
+{"s": "\u00e97;;Kki\t54", "names": []}
+{"s": "", "names": []}
+{"s": "\u00b2j_push \u00e9)v>push ]std::F<qword\u017e_\u2028\u00e9\u4e2dKsub_H\ud83d\ude00 \u03c2d", "names": ["j_push", "push", "qword", "Ksub_H"]}
+{"s": "c h\u00b2call \r\u0100nullsub_::\u212b\u2028]Sstd::\u00b2\u00b27sub_cicall ,>", "names": ["call", "nullsub_", "Sstd", "sub_cicall"]}
+{"s": "j_F\u00b2\u0100fF-\u013f\u017e\u0180\u0132\u1e9e;I\u012fb\u4e2d\u017e\u0132\u0180 Foo::Barbaz::x:e", "names": ["Barbaz::x"]}
+{"s": "nullsub_\u017e7[\r\u0345\u212944A:::", "names": ["nullsub_"]}
+{"s": "Foo::Barbaz::x\u0130::3\u017enullsub_push e::e&sIj_\u03a3\u00ba&:::f\u00b25\u2028loc_\ud83d\ude00\u4e2d", "names": ["Barbaz::x\u0130::3", "nullsub_push", "sIj_", "loc_"]}
+{"s": ",\u20282\u21268\u0131S\ud83d\ude00(\ud83d\ude00K\u1e9e\u212b\u0180Ae\u2126\u01310x401000\u00e9\u0345\u00b2j_", "names": ["\u01310x401000"]}
+{"s": "6\u0180A10x401000::\u00e9::\ud83d\ude00s9#::\u013f\u2126\u017e\u0085scall ::", "names": ["A10x401000", "scall"]}
+{"s": ", 2\u0149\u012f\u03a3v\u0345\u013f\u4e2dj_0\u0180\u1e9estd::*\u0661[\u0100\u01490x4010004H", "names": ["x4010004H"]}
+{"s": "", "names": []}
+{"s": "\u012f\u017f[", "names": []}
+{"s": "\u03a3e\u017e1sstd::\u017f\n;abc::defg", "names": ["sstd::\u017f", "defg"]}
+{"s": "std::\uff21\u0132+\u0345. ( \u017f\u00df\u0132x)0", "names": []}
+{"s": "\u013f#nullsub_\u03a3\r88#\uff214\uff21Xpush 3\u212a8abc::defg\u00e9\r\u0661-push \u03a3", "names": ["nullsub_", "Xpush", "\u212a8abc::defg", "push"]}
+{"s": "\r", "names": []}
+{"s": "j_loc_xHdx*\ud83d\ude00", "names": ["j_loc_xHdx"]}
+{"s": "iF<\u013075(FdF*\rAh12abcd", "names": ["Ah12abcd"]}
+{"s": "S8", "names": []}
+{"s": "9nullsub_\u0132", "names": ["nullsub_"]}
+{"s": "1s9a\u0132:::+\u03c2push \u017fnullsub_ \uff21j_e(_\u012f\n\u017f2xj_\u0132call \u0085v[", "names": ["push", "\u017fnullsub_", "\u017f2xj_", "call"]}
+{"s": "12abcdAFj_95\u0130\u2129)", "names": ["abcdAFj_95\u0130"]}
+{"s": "v\uff21\u017eH5bFoo::Barbaz::x*X\u00ba\u0100\r3\u00bas\u00e9\u03a3\u0345push std::.\u0180", "names": ["H5bFoo::Barbaz::x", "push"]}
+{"s": "\ud83d\ude00\u4e2d\n\u017e\u1e9e\u1e9eA\u00aab", "names": []}
+{"s": "5\u00dfS\u2129Foo::Barbaz::x", "names": ["Barbaz::x"]}
+{"s": "\ud83d\ude000]ef\u212aFF\n\u00basub_", "names": ["ef\u212aFF", "sub_"]}
+{"s": "\u0130s5.Fstd::##loc_)\u1e9eqwordd\u0131\uff21c:\u212b\u03a3\ud83d\ude00+\u0085:f<\uff21 Hsf", "names": ["Fstd", "loc_", "qwordd\u0131"]}
+{"s": "\u0345\u212a::\u0180", "names": []}
+{"s": "+\u1e9e12abcd\u00b2loc_7\n2\u0131>xh\u017f-\u017f\u00aa\u012f\r\u1e9e", "names": ["abcd", "loc_7"]}
+{"s": "\u2129\u06618(\u03a36+-c\u0131\u01495\u4e2dF\u0661#\ud83d\ude00\u013f\u00b28\uff21>sub_::\u03c2", "names": ["sub_"]}
+{"s": "\n4\u012f\u1e9e\u013f)spush \u00dfS\u2129sub_\t\u013fHkH8\u0180-", "names": ["spush", "sub_", "HkH8"]}
+{"s": "\u2126\u017enullsub_\u00ba<*push (::[\u00b2", "names": ["nullsub_", "push"]}
+{"s": "cSFqword\u00baH]\u012f#:::sub_8\u017e::3bba\u00aa.\u00aa0x401000e(", "names": ["cSFqword", "sub_8", "x401000e"]}
+{"s": "\u2126\u03a3a\u00df", "names": []}
+{"s": "\u2028\u00e9)8d*b(i \u2126loc_\u2028dh\u0661&push \n0\u0149V1\u00b2", "names": ["loc_", "push"]}
+{"s": "\u00b28,\u013f\u0100\u0131:::21];\u212b\rV\rs\u03a3]58_\u0180-1\u2126FX\n", "names": []}
+{"s": "loc_std::\u212a_\u0100\u0345sub_a8\u0132A\u212b\u013f\u0345\u03c2\u4e2d\u21267Hloc_3\u0085>:\u0085\u0131", "names": ["loc_std::\u212a_", "sub_a8", "Hloc_3"]}
+{"s": "\ud83d\ude00abc::defg\u1e9e0x401000(-.6\u00b2qword\u0345Hloc_\u00b2std::qword\u00ba", "names": ["defg", "x401000", "qword", "Hloc_", "qword"]}
+{"s": "V7(kaIFoo::Barbaz::x::\uff21\u0130a.HA", "names": ["kaIFoo::Barbaz::x"]}
+{"s": "c\u017f\u212aaloc_\u0131\ns\u0130#&\u4e2dnullsub_\u00b2f*\u00aa\u00ba12abcd", "names": ["c\u017f\u212aaloc_\u0131", "nullsub_", "abcd"]}
+{"s": "\u212b]\u017fcall F6X\u0149std::bfc\n\nH6.+qword\n", "names": ["\u017fcall", "qword"]}
+{"s": "\u212aS#fShd\u0345\u00df\u212apush Ia\u0180::,97\u20286b>", "names": ["fShd", "\u212apush"]}
+{"s": "\u0180sV\u00dfx2f]v\u0149\u4e2d\u00df7j_Kesub_\u01300call F", "names": ["j_Kesub_\u01300call"]}
+{"s": "*\t\u03a3", "names": []}
+{"s": "I\u00aab1-([1\u0131\u20280Fcall _\u2126Kb\u03a3\u00ba:\u01324F(F\u00b2call 0[\u00df", "names": ["Fcall", "call"]}
+{"s": "fV", "names": []}
+{"s": "\u017ebvFoo::Barbaz::x\u00b2\uff218", "names": ["bvFoo::Barbaz::x"]}
+{"s": "]\u1e9e<X\u00aa3x\u00ba7\u0131&0x401000*\u03450x401000abc::defg", "names": ["x401000", "x401000abc::defg"]}
+{"s": " -\u03c27S -\u4e2de\uff21\u03c2\u2028bf\u00bai\u03a3call e1XA\t", "names": ["call", "e1XA"]}
+{"s": ";\n \u03a3vK\u00b2\u017fVf :::*]v7call \u017fh:12abcd\u0130cv", "names": ["v7call", "abcd\u0130cv"]}
+{"s": "h\u01325hloc_sub_\u0661H&6[1b", "names": ["hloc_sub_"]}
+{"s": "\u2129f:::Si;8#H0x401000(push \u2126:\ud83d\ude00\u0149\u4e2dsub_h", "names": ["H0x401000", "push", "sub_h"]}
+{"s": "_#:H\u212astd::\uff21:eA\u00b2\u0149s::i\u012f72>\u212b\u00dfabc::defg :)", "names": ["H\u212astd", "defg"]}
+{"s": "K\r7", "names": []}
+{"s": "s\rFoo::Barbaz::x\u0180\u0661\u212a2\u0661loc_\u00b2\u0345\u00aa)vabc::defg", "names": ["Barbaz::x", "loc_", "vabc::defg"]}
+{"s": "Foo::Barbaz::x6Ij_\u0180\u03c21\u2129s.", "names": ["Barbaz::x6Ij_"]}
+{"s": "\u01498_0x401000cS\ud83d\ude00Floc_\u0345\n&\u0180>V\u00aa,dH6\u013112abcd\u012f\n", "names": ["_0x401000cS", "Floc_", "dH6\u013112abcd"]}
+{"s": "\u0345\r\u0130\u017facall j_8\u0130\u00dfipush \u212b\u03c2xqword7+F", "names": ["\u0130\u017facall", "j_8\u0130", "ipush", "xqword7"]}
+{"s": "\u0130b5_h\u0132\u00aastd::1\u212a\u0131Foo::Barbaz::x<[_\u00aa7", "names": ["\u0130b5_h", "\u212a\u0131Foo::Barbaz::x"]}
+{"s": "loc_", "names": ["loc_"]}
+{"s": "a9", "names": []}
+{"s": "\u0149\u0345push qword+5\u017f]", "names": ["push", "qword"]}
+{"s": "cxd(V#;2qword\r", "names": ["qword"]}
+{"s": "b::i:9A\r;\t\u2028push 1 &_>\u00b2S\n+V\u2028#)h\u03a3(", "names": ["push"]}
+{"s": "\u4e2dF*7\u0100", "names": []}
+{"s": "\u0130F#,6\u212b\u013f:\u2028Foo::Barbaz::x\u212a3xx\u013f12abcd7)\u0130c\r1\r\u00ba", "names": ["Barbaz::x\u212a3xx", "abcd7"]}
+{"s": "4\r\u4e2d]\u00b2", "names": []}
+{"s": "\u1e9e1\u212a:::Fs\u03a3hisub_nullsub_\u00df++abc::defg\u00aa>", "names": ["hisub_nullsub_", "defg"]}
+{"s": "eV\u212b\u03c2[\u0132a712abcd\u0149\u00ba\u2129bv*,\u0085nullsub_\u0100\r\uff21F\r66j_\uff21d\u017e6", "names": ["a712abcd", "nullsub_"]}
+{"s": "47\u0180]\th0x401000call \t&\u0100\r10v<\u017f\r\u0345\u013fFoo::Barbaz::xj_", "names": ["h0x401000call", "Barbaz::xj_"]}
+{"s": "\u00ba\u2129\u00aak\u00e9#\u03c20Vs0x4010000\u0661\u4e2d\u0345Foo::Barbaz::x2K\ud83d\ude00\u0131eb", "names": ["Vs0x4010000", "Barbaz::x2K"]}
+{"s": "\u0132\u0085\uff21sub_fSs,\u00b2,\u0100.e\u1e9e(\u03c2\u017e\t8S042 12abcd[+", "names": ["sub_fSs", "S042", "abcd"]}
+{"s": "std::loc_\u0345\u00e9s\u0661\u2126::]\u0180\u0131j_ \u1e9e", "names": ["loc_"]}
+{"s": "\u012fKloc_\u2126\u2129\u00banullsub_[j_\u01306X\u0130\u1e9epush \ud83d\ude00(- \u2126i", "names": ["Kloc_", "nullsub_", "j_\u01306X\u0130", "push"]}
+{"s": "std::6\u017f\u0345\u0085K\u03a3\u4e2dxs\u0085i\r\u4e2dloc_loc_Xnullsub_e\u2126\u00aaqworde,", "names": ["loc_loc_Xnullsub_e", "qworde"]}
+{"s": "\u0345\u4e2d\u1e9e<\u212a30\u0100 \u03a3\u00e9\u21262\u4e2d-\u017e;7[6", "names": []}
+{"s": ":::f\u20288\u0132Vx6\u017e1<\u01310\u0132\u2126\n", "names": []}
+{"s": "&qword9:::\u2129\u0132:\u0100\u00aa\n:::sub_3\u013f", "names": ["qword9", "sub_3"]}
+{"s": ":\u0130\u00b2\u0345abc::defg]a\r", "names": ["defg"]}
+{"s": " +\u0131-\uff21\uff21Fh::12abcd", "names": ["abcd"]}
+{"s": "25\u0131&9\u212b\u0130", "names": []}
+{"s": "\u0180\u017f#:::.\u017fcall X7\u0132,0x401000\u1e9eX", "names": ["\u017fcall", "x401000"]}
+{"s": "\u00ba&\u066112abcd\u013f&&\u00e9\u00e9A", "names": ["abcd"]}
+{"s": "Fqword", "names": ["Fqword"]}
+{"s": "", "names": []}
+{"s": "\u2028>j_:csS]\u00b2\u0661fd", "names": []}
+{"s": "\u00dfAv\u0085A\u00dfcall \u0130[H\r\u0130\u0130abc::defg(e\u4e2d", "names": ["call", "\u0130\u0130abc::defg"]}
+{"s": "db2A \u00ba\u2028VhFoo::Barbaz::xH\u00df\u0130x8:)f1\u00e9:::\u03c2\u017f std::965s", "names": ["db2A", "VhFoo::Barbaz::xH"]}
+{"s": ".f[\u03c2,::V8qword7I ; \ud83d\ude00sub_abc::defg", "names": ["V8qword7I", "sub_abc::defg"]}
+{"s": "be\u01007s\u0180\u1e9eIapush :\u1e9e\n.SKsub_\u0100 \u013f\u03c22\u017e\u2028<qwordkh", "names": ["Iapush", "SKsub_", "qwordkh"]}
+{"s": "\u00df2x\u2129+dX\u0149s 9\u03c2\u00aa#std::&\n", "names": []}
+{"s": "\u0085call call 6Foo::Barbaz::x7I\u00df", "names": ["call", "call", "Barbaz::x7I"]}
+{"s": "\u212b\u012fiveA\r\u0131\u4e2d12abcd-2loc_Hb3\u1e9e\u00aa3559e", "names": ["iveA", "abcd", "loc_Hb3"]}
+{"s": "::: k\u03a36push #\u212b\u21260s\u03c2.\u017e\u018060x401000loc_-12abcd-(\u4e2ds(", "names": ["push", "x401000loc_", "abcd"]}
+{"s": "\uff21dx\u0661", "names": []}
+{"s": "qwordi\uff21\u4e2d\u0100e#(\uff21\u01008\u0130nullsub_)K<*;;5+\u0131)\u03a3", "names": ["qwordi", "\u0130nullsub_"]}
+{"s": "\u0100\uff21:::;512abcd,(\u01807\u00ba-push S\u1e9ebqwordsub_X\u00aa\u212a3#\u017f::b\u00aa1\u017e", "names": ["abcd", "push", "bqwordsub_X"]}
+{"s": "\u00b2\uff21I(\u01005\u03a3j_H\u0132S\ts", "names": []}
+{"s": "3sub_k", "names": ["sub_k"]}
+{"s": "\u01308b5>\u03a3call 1#\u1e9e;2A(S\u00df6\u0131v\u212b\u00aa", "names": ["\u01308b5", "call"]}
+{"s": ".\u03c2std::", "names": []}
+{"s": "x9\u0661+H2", "names": []}
+{"s": "\t8\u0100sj_x\u212bXqwordX\u013f\u017f7Scall ::", "names": ["sj_x", "XqwordX", "\u017f7Scall"]}
+{"s": "0[;8Xhstd::,\u013f\u0130i\u03c2[1std::a(bxHsub_::\uff21A", "names": ["Xhstd", "bxHsub_"]}
+{"s": "0x4010004K\u0661*&\u017f\u06613:::\u2126\u0130:::I2Foo::Barbaz::x\u00ba", "names": ["x4010004K", "I2Foo::Barbaz::x"]}
+{"s": "()", "names": []}
+{"s": "\u00e9#\u00ba", "names": []}
+{"s": "X\uff21),0\u4e2dsub_\u2126\u0085a# \u0661Foo::Barbaz::x\u0149K1vstd::9da;::f", "names": ["sub_", "Barbaz::x", "K1vstd::9da"]}
+{"s": "\u0131*sub_Foo::Barbaz::xv7\u2129\u0661.\u017fj_9call \t\u0149\u012fabc::defg_>;I\u2028nullsub_\u0132S6(h", "names": ["sub_Foo::Barbaz::xv7", "\u017fj_9call", "defg_", "nullsub_"]}
+{"s": "h", "names": []}
+{"s": "abc::defgnullsub_\u212a\ud83d\ude00*::\u0100std::\u0345_ loc_sub_aH3F\u013f\u212aV\u03c2", "names": ["defgnullsub_\u212a", "loc_sub_aH3F"]}
+{"s": "\u21267._4\u00b2ff<12abcd\u00aa\r6::\u0132\r", "names": ["abcd"]}
+{"s": "\u212b\u2129-c:.std::5abc::defg\u0661qwordSstd::8,1\uff21Foo::Barbaz::x\u0132\u00df.,\u00aa", "names": ["defg", "qwordSstd::8", "Barbaz::x"]}
+{"s": "6:::\u0661abc::defg12abcd\u0085\t2::::", "names": ["defg12abcd"]}
+{"s": "(\u2028\u2129\u0131asub__\u03c2\u0149s<::", "names": ["\u0131asub__"]}
+{"s": "\u066112abcd+nullsub_3eFcf(8#\u03a3", "names": ["abcd", "nullsub_3eFcf"]}
+{"s": "\u00aa\u1e9ev", "names": []}
+{"s": "j_\u017e\u212aA<\u0180#\u03c28\n", "names": []}
+{"s": "912abcd::\u0085F-", "names": ["abcd"]}
+{"s": "5\u03c2x:::\u03c2\u0180X\u1e9e\ud83d\ude00 Scall \u0130[\u0149\u00ba.e\r,#", "names": ["Scall"]}
+{"s": "s\u03a3sub_v\u00850\t>", "names": ["sub_v"]}
+{"s": "\t\u03c2F\u01491(", "names": []}
+{"s": "call ", "names": ["call"]}
+{"s": " push bX,Xhv2*65std::qword12abcd[\u4e2d\u2126", "names": ["push", "Xhv2", "qword12abcd"]}
+{"s": "d4\uff21\u0132\u00e9\u0180s[\uff21Sx8<\u00dfA.", "names": []}
+{"s": "\u0345\u0661H35K", "names": ["H35K"]}
+{"s": "\u2126S[*j_7:<Ha", "names": []}
+{"s": "Foo::Barbaz::xqword\u20285:H\n\u01327S&;0std::6\u013f\u017evnullsub_", "names": ["Barbaz::xqword", "vnullsub_"]}
+{"s": "):X\u00dfpush .v\uff21\u0100d", "names": ["push"]}
+{"s": "\u2129F12abcdiF5\u0180Hsloc_b", "names": ["F12abcdiF5", "Hsloc_b"]}
+{"s": "..\uff21j_.__\u2129_1\t+9sub_SF\u0345\u00aa\u0085V\uff21)qword\u03a3", "names": ["sub_SF", "qword"]}
+{"s": "\u0132\u0661\u00df*\u4e2d<H", "names": []}
+{"s": "qwordsub_abc::defg\u00df<\u1e9e\u0100dI\u0131K.K0x401000k\u212bf", "names": ["qwordsub_abc::defg", "dI\u0131K", "K0x401000k"]}
+{"s": "0V(9&", "names": []}
+{"s": "]\u0130:::", "names": []}
+{"s": "std::2_\u0100\u00aa\ud83d\ude009\u017e\u00df0x4010005*Foo::Barbaz::xloc_[A>4>", "names": ["x4010005", "Barbaz::xloc_"]}
+{"s": "sV::]<h\u0180c\u0100abc::defg4call \u00b2\u0085F5loc_\u1e9e6\u0345A9\u2028:\u0345]loc_", "names": ["defg4call", "F5loc_", "loc_"]}
+{"s": "std::\ud83d\ude00*2\n\u0180V\u21293\u0130>\u2126\u0085&hXXX\u00aa\u00aa2;\u0149\u00df6\u00aa:\u017fI9", "names": ["hXXX"]}
+{"s": "abc::defg;hesub_loc_K\u0130\u4e2dxqwordA\r\u0345112abcd,[\uff21A(sub_12abcd\t\u00df\u0085xcall ;b", "names": ["defg", "hesub_loc_K\u0130", "xqwordA", "abcd", "sub_12abcd", "xcall"]}
+{"s": "loc_\u0131\u0132call \u0131*h;H)H\u00df(", "names": ["loc_\u0131", "call"]}
+{"s": "push k&std::std::\u017eiX#-", "names": ["push"]}
+{"s": "d35112abcdcall \u00b2", "names": ["d35112abcdcall"]}
+{"s": "*8&H\u0100-F\tH1:::j_.Foo::Barbaz::xS6X]\t]A0x401000;,", "names": ["Barbaz::xS6X", "A0x401000"]}
+{"s": "5", "names": []}
+{"s": "\u0149\u00ba[\nx\u212aFj_Foo::Barbaz::xA\u010092qwordi\u013f", "names": ["x\u212aFj_Foo::Barbaz::xA", "qwordi"]}
+{"s": "0_\u0132\nI\u0131*Hes", "names": []}
+{"s": "9\u0180call h\u0131abc::defg\u00e9\u00dfVX\u00ba.\u2126\u212aAstd::\u00ba20x401000\u01809(; loc_A-\ud83d\ude00F", "names": ["call", "h\u0131abc::defg", "\u212aAstd", "x401000", "loc_A"]}
+{"s": "cK59(\u2129\n\u03c2\u0085&12abcd+", "names": ["cK59", "abcd"]}
+{"s": "\r*\u013fV[push FI)push \n_f\u03a31\u00aa\u4e2d", "names": ["push", "push"]}
+{"s": "d\t5:F\u013f\u0085H\u2028&", "names": []}
+{"s": "1\u2129k\u013fS\u017es\u0100Hcall ", "names": ["Hcall"]}
+{"s": "j_Kpush F:\u0130)\u2126ccS \u00baI&j_\u20282\u01324F\u00aaqwordstd::", "names": ["j_Kpush", "qwordstd"]}
+{"s": "Foo::Barbaz::x\u00e95call \u0180\u017f0x401000030i", "names": ["Barbaz::x", "call", "\u017f0x401000030i"]}
+{"s": "\uff21\u2028Si\u00bav<\u0345\u0131(\u00ba6push _\u00ba7k\r0x401000\u1e9e(6", "names": ["push", "x401000"]}
+{"s": "::::,\u00e9> [std::\u0180\u00e9\u212aj_#*\u012fa\u0345Foo::Barbaz::x]abc::defg,K:::", "names": ["Barbaz::x", "defg"]}
+{"s": "S81AFoo::Barbaz::x\u0130\ud83d\ude00\u00b24,H*(S", "names": ["S81AFoo::Barbaz::x\u0130"]}
+{"s": "j_I\u00b2\u0100A\u03a30\u013f.:\u017fVqword\u0661call 0x401000)\u2129vj_\u017e\u03a3\u0345\t1:cf\u4e2dabc::defg", "names": ["\u017fVqword", "call", "x401000", "defg"]}
+{"s": "7::\uff21K::&nullsub_e\u2028\u0085a\u0085h.", "names": ["nullsub_e"]}
+{"s": "\u1e9e6A\t,\ud83d\ude00-12abcdabc::defgnullsub_\u0085XI\ud83d\ude00\u0345nullsub_\u212a", "names": ["abcdabc::defgnullsub_", "nullsub_\u212a"]}
+{"s": "Foo::Barbaz::xx(i712abcd", "names": ["Barbaz::xx", "i712abcd"]}
+{"s": "\u4e2d3_12abcd\u017eqword\ud83d\ude00\t\u00df,push (aHhI\u017e(\u0180V09\u2126\u0345f\u06613", "names": ["_12abcd", "qword", "push", "aHhI"]}
+{"s": "+\u2028b)\n8:::\u0180\u017e[\u00b2&S<ASloc__j_\u03a3\n\u0149Vv\u1e9e", "names": ["ASloc__j_"]}
+{"s": "\r\u212b26\u0130d\u0149\nnullsub_", "names": ["nullsub_"]}
+{"s": "]H\u212b\u1e9e-:.nullsub__\u01490\u4e2dAsub_abc::defg2->\u2028x\u2028\u212b&", "names": ["nullsub__", "Asub_abc::defg2"]}
+{"s": "]0x401000>\u017eAe\u012f:", "names": ["x401000"]}
+{"s": "Foo::Barbaz::x.:::[:::sV\u017ek\u0180:.", "names": ["Barbaz::x"]}
+{"s": ",\u017f4H6", "names": ["\u017f4H6"]}
+{"s": "2kc\tsub_\u012fX", "names": ["sub_"]}
+{"s": "+ ", "names": []}
+{"s": "\u018048qword\n80\u00e9,\u00df\u017f0d5\u017e\u0345c2Foo::Barbaz::xI", "names": ["qword", "\u017f0d5", "c2Foo::Barbaz::xI"]}
+{"s": "f0x401000S6", "names": ["f0x401000S6"]}
+{"s": "1\u0180\u0130_:::\u017ebk\u00ba\u0345<xAstd::\u212aba2call nullsub_\u1e9e-\u03a3", "names": ["xAstd::\u212aba2call", "nullsub_"]}
+{"s": "Foo::Barbaz::x*\u0100\u01804\u03a3\u0131std::", "names": ["Barbaz::x", "\u0131std"]}
+{"s": "_12abcd\u013f:::\u212b9std::5:::,push v\n\u00df&Hx6\u00e9\u0132.\u00df\u2028", "names": ["_12abcd", "push"]}
+{"s": "I\u0130fI\u0130v\u06610x401000\u00aaj_012abcdcall S)\u0132:nullsub__4X", "names": ["I\u0130fI\u0130v", "x401000", "j_012abcdcall", "nullsub__4X"]}
+{"s": "dv]\u00e9\u00dfsub_\u1e9e\u212a8\u0130\u2129\u21261a\u2129\u0149\u212b1a(\u2129\u0180#6a\u20281HH&", "names": ["sub_"]}
+{"s": "", "names": []}
+{"s": "3b\u00aacall \u017f\u0100\u03c2", "names": ["call"]}
+{"s": "8sH77fKHnullsub_\u01324sub_\r\nSHV\u212b.+\u2028\ta\u017f_", "names": ["sH77fKHnullsub_", "sub_"]}
+{"s": "", "names": []}
+{"s": "j_a_44h.cloc_3\u212a0\u2129\u4e2dH\u4e2d\u0180:::,\t6>-7\u212b4+6", "names": ["j_a_44h", "cloc_3\u212a0"]}
+{"s": "1loc_:::\u1e9e\u2126).::7kFoo::Barbaz::x\u0132 \u2028I\u0130\u2129(1<Ke[\u017f\u00ba:::\u2028k\t", "names": ["loc_", "kFoo::Barbaz::x"]}
+{"s": "", "names": []}
+{"s": "\u017evpush \u4e2dstd::\u212a\ud83d\ude00\u0132\u2126qwordvI-+Foo::Barbaz::x\u212ai call cA7\u013floc_\u012fsub_-std::", "names": ["vpush", "qwordvI", "Barbaz::x\u212ai", "call", "loc_", "sub_"]}
+{"s": "_0x401000\u2126Xabc::defg\u01000><", "names": ["_0x401000", "Xabc::defg"]}
+{"s": "j_9\u01300x401000\u0149&_\u00b270x401000>\u0345\u00aa\u0180XH2\u21262\u03a3\u012f_", "names": ["j_9\u01300x401000", "x401000"]}
+{"s": "\u2129", "names": []}
