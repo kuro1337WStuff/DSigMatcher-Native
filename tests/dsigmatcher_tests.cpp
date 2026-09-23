@@ -38,6 +38,11 @@ void Suite(const char* Name) {
   std::fflush(stdout);
 }
 
+void Checkpoint(const char* Label) {
+  std::printf("  ck: %s\n", Label);
+  std::fflush(stdout);
+}
+
 #define CHECK(Expr) Report(static_cast<bool>(Expr), #Expr, __FILE__, __LINE__)
 #define CHECK_EQ(A, B) Report((A) == (B), #A " == " #B, __FILE__, __LINE__)
 
@@ -735,6 +740,7 @@ void TestIngestRoundTrip() {
 
   const std::filesystem::path Directory = ScratchDirectory();
   const std::string Path = (Directory / "ingest.sqlite").string();
+  Checkpoint("scratch dir resolved");
 
   std::vector<TestFunction> Rows;
   for (int Index = 0; Index < 25; ++Index) {
@@ -756,11 +762,13 @@ void TestIngestRoundTrip() {
   }
 
   CHECK(CreateExport(Path, Rows, "metapc"));
+  Checkpoint("export database created");
 
   ExportDatabase Loader;
   FunctionTable Table;
   ProgramInfo Program;
   const LoadResult Loaded = Loader.Load(Path, Table, Program);
+  Checkpoint("load returned");
 
   CHECK(Loaded.Ok);
   CHECK_EQ(Loaded.RowsRead, static_cast<int64_t>(25));
@@ -778,9 +786,11 @@ void TestIngestRoundTrip() {
 
   FunctionTable Missing;
   ProgramInfo MissingProgram;
+  Checkpoint("field assertions done, loading a nonexistent path");
   const LoadResult BadLoad = Loader.Load((Directory / "does_not_exist.sqlite").string(), Missing,
                                          MissingProgram);
   CHECK(!BadLoad.Ok);
+  Checkpoint("nonexistent path rejected");
 }
 
 std::string HexAddress(uint64_t Value) {
