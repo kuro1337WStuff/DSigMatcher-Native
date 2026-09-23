@@ -11,11 +11,12 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
+#include <set>
 #include <system_error>
+#include <thread>
 #include <utility>
 #include <vector>
 
-#include "dsigmatcher/ExportDatabase.h"
 #include "dsigmatcher/Naming.h"
 #include "dsigmatcher/Sha256.h"
 #include "dsigmatcher/Version.h"
@@ -35,8 +36,10 @@ namespace DSig {
 namespace {
 
 // ---------------------------------------------------------------------------------------------
-// Path identity (lane F1). Paths are UTF-8, as every path the CLI passes on (src/diff/FileIo.h);
-// text that is not valid UTF-8 falls back to the native narrow conversion.
+// Paths. Every path is UTF-8, as every path the CLI passes on (src/diff/FileIo.h), and every file
+// access goes through PathOf: std::filesystem::path(std::string) and path::string() use the ANSI code
+// page on Windows, which is UTF-8 only in a process with the executable's manifest. Text that is not
+// valid UTF-8 falls back to the native narrow conversion.
 
 std::filesystem::path PathOf(const std::string& Utf8) {
   try {
@@ -46,17 +49,25 @@ std::filesystem::path PathOf(const std::string& Utf8) {
   }
 }
 
-// weakly_canonical: ".", "..", symbolic links and, for the part of the path that exists, the spelling
-// the file system stores. Falls back to the absolute, lexically normal path when that fails.
+std::string Utf8Of(const std::filesystem::path& Path) {
+  const std::u8string Text = Path.u8string();
+  return std::string(Text.begin(), Text.end());
+}
+
+// The absolute path, then weakly_canonical: ".", "..", symbolic links and, for the part of the path
+// that exists, the spelling the file system stores (made absolute first, so a relative path whose
+// first component does not exist is still absolute). Falls back to the absolute, lexically normal
+// path when that fails.
 std::filesystem::path CanonicalOrAbsolute(const std::filesystem::path& Path) {
   std::error_code Error;
-  std::filesystem::path Canonical = std::filesystem::weakly_canonical(Path, Error);
+  const std::filesystem::path Absolute = std::filesystem::absolute(Path, Error);
+  const std::filesystem::path& Base = Error ? Path : Absolute;
+  Error.clear();
+  std::filesystem::path Canonical = std::filesystem::weakly_canonical(Base, Error);
   if (!Error && !Canonical.empty()) {
     return Canonical;
   }
-  Error.clear();
-  const std::filesystem::path Absolute = std::filesystem::absolute(Path, Error);
-  return (Error ? Path : Absolute).lexically_normal();
+  return Base.lexically_normal();
 }
 
 // Equality of two canonical paths the way the platform's default file system compares names: NTFS
@@ -82,47 +93,131 @@ bool SameSpelling(const std::filesystem::path& A, const std::filesystem::path& B
 #endif
 }
 
-const char* const CreateProvenanceSchema =
-    "create table if not exists dsig_provenance ("
-    "  hop integer primary key,"
-    "  source_path text,"
-    "  source_input_md5 text,"
-    "  source_file_sha256 text,"
-    "  target_input_md5 text,"
-    "  target_file_sha256_before text,"
-    "  applied_at text,"
-    "  tool_version text,"
-    "  functions_reference integer,"
-    "  functions_target integer,"
-    "  matches integer,"
-    "  names_applied integer,"
-    "  names_skipped_existing integer,"
-    "  names_skipped_hops integer,"
-    "  names_skipped_ratio integer,"
-    "  min_ratio real,"
-    "  max_hops integer,"
-    "  lineage text"
-    ");"
-    "create table if not exists dsig_name_origin ("
-    "  address text primary key,"
-    "  name text,"
-    "  origin_address text,"
-    "  origin_name text,"
-    "  hops integer,"
-    "  cumulative_ratio real,"
-    "  heuristic text,"
-    "  first_labelled_at text"
-    ");";
-
-std::string CanonicalPath(const std::string& Path) {
+bool FileExists(const std::string& Path) {
   std::error_code Error;
-  const std::filesystem::path Canonical =
-      std::filesystem::weakly_canonical(std::filesystem::path(Path), Error);
-  if (Error) {
-    return Path;
-  }
-  return Canonical.string();
+  return std::filesystem::is_regular_file(PathOf(Path), Error);
 }
+
+bool PathExists(const std::string& Path) {
+  std::error_code Error;
+  return std::filesystem::exists(PathOf(Path), Error);
+}
+
+uintmax_t FileSizeOrZero(const std::string& Path) {
+  std::error_code Error;
+  const uintmax_t Size = std::filesystem::file_size(PathOf(Path), Error);
+  return Error ? 0 : Size;
+}
+
+void RemoveFile(const std::string& Path) {
+  std::error_code Error;
+  std::filesystem::remove(PathOf(Path), Error);
+}
+
+void RemoveDatabaseFiles(const std::string& Path) {
+  for (const char* Suffix : {"", "-wal", "-shm", "-journal"}) {
+    RemoveFile(Path + Suffix);
+  }
+}
+
+// Renames From over To (an existing To is replaced: MoveFileExW with MOVEFILE_REPLACE_EXISTING in the
+// MSVC library, rename(2) elsewhere). On Windows a virus scanner or the indexer may hold a file that
+// was just written for a moment, so a sharing violation is retried a few times.
+bool RenameOver(const std::string& From, const std::string& To, std::error_code& Error) {
+  const int Attempts =
+#ifdef _WIN32
+      5;
+#else
+      1;
+#endif
+  for (int Attempt = 0; Attempt < Attempts; ++Attempt) {
+    Error.clear();
+    std::filesystem::rename(PathOf(From), PathOf(To), Error);
+    if (!Error) {
+      return true;
+    }
+    if (Attempt + 1 < Attempts) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(50 * (Attempt + 1)));
+    }
+  }
+  return false;
+}
+
+// Bytes 18-19 of the database header are 2/2 for a WAL-mode file (SQLite file format §1.3.3).
+bool FileIsWalMode(const std::string& Path) {
+  std::ifstream Input(PathOf(Path), std::ios::binary);
+  char Header[20] = {};
+  if (!Input.read(Header, sizeof(Header))) {
+    return false;
+  }
+  return std::memcmp(Header, "SQLite format 3", 16) == 0 && Header[18] == 2 && Header[19] == 2;
+}
+
+// Copies From to To byte for byte. Fails when From cannot be read to its end (a read error is not a
+// short copy), when To cannot be written, and when both name one file.
+bool CopyFileBinary(const std::string& From, const std::string& To, std::string& Error) {
+  if (SameFilePath(From, To)) {
+    Error = "'" + From + "' and '" + To + "' are the same file";
+    return false;
+  }
+  std::error_code SizeError;
+  const uintmax_t Expected = std::filesystem::file_size(PathOf(From), SizeError);
+  std::ifstream Input(PathOf(From), std::ios::binary);
+  if (SizeError || !Input.is_open()) {
+    Error = "cannot read '" + From + "'";
+    return false;
+  }
+  std::ofstream Output(PathOf(To), std::ios::binary | std::ios::trunc);
+  if (!Output.is_open()) {
+    Error = "cannot create '" + To + "'";
+    return false;
+  }
+  std::vector<char> Buffer(1024 * 1024);
+  uintmax_t Copied = 0;
+  for (;;) {
+    Input.read(Buffer.data(), static_cast<std::streamsize>(Buffer.size()));
+    const std::streamsize Got = Input.gcount();
+    if (Input.bad()) {
+      Error = "read error in '" + From + "'";
+      return false;
+    }
+    if (Got > 0) {
+      Output.write(Buffer.data(), Got);
+      if (!Output) {
+        Error = "write error in '" + To + "'";
+        return false;
+      }
+      Copied += static_cast<uintmax_t>(Got);
+    }
+    if (Input.eof()) {
+      break;
+    }
+    if (!Input) {
+      Error = "read error in '" + From + "'";
+      return false;
+    }
+  }
+  Output.close();
+  if (!Output) {
+    Error = "write error in '" + To + "'";
+    return false;
+  }
+  if (Copied != Expected) {
+    Error = "'" + From + "' changed size while it was copied";
+    return false;
+  }
+  return true;
+}
+
+// The last path component of a path as text, for either separator (the results file's config holds
+// paths as the producer typed them, possibly on another platform).
+std::string BaseNameAnySeparator(const std::string& Path) {
+  const size_t Slash = Path.find_last_of("/\\");
+  return Slash == std::string::npos ? Path : Path.substr(Slash + 1);
+}
+
+// ---------------------------------------------------------------------------------------------
+// SQLite helpers
 
 std::string ColumnString(sqlite3_stmt* Statement, int Index) {
   const unsigned char* Text = sqlite3_column_text(Statement, Index);
@@ -157,22 +252,6 @@ std::optional<std::string> ColumnOptional(sqlite3_stmt* Statement, int Index) {
   return ColumnString(Statement, Index);
 }
 
-uintmax_t FileSizeOrZero(const std::string& Path) {
-  std::error_code Error;
-  const uintmax_t Size = std::filesystem::file_size(Path, Error);
-  return Error ? 0 : Size;
-}
-
-// Bytes 18-19 of the database header are 2/2 for a WAL-mode file (SQLite file format §1.3.3).
-bool FileIsWalMode(const std::string& Path) {
-  std::ifstream Input(Path, std::ios::binary);
-  char Header[20] = {};
-  if (!Input.read(Header, sizeof(Header))) {
-    return false;
-  }
-  return std::memcmp(Header, "SQLite format 3", 16) == 0 && Header[18] == 2 && Header[19] == 2;
-}
-
 sqlite3* OpenReadOnly(const std::string& Path, std::string& Error) {
   sqlite3* Handle = nullptr;
   const std::string Uri = ReadOnlyDatabaseUri(Path);
@@ -198,32 +277,66 @@ bool TableExists(sqlite3* Handle, const char* Table) {
   return Found;
 }
 
-bool CopyFileBinary(const std::string& From, const std::string& To) {
-  if (CanonicalPath(From) == CanonicalPath(To)) {
-    return false;
-  }
-
-  std::ifstream Input(From, std::ios::binary);
-  if (!Input.is_open()) {
-    return false;
-  }
-  std::ofstream Output(To, std::ios::binary | std::ios::trunc);
-  if (!Output.is_open()) {
-    return false;
-  }
-
-  std::vector<char> Buffer(1024 * 1024);
-  while (Input) {
-    Input.read(Buffer.data(), static_cast<std::streamsize>(Buffer.size()));
-    const std::streamsize Got = Input.gcount();
-    if (Got > 0) {
-      Output.write(Buffer.data(), Got);
+std::set<std::string> TableColumns(sqlite3* Handle, const char* Table) {
+  std::set<std::string> Columns;
+  sqlite3_stmt* Statement = nullptr;
+  const std::string Query = std::string("select name from pragma_table_info('") + Table + "')";
+  if (sqlite3_prepare_v2(Handle, Query.c_str(), -1, &Statement, nullptr) == SQLITE_OK) {
+    while (sqlite3_step(Statement) == SQLITE_ROW) {
+      Columns.insert(ColumnString(Statement, 0));
     }
   }
-
-  Output.flush();
-  return Output.good();
+  sqlite3_finalize(Statement);
+  return Columns;
 }
+
+// "select a, b, NULL, ..." over the columns the table has; a column added in a later version reads as
+// NULL from an older database.
+std::string SelectExisting(const std::vector<const char*>& Wanted, const std::set<std::string>& Present) {
+  std::string List;
+  for (const char* Column : Wanted) {
+    List += std::string(List.empty() ? "" : ", ") + (Present.count(Column) != 0 ? Column : "NULL");
+  }
+  return List;
+}
+
+const char* const DropDsigTables =
+    "drop table if exists dsig_provenance;"
+    "drop table if exists dsig_name_origin;"
+    "drop table if exists dsig_port_results;"
+    "drop table if exists dsig_port_log;";
+
+const char* const CreateProvenanceSchema =
+    "create table dsig_provenance ("
+    "  hop integer primary key,"
+    "  source_path text,"
+    "  source_input_md5 text,"
+    "  source_file_sha256 text,"
+    "  target_input_md5 text,"
+    "  target_file_sha256_before text,"
+    "  applied_at text,"
+    "  tool_version text,"
+    "  functions_reference integer,"
+    "  functions_target integer,"
+    "  matches integer,"
+    "  names_applied integer,"
+    "  names_skipped_existing integer,"
+    "  names_skipped_hops integer,"
+    "  names_skipped_ratio integer,"
+    "  min_ratio real,"
+    "  max_hops integer,"
+    "  lineage text"
+    ");"
+    "create table dsig_name_origin ("
+    "  address text primary key,"
+    "  name text,"
+    "  origin_address text,"
+    "  origin_name text,"
+    "  hops integer,"
+    "  cumulative_ratio real,"
+    "  heuristic text,"
+    "  first_labelled_at text"
+    ");";
 
 std::string BuildLineage(const std::string& ParentLineage, const std::string& SourceMd5,
                          const std::string& TargetMd5) {
@@ -262,6 +375,80 @@ void BindHop(sqlite3_stmt* Statement, const HopRecord& Record) {
   sqlite3_bind_double(Statement, 16, Record.MinRatio);
   sqlite3_bind_int64(Statement, 17, Record.MaxHops);
   sqlite3_bind_text(Statement, 18, Record.Lineage.c_str(), -1, SQLITE_TRANSIENT);
+}
+
+// The dsig_port_results columns, in table order. The last two are new in 1.0.0; a parent written by
+// an earlier version reads them as NULL (SelectExisting).
+const std::vector<const char*>& PortResultsColumnList() {
+  static const std::vector<const char*> Columns = {
+      "hop",
+      "results_path",
+      "results_sha256",
+      "results_main_db",
+      "results_diff_db",
+      "results_version",
+      "results_date",
+      "include_multimatch",
+      "include_unreliable",
+      "overwrite",
+      "label_columns",
+      "proposals",
+      "selected",
+      "names_applied",
+      "names_confirmed",
+      "names_skipped_not_portable",
+      "names_skipped_conflict",
+      "names_skipped_hops",
+      "names_skipped_ratio",
+      "names_skipped_existing",
+      "names_skipped_duplicate",
+      "overwrite_stripped",
+      "results_source",
+  };
+  return Columns;
+}
+
+// Reads the port settings of every hop (dsig_port_results) into the matching HopRecord.
+void ReadPortSettings(sqlite3* Handle, std::vector<HopRecord>& Hops) {
+  if (!TableExists(Handle, "dsig_port_results")) {
+    return;
+  }
+  const std::set<std::string> Present = TableColumns(Handle, "dsig_port_results");
+  const std::string Query =
+      "select " +
+      SelectExisting({"hop", "results_path", "results_sha256", "results_source", "include_multimatch",
+                      "include_unreliable", "overwrite", "overwrite_stripped", "names_confirmed",
+                      "names_skipped_not_portable", "names_skipped_conflict", "names_skipped_duplicate"},
+                     Present) +
+      " from dsig_port_results order by hop";
+  sqlite3_stmt* Statement = nullptr;
+  if (sqlite3_prepare_v2(Handle, Query.c_str(), -1, &Statement, nullptr) != SQLITE_OK) {
+    sqlite3_finalize(Statement);
+    return;
+  }
+  while (sqlite3_step(Statement) == SQLITE_ROW) {
+    const int64_t Hop = sqlite3_column_int64(Statement, 0);
+    for (HopRecord& Record : Hops) {
+      if (Record.Hop != Hop) {
+        continue;
+      }
+      Record.HasPortSettings = true;
+      Record.ResultsPath = ColumnString(Statement, 1);
+      Record.ResultsSha256 = ColumnString(Statement, 2);
+      Record.ResultsSource = ColumnString(Statement, 3);
+      Record.IncludeMultimatch = sqlite3_column_int64(Statement, 4) != 0;
+      Record.IncludeUnreliable = sqlite3_column_int64(Statement, 5) != 0;
+      Record.Overwrite = sqlite3_column_int64(Statement, 6) != 0;
+      if (sqlite3_column_type(Statement, 7) != SQLITE_NULL) {
+        Record.OverwriteStripped = sqlite3_column_int64(Statement, 7) != 0;
+      }
+      Record.NamesConfirmed = sqlite3_column_int64(Statement, 8);
+      Record.NamesSkippedNotPortable = sqlite3_column_int64(Statement, 9);
+      Record.NamesSkippedConflict = sqlite3_column_int64(Statement, 10);
+      Record.NamesSkippedDuplicate = sqlite3_column_int64(Statement, 11);
+    }
+  }
+  sqlite3_finalize(Statement);
 }
 
 }
@@ -318,32 +505,96 @@ std::string CurrentUtcTimestamp() {
   gmtime_r(&Seconds, &Parts);
 #endif
 
-  char Buffer[32];
-  std::snprintf(Buffer, sizeof(Buffer), "%04d-%02d-%02dT%02d:%02d:%02dZ", Parts.tm_year + 1900,
-                Parts.tm_mon + 1, Parts.tm_mday, Parts.tm_hour, Parts.tm_min, Parts.tm_sec);
-  return std::string(Buffer);
+  // %Y is at least four digits and every other field two, so the text is exactly the old
+  // "%04d-%02d-%02dT%02d:%02d:%02dZ" for any real date (and GCC has no truncation to warn about).
+  char Buffer[64];
+  const size_t Length = std::strftime(Buffer, sizeof(Buffer), "%Y-%m-%dT%H:%M:%SZ", &Parts);
+  return std::string(Buffer, Length);
+}
+
+std::optional<std::string> FileSha256Hex(const std::string& Path) {
+  std::ifstream Stream(PathOf(Path), std::ios::binary);
+  if (!Stream.is_open()) {
+    return std::nullopt;
+  }
+  Sha256 Hasher;
+  std::vector<char> Buffer(1024 * 1024);
+  for (;;) {
+    Stream.read(Buffer.data(), static_cast<std::streamsize>(Buffer.size()));
+    const std::streamsize Got = Stream.gcount();
+    if (Stream.bad()) {
+      return std::nullopt;
+    }
+    if (Got > 0) {
+      Hasher.Update(Buffer.data(), static_cast<size_t>(Got));
+    }
+    if (Stream.eof()) {
+      break;
+    }
+    if (!Stream) {
+      return std::nullopt;
+    }
+  }
+  return Hasher.FinishHex();
+}
+
+std::string StoredPath(const std::string& Path, bool Full) {
+  if (Path.empty()) {
+    return std::string();
+  }
+  const std::filesystem::path Native = PathOf(Path);
+  if (!Full) {
+    const std::string Name = Utf8Of(Native.filename());
+    return Name.empty() ? Path : Name;
+  }
+  return Utf8Of(CanonicalOrAbsolute(Native));
 }
 
 DatabaseIdentity InspectDatabase(const std::string& Path) {
   DatabaseIdentity Identity;
   Identity.Path = Path;
-
-  bool HashOk = false;
-  Identity.FileSha256 = Sha256::FileHex(Path, HashOk);
-  if (!HashOk) {
-    Identity.Error = "cannot read file for hashing";
+  const auto Fail = [&Identity](PortFailure Failure, std::string Message) {
+    Identity.Ok = false;
+    Identity.Failure = Failure;
+    Identity.Error = std::move(Message);
     return Identity;
+  };
+
+  std::error_code Error;
+  const std::filesystem::path Native = PathOf(Path);
+  if (std::filesystem::is_directory(Native, Error)) {
+    return Fail(PortFailure::Io, "'" + Path + "' is a directory, not a database");
   }
+  Error.clear();
+  if (!std::filesystem::exists(Native, Error)) {
+    return Fail(PortFailure::Io, "cannot read '" + Path + "': no such file");
+  }
+  const std::optional<std::string> Sha = FileSha256Hex(Path);
+  if (!Sha) {
+    return Fail(PortFailure::Io, "cannot read '" + Path + "'");
+  }
+  Identity.FileSha256 = *Sha;
 
-  sqlite3* Handle = OpenReadOnly(Path, Identity.Error);
+  std::string OpenError;
+  sqlite3* Handle = OpenReadOnly(Path, OpenError);
   if (Handle == nullptr) {
-    return Identity;
+    return Fail(PortFailure::Io, "cannot open '" + Path + "': " + OpenError);
+  }
+  // A read-only open succeeds on any file; the first read of the schema tells what it is.
+  char* Message = nullptr;
+  if (sqlite3_exec(Handle, "pragma schema_version", nullptr, nullptr, &Message) != SQLITE_OK) {
+    const std::string Why = Message != nullptr ? Message : sqlite3_errmsg(Handle);
+    sqlite3_free(Message);
+    sqlite3_close(Handle);
+    return Fail(PortFailure::Io, "'" + Path + "' is not an SQLite database (" + Why + ")");
   }
 
   if (!TableExists(Handle, "functions")) {
-    Identity.Error = "table 'functions' is missing; not a Diaphora export";
+    Identity.IsResultsFile = TableExists(Handle, "results");
     sqlite3_close(Handle);
-    return Identity;
+    return Fail(PortFailure::Input, Identity.IsResultsFile
+                                        ? "'" + Path + "' is a Diaphora results file, not a Diaphora export"
+                                        : "'" + Path + "' has no 'functions' table; not a Diaphora export");
   }
 
   sqlite3_stmt* Statement = nullptr;
@@ -352,8 +603,8 @@ DatabaseIdentity InspectDatabase(const std::string& Path) {
     if (sqlite3_step(Statement) == SQLITE_ROW) {
       Identity.FunctionCount = sqlite3_column_int64(Statement, 0);
     }
-    sqlite3_finalize(Statement);
   }
+  sqlite3_finalize(Statement);
 
   if (TableExists(Handle, "program")) {
     Statement = nullptr;
@@ -364,8 +615,8 @@ DatabaseIdentity InspectDatabase(const std::string& Path) {
         // program.md5sum is a 16-byte BLOB in IDA 9.x exports (08 §7.1); report it as hex.
         Identity.InputMd5 = ColumnTextOrHex(Statement, 1);
       }
-      sqlite3_finalize(Statement);
     }
+    sqlite3_finalize(Statement);
   }
 
   if (TableExists(Handle, "dsig_provenance")) {
@@ -401,9 +652,10 @@ DatabaseIdentity InspectDatabase(const std::string& Path) {
         Identity.Lineage = Record.Lineage;
         Identity.Hops.push_back(Record);
       }
-      sqlite3_finalize(Statement);
     }
+    sqlite3_finalize(Statement);
     Identity.HopCount = static_cast<int64_t>(Identity.Hops.size());
+    ReadPortSettings(Handle, Identity.Hops);
   }
 
   sqlite3_close(Handle);
@@ -442,249 +694,15 @@ std::unordered_map<std::string, NameOrigin> ReadNameOrigins(const std::string& P
       Origin.FirstLabelledAt = ColumnString(Statement, 7);
       Origins.emplace(Origin.Address, Origin);
     }
-    sqlite3_finalize(Statement);
   }
+  sqlite3_finalize(Statement);
 
   sqlite3_close(Handle);
   return Origins;
 }
 
-PortResult PortSymbols(const PortOptions& Options) {
-  PortResult Result;
-
-  // Alias refusal before any I/O (lane F1). The output is truncated by the copy and then opened
-  // read-write, and SQLite creates, rolls back, checkpoints or deletes the output's -journal, -wal and
-  // -shm files (https://www.sqlite.org/tempfiles.html §2.1-2.3; a hot "<output>-journal" is played
-  // back into the output and then deleted). None of those four files may be an input or one of the
-  // inputs' own sidecars.
-  std::vector<NamedPath> Inputs = DatabaseFileSet("the reference database", Options.ReferencePath);
-  for (NamedPath& Input : DatabaseFileSet("the target database", Options.TargetPath)) {
-    Inputs.push_back(std::move(Input));
-  }
-  if (const std::optional<std::string> Alias =
-          FindPathAlias(DatabaseFileSet("the output", Options.OutputPath), Inputs)) {
-    Result.Error = *Alias;
-    return Result;
-  }
-
-  const DatabaseIdentity ReferenceIdentity = InspectDatabase(Options.ReferencePath);
-  if (!ReferenceIdentity.Ok) {
-    Result.Error = "reference: " + ReferenceIdentity.Error;
-    return Result;
-  }
-
-  const DatabaseIdentity TargetIdentity = InspectDatabase(Options.TargetPath);
-  if (!TargetIdentity.Ok) {
-    Result.Error = "target: " + TargetIdentity.Error;
-    return Result;
-  }
-
-  ExportDatabase Loader;
-
-  FunctionTable Reference;
-  ProgramInfo ReferenceProgram;
-  const LoadResult ReferenceLoad = Loader.Load(Options.ReferencePath, Reference, ReferenceProgram);
-  if (!ReferenceLoad.Ok) {
-    Result.Error = "cannot load reference functions: " + ReferenceLoad.Error;
-    return Result;
-  }
-
-  FunctionTable Target;
-  ProgramInfo TargetProgram;
-  const LoadResult TargetLoad = Loader.Load(Options.TargetPath, Target, TargetProgram);
-  if (!TargetLoad.Ok) {
-    Result.Error = "cannot load target functions: " + TargetLoad.Error;
-    return Result;
-  }
-
-  DiffOptions Diff = Options.Diff;
-  Diff.SameProcessor = Diff.SameProcessor || ReferenceIdentity.Processor == TargetIdentity.Processor;
-
-  const DiffResult Diffed = RunExactHeuristics(Reference, Target, Diff);
-  Result.Matches = static_cast<int64_t>(Diffed.Resolved.size());
-
-  const std::unordered_map<std::string, NameOrigin> ReferenceOrigins =
-      ReadNameOrigins(Options.ReferencePath);
-
-  if (!CopyFileBinary(Options.TargetPath, Options.OutputPath)) {
-    Result.Error = "cannot copy target database to output path";
-    return Result;
-  }
-
-  sqlite3* Handle = nullptr;
-  if (sqlite3_open_v2(Options.OutputPath.c_str(), &Handle,
-                      SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr) != SQLITE_OK) {
-    Result.Error = Handle != nullptr ? sqlite3_errmsg(Handle) : "cannot allocate handle";
-    if (Handle != nullptr) {
-      sqlite3_close(Handle);
-    }
-    return Result;
-  }
-
-  char* ErrorMessage = nullptr;
-  if (sqlite3_exec(Handle, "begin transaction;", nullptr, nullptr, &ErrorMessage) != SQLITE_OK) {
-    Result.Error = ErrorMessage != nullptr ? ErrorMessage : "cannot begin transaction";
-    sqlite3_free(ErrorMessage);
-    sqlite3_close(Handle);
-    return Result;
-  }
-
-  if (sqlite3_exec(Handle, CreateProvenanceSchema, nullptr, nullptr, &ErrorMessage) != SQLITE_OK) {
-    Result.Error = ErrorMessage != nullptr ? ErrorMessage : "cannot create provenance tables";
-    sqlite3_free(ErrorMessage);
-    sqlite3_exec(Handle, "rollback transaction;", nullptr, nullptr, nullptr);
-    sqlite3_close(Handle);
-    return Result;
-  }
-
-  sqlite3_stmt* RenameStatement = nullptr;
-  sqlite3_stmt* OriginStatement = nullptr;
-  sqlite3_prepare_v2(Handle, "update functions set name = ?, mangled_function = ? where address = ?",
-                     -1, &RenameStatement, nullptr);
-  sqlite3_prepare_v2(
-      Handle,
-      "insert or replace into dsig_name_origin (address, name, origin_address, origin_name, hops, "
-      "cumulative_ratio, heuristic, first_labelled_at) values (?, ?, ?, ?, ?, ?, ?, ?)",
-      -1, &OriginStatement, nullptr);
-
-  const std::string AppliedAt = CurrentUtcTimestamp();
-
-  for (const Match& Item : Diffed.Resolved) {
-    const std::string ReferenceAddress = std::string(Reference.Text(Reference.Address[Item.Index1]));
-    const std::string_view ReferenceName = Reference.Text(Reference.Name[Item.Index1]);
-    const std::string TargetAddress = std::string(Target.Text(Target.Address[Item.Index2]));
-    const std::string_view TargetName = Target.Text(Target.Name[Item.Index2]);
-
-    if (!IsPortableSymbol(ReferenceName)) {
-      ++Result.NamesSkippedNotPortable;
-      continue;
-    }
-
-    if (IsPortableSymbol(TargetName) && TargetName == ReferenceName) {
-      ++Result.NamesConfirmed;
-      continue;
-    }
-
-    const auto Inherited = ReferenceOrigins.find(ReferenceAddress);
-    const bool HasHistory = Inherited != ReferenceOrigins.end();
-
-    const std::string OriginAddress = HasHistory ? Inherited->second.OriginAddress : ReferenceAddress;
-    const std::string OriginName = HasHistory ? Inherited->second.OriginName : std::string(ReferenceName);
-    const int64_t Hops = HasHistory ? Inherited->second.Hops + 1 : 1;
-    const double PreviousRatio = HasHistory ? Inherited->second.CumulativeRatio : 1.0;
-    const std::string FirstLabelledAt =
-        HasHistory && !Inherited->second.FirstLabelledAt.empty() ? Inherited->second.FirstLabelledAt
-                                                                 : AppliedAt;
-    const double Cumulative = PreviousRatio * static_cast<double>(Item.Ratio);
-
-    if (Options.MaxHops >= 0 && Hops > Options.MaxHops) {
-      ++Result.NamesSkippedHops;
-      continue;
-    }
-    if (Cumulative < Options.MinCumulativeRatio) {
-      ++Result.NamesSkippedRatio;
-      continue;
-    }
-    if (!Options.OverwriteExistingNames && IsPortableSymbol(TargetName) &&
-        TargetName != ReferenceName) {
-      ++Result.NamesSkippedExisting;
-      continue;
-    }
-
-    sqlite3_bind_text(RenameStatement, 1, ReferenceName.data(),
-                      static_cast<int>(ReferenceName.size()), SQLITE_TRANSIENT);
-    sqlite3_bind_text(RenameStatement, 2, ReferenceName.data(),
-                      static_cast<int>(ReferenceName.size()), SQLITE_TRANSIENT);
-    sqlite3_bind_text(RenameStatement, 3, TargetAddress.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_step(RenameStatement);
-    sqlite3_reset(RenameStatement);
-
-    const std::string Heuristic = std::string("best#") + std::to_string(Item.HeuristicId);
-
-    sqlite3_bind_text(OriginStatement, 1, TargetAddress.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(OriginStatement, 2, ReferenceName.data(),
-                      static_cast<int>(ReferenceName.size()), SQLITE_TRANSIENT);
-    sqlite3_bind_text(OriginStatement, 3, OriginAddress.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(OriginStatement, 4, OriginName.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_int64(OriginStatement, 5, Hops);
-    sqlite3_bind_double(OriginStatement, 6, Cumulative);
-    sqlite3_bind_text(OriginStatement, 7, Heuristic.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text(OriginStatement, 8, FirstLabelledAt.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_step(OriginStatement);
-    sqlite3_reset(OriginStatement);
-
-    ++Result.NamesApplied;
-  }
-
-  sqlite3_finalize(RenameStatement);
-  sqlite3_finalize(OriginStatement);
-
-  const std::string Lineage =
-      BuildLineage(ReferenceIdentity.Lineage, ReferenceIdentity.InputMd5, TargetIdentity.InputMd5);
-  Result.Lineage = Lineage;
-
-  int64_t HighestParentHop = 0;
-  for (const HopRecord& Record : ReferenceIdentity.Hops) {
-    HighestParentHop = std::max(HighestParentHop, Record.Hop);
-  }
-  Result.NewHop = HighestParentHop + 1;
-
-  sqlite3_exec(Handle, "delete from dsig_provenance;", nullptr, nullptr, nullptr);
-
-  sqlite3_stmt* HopStatement = nullptr;
-  sqlite3_prepare_v2(Handle, InsertHopSql, -1, &HopStatement, nullptr);
-
-  for (const HopRecord& Record : ReferenceIdentity.Hops) {
-    BindHop(HopStatement, Record);
-    sqlite3_step(HopStatement);
-    sqlite3_reset(HopStatement);
-  }
-
-  HopRecord NewRecord;
-  NewRecord.Hop = Result.NewHop;
-  NewRecord.SourcePath = Options.ReferencePath;
-  NewRecord.SourceInputMd5 = ReferenceIdentity.InputMd5;
-  NewRecord.SourceFileSha256 = ReferenceIdentity.FileSha256;
-  NewRecord.TargetInputMd5 = TargetIdentity.InputMd5;
-  NewRecord.TargetFileSha256Before = TargetIdentity.FileSha256;
-  NewRecord.AppliedAt = AppliedAt;
-  NewRecord.ToolVersion = DSIG_VERSION;
-  NewRecord.FunctionsReference = static_cast<int64_t>(Reference.Count());
-  NewRecord.FunctionsTarget = static_cast<int64_t>(Target.Count());
-  NewRecord.Matches = Result.Matches;
-  NewRecord.NamesApplied = Result.NamesApplied;
-  NewRecord.NamesSkippedExisting = Result.NamesSkippedExisting;
-  NewRecord.NamesSkippedHops = Result.NamesSkippedHops;
-  NewRecord.NamesSkippedRatio = Result.NamesSkippedRatio;
-  NewRecord.MinRatio = Options.MinCumulativeRatio;
-  NewRecord.MaxHops = Options.MaxHops;
-  NewRecord.Lineage = Lineage;
-
-  BindHop(HopStatement, NewRecord);
-  sqlite3_step(HopStatement);
-  sqlite3_finalize(HopStatement);
-
-  if (sqlite3_exec(Handle, "commit transaction;", nullptr, nullptr, &ErrorMessage) != SQLITE_OK) {
-    Result.Error = ErrorMessage != nullptr ? ErrorMessage : "cannot commit transaction";
-    sqlite3_free(ErrorMessage);
-    sqlite3_close(Handle);
-    return Result;
-  }
-
-  sqlite3_close(Handle);
-
-  bool OutputHashOk = false;
-  Result.OutputSha256 = Sha256::FileHex(Options.OutputPath, OutputHashOk);
-  if (!OutputHashOk) {
-    Result.OutputSha256.clear();
-  }
-
-  Result.Ok = true;
-  return Result;
-}
-
 // =============================================================================================
-// Label port from match proposals (docs/parity/00-plan.md §7.1 D6, lane L11)
+// Label port from match proposals (docs/parity/00-plan.md §7.1 D6)
 //
 // What a port writes (decided from docs/parity/08-schema.md, recorded in tools/e2e/README.md):
 //
@@ -716,7 +734,7 @@ PortResult PortSymbols(const PortOptions& Options) {
 namespace {
 
 const char* const CreatePortResultsSchema =
-    "create table if not exists dsig_port_results ("
+    "create table dsig_port_results ("
     "  hop integer primary key,"
     "  results_path text,"
     "  results_sha256 text,"
@@ -737,9 +755,11 @@ const char* const CreatePortResultsSchema =
     "  names_skipped_hops integer,"
     "  names_skipped_ratio integer,"
     "  names_skipped_existing integer,"
-    "  names_skipped_duplicate integer"
+    "  names_skipped_duplicate integer,"
+    "  overwrite_stripped integer,"
+    "  results_source text"
     ");"
-    "create table if not exists dsig_port_log ("
+    "create table dsig_port_log ("
     "  hop integer,"
     "  results_rowid integer,"
     "  type text,"
@@ -756,13 +776,6 @@ const char* const CreatePortResultsSchema =
     "  hops integer,"
     "  action text"
     ");";
-
-const char* const PortResultsColumns =
-    "hop, results_path, results_sha256, results_main_db, results_diff_db, results_version, "
-    "results_date, include_multimatch, include_unreliable, overwrite, label_columns, proposals, "
-    "selected, names_applied, names_confirmed, names_skipped_not_portable, names_skipped_conflict, "
-    "names_skipped_hops, names_skipped_ratio, names_skipped_existing, names_skipped_duplicate";
-constexpr int PortResultsColumnCount = 21;
 
 const char* const LabelColumns = "name,mangled_function";
 
@@ -906,8 +919,10 @@ bool ReadParentPortResults(const std::string& Path, std::vector<StoredRow>& Out,
   }
   bool Ok = true;
   if (TableExists(Handle, "dsig_port_results")) {
-    const std::string Sql =
-        std::string("select ") + PortResultsColumns + " from dsig_port_results order by hop";
+    const std::vector<const char*>& Columns = PortResultsColumnList();
+    const int ColumnCount = static_cast<int>(Columns.size());
+    const std::string Sql = "select " + SelectExisting(Columns, TableColumns(Handle, "dsig_port_results")) +
+                            " from dsig_port_results order by hop";
     Stmt Query(Handle, Sql.c_str());
     if (!Query.Ok()) {
       Error = sqlite3_errmsg(Handle);
@@ -915,8 +930,8 @@ bool ReadParentPortResults(const std::string& Path, std::vector<StoredRow>& Out,
     }
     int Code = SQLITE_DONE;
     while (Ok && (Code = sqlite3_step(Query.Get())) == SQLITE_ROW) {
-      StoredRow Row(PortResultsColumnCount);
-      for (int Column = 0; Column < PortResultsColumnCount; ++Column) {
+      StoredRow Row(static_cast<size_t>(ColumnCount));
+      for (int Column = 0; Column < ColumnCount; ++Column) {
         StoredCell& Cell = Row[static_cast<size_t>(Column)];
         Cell.Type = sqlite3_column_type(Query.Get(), Column);
         if (Cell.Type == SQLITE_INTEGER) {
@@ -947,31 +962,68 @@ bool ReadParentPortResults(const std::string& Path, std::vector<StoredRow>& Out,
 // Where PortLabels builds its output before the final rename.
 std::string TemporaryOutputPath(const std::string& OutputPath) { return OutputPath + ".dsig-tmp"; }
 
-void RemoveDatabaseFiles(const std::string& Path) {
-  std::error_code Error;
-  for (const char* Suffix : {"", "-wal", "-shm", "-journal"}) {
-    std::filesystem::remove(Path + Suffix, Error);
-  }
-}
-
 // A consistent copy of a possibly WAL-mode export: the main file, plus its -wal when that holds
 // committed frames (SQLite replays it into the copy on the first open).
 bool CopyDatabase(const std::string& From, const std::string& To, std::string& Error) {
   RemoveDatabaseFiles(To);
-  if (!CopyFileBinary(From, To)) {
-    Error = "cannot copy '" + From + "' to '" + To + "'";
+  if (!CopyFileBinary(From, To, Error)) {
     return false;
   }
-  if (FileSizeOrZero(From + "-wal") > 0 && !CopyFileBinary(From + "-wal", To + "-wal")) {
-    Error = "cannot copy '" + From + "-wal' to '" + To + "-wal'";
+  if (FileSizeOrZero(From + "-wal") > 0 && !CopyFileBinary(From + "-wal", To + "-wal", Error)) {
     return false;
   }
   return true;
 }
 
-bool FileExists(const std::string& Path) {
-  std::error_code Error;
-  return std::filesystem::is_regular_file(Path, Error);
+// Puts the finished temporary database in place of the output without ever losing the previous
+// output: the old output's -wal/-shm/-journal (which must not be replayed into the new file) are moved
+// aside first, the temporary is renamed over the output (which replaces it in one step), and only then
+// are the moved sidecars deleted. When the rename fails the sidecars are moved back, so the previous
+// output is exactly as it was.
+bool PublishOutput(const std::string& Temporary, const std::string& Output, std::string& Error) {
+  std::vector<std::pair<std::string, std::string>> MovedAside;  // (original, aside)
+  const auto Restore = [&MovedAside]() {
+    for (const auto& [Original, Aside] : MovedAside) {
+      std::error_code Ignored;
+      RenameOver(Aside, Original, Ignored);
+    }
+  };
+  for (const char* Suffix : {"-wal", "-shm", "-journal"}) {
+    const std::string Sidecar = Output + Suffix;
+    if (!PathExists(Sidecar)) {
+      continue;
+    }
+    const std::string Aside = Sidecar + ".dsig-old";
+    RemoveFile(Aside);
+    std::error_code MoveError;
+    if (!RenameOver(Sidecar, Aside, MoveError)) {
+      Restore();
+      Error = "cannot move the previous output's sidecar '" + Sidecar + "' aside: " + MoveError.message() +
+              "; the previous output was left as it was";
+      return false;
+    }
+    MovedAside.emplace_back(Sidecar, Aside);
+  }
+  std::error_code RenameError;
+  if (!RenameOver(Temporary, Output, RenameError)) {
+    Restore();
+    Error = "cannot move the new output into place as '" + Output + "': " + RenameError.message() +
+            "; the previous output was left as it was";
+    return false;
+  }
+  // Closing the last connection checkpoints and deletes the temporary's -wal; if one is left with
+  // committed frames it belongs to the output now.
+  if (FileSizeOrZero(Temporary + "-wal") > 0) {
+    std::error_code WalError;
+    if (!RenameOver(Temporary + "-wal", Output + "-wal", WalError)) {
+      Error = "cannot move '" + Temporary + "-wal' beside the output: " + WalError.message();
+      return false;
+    }
+  }
+  for (const auto& [Original, Aside] : MovedAside) {
+    RemoveFile(Aside);
+  }
+  return true;
 }
 
 std::string HexEa(uint64_t Ea) {
@@ -1012,7 +1064,7 @@ const char* LabelActionName(LabelAction Action) {
   return "unknown";
 }
 
-std::string ReadOnlyDatabaseUri(const std::string& Path) {
+std::string SqliteReadOnlyUri(const std::string& Path, bool Immutable) {
   std::string Normal = Path;
 #ifdef _WIN32
   std::replace(Normal.begin(), Normal.end(), '\\', '/');
@@ -1035,14 +1087,22 @@ std::string ReadOnlyDatabaseUri(const std::string& Path) {
         break;
     }
   }
-  // A drive-letter path becomes file:/C:/... (SQLite's documented Windows URI form).
   if (Escaped.size() >= 2 && std::isalpha(static_cast<unsigned char>(Escaped[0])) && Escaped[1] == ':') {
+    // A drive-letter path becomes file:/C:/... (SQLite's documented Windows URI form).
     Escaped.insert(Escaped.begin(), '/');
+  } else if (Escaped.size() >= 2 && Escaped[0] == '/' && Escaped[1] == '/') {
+    // A UNC path //server/share/x keeps an empty URI authority: file:////server/share/x, whose path
+    // part SQLite's Windows VFS takes verbatim. The same rule as DiffDatabase::UriForPath.
+    Escaped.insert(0, "//");
   }
+  return "file:" + Escaped + (Immutable ? "?mode=ro&immutable=1" : "?mode=ro");
+}
+
+std::string ReadOnlyDatabaseUri(const std::string& Path) {
   // immutable=1 skips locking and the -wal/-shm files. It is only safe when no committed frame sits
   // in a -wal, so a WAL file with a non-empty -wal is read the normal way.
   const bool Immutable = FileIsWalMode(Path) && FileSizeOrZero(Path + "-wal") == 0;
-  return "file:" + Escaped + (Immutable ? "?mode=ro&immutable=1" : "?mode=ro");
+  return SqliteReadOnlyUri(Path, Immutable);
 }
 
 std::optional<uint64_t> ParseDecimalAddress(std::string_view Text) {
@@ -1098,11 +1158,10 @@ LabelPortResult PortLabels(const LabelPortOptions& Options, const std::vector<La
 
   // Alias refusal before any I/O (JOURNAL.md "in-place port destroyed the target database"; lane F1).
   // The port deletes, creates and renames the output, the temporary "<output>.dsig-tmp" and every
-  // -wal / -shm / -journal sidecar of both (CopyDatabase, RemoveDatabaseFiles and the final rename
-  // below), and SQLite itself creates, plays back and deletes the temporary's sidecars
+  // -wal / -shm / -journal sidecar of both (CopyDatabase, RemoveDatabaseFiles and PublishOutput), and
+  // SQLite itself creates, plays back and deletes the temporary's sidecars
   // (https://www.sqlite.org/tempfiles.html §2.1-2.3). None of those eight files may be an input or one
-  // of the inputs' own sidecars: a target named "<output>.dsig-tmp" was deleted by the old check,
-  // which compared only the output path itself.
+  // of the inputs' own sidecars.
   if (Options.OutputPath.empty()) {
     return Fail(PortFailure::Usage, "no output path");
   }
@@ -1124,17 +1183,24 @@ LabelPortResult PortLabels(const LabelPortOptions& Options, const std::vector<La
   }
   for (const std::string* Input : {&Options.ReferencePath, &Options.TargetPath}) {
     if (!FileExists(*Input)) {
-      return Fail(PortFailure::Io, "cannot open '" + *Input + "'");
+      return Fail(PortFailure::Io, "cannot open '" + *Input + "'" + (PathExists(*Input) ? "" : ": no such file"));
+    }
+  }
+  {
+    const std::filesystem::path Directory = PathOf(Options.OutputPath).parent_path();
+    std::error_code Error;
+    if (!Directory.empty() && !std::filesystem::is_directory(Directory, Error)) {
+      return Fail(PortFailure::Io, "output directory '" + Utf8Of(Directory) + "' does not exist");
     }
   }
 
   const DatabaseIdentity ReferenceIdentity = InspectDatabase(Options.ReferencePath);
   if (!ReferenceIdentity.Ok) {
-    return Fail(PortFailure::Input, "reference: " + ReferenceIdentity.Error);
+    return Fail(ReferenceIdentity.Failure, "reference: " + ReferenceIdentity.Error);
   }
   const DatabaseIdentity TargetIdentity = InspectDatabase(Options.TargetPath);
   if (!TargetIdentity.Ok) {
-    return Fail(PortFailure::Input, "target: " + TargetIdentity.Error);
+    return Fail(TargetIdentity.Failure, "target: " + TargetIdentity.Error);
   }
 
   LabelTable Reference;
@@ -1189,9 +1255,9 @@ LabelPortResult PortLabels(const LabelPortOptions& Options, const std::vector<La
   const std::unordered_map<std::string, NameOrigin> ReferenceOrigins = ReadNameOrigins(Options.ReferencePath);
   const std::string AppliedAt = CurrentUtcTimestamp();
 
-  // Pass 1: one decision per proposal, in stored order. The order of the tests is PortSymbols':
-  // not portable, confirmation, hop cap, ratio floor, existing real name (Provenance.cpp,
-  // PortSymbols loop; JOURNAL.md "names that never travelled were counted as ported").
+  // Pass 1: one decision per proposal, in stored order. The order of the tests: not portable,
+  // confirmation, hop cap, ratio floor, existing real name (JOURNAL.md "names that never travelled
+  // were counted as ported").
   Result.Decisions.resize(Proposals.size());
   std::vector<bool> Claimed(Target.Rows.size(), false);
   std::vector<std::string> OriginAddress(Proposals.size());
@@ -1230,6 +1296,7 @@ LabelPortResult PortLabels(const LabelPortOptions& Options, const std::vector<La
       continue;
     }
     const std::string& ReferenceName = *ReferenceRow.Name;
+    // An IDA placeholder (sub_, j_, DllEntryPoint, ...) is not a real name: it is replaced.
     const bool TargetHasRealName = TargetRow.Name && IsPortableSymbol(*TargetRow.Name);
     if (TargetHasRealName && *TargetRow.Name == ReferenceName) {
       Decision.Action = LabelAction::Confirmed;
@@ -1256,9 +1323,15 @@ LabelPortResult PortLabels(const LabelPortOptions& Options, const std::vector<La
       Decision.Action = LabelAction::SkippedRatio;
       continue;
     }
-    if (!Options.OverwriteExistingNames && TargetHasRealName) {
-      Decision.Action = LabelAction::SkippedExisting;
-      continue;
+    if (TargetHasRealName) {
+      // Diaphora's stripped-binary shortcut pairs functions by address, so on a real name it is only
+      // trusted with both flags (JOURNAL.md: 1172 of 1329 such rows were wrong on win32u).
+      const bool Stripped = Proposal.Description == kStrippedDescription;
+      const bool MayOverwrite = Options.OverwriteExistingNames && (!Stripped || Options.OverwriteStripped);
+      if (!MayOverwrite) {
+        Decision.Action = LabelAction::SkippedExisting;
+        continue;
+      }
     }
     Decision.Action = LabelAction::Applied;
     Decision.WrittenMangled =
@@ -1359,7 +1432,7 @@ LabelPortResult PortLabels(const LabelPortOptions& Options, const std::vector<La
   std::string WriteError;
   if (!CopyDatabase(Options.TargetPath, Temporary, WriteError)) {
     RemoveDatabaseFiles(Temporary);
-    return Fail(PortFailure::Io, WriteError);
+    return Fail(PortFailure::Io, "cannot write the output '" + Options.OutputPath + "': " + WriteError);
   }
 
   sqlite3* Handle = nullptr;
@@ -1367,28 +1440,27 @@ LabelPortResult PortLabels(const LabelPortOptions& Options, const std::vector<La
     WriteError = Handle != nullptr ? sqlite3_errmsg(Handle) : "cannot allocate handle";
     sqlite3_close(Handle);
     RemoveDatabaseFiles(Temporary);
-    return Fail(PortFailure::Io, "output: " + WriteError);
+    return Fail(PortFailure::Io, "output '" + Options.OutputPath + "': " + WriteError);
   }
 
   const auto Write = [&]() -> bool {
-    if (!Exec(Handle, "begin immediate transaction;", WriteError) ||
+    // The dsig_* tables of a target that was itself a port output are replaced, not merged: the
+    // output describes one history (the reference's plus this hop).
+    if (!Exec(Handle, "begin immediate transaction;", WriteError) || !Exec(Handle, DropDsigTables, WriteError) ||
         !Exec(Handle, CreateProvenanceSchema, WriteError) || !Exec(Handle, CreatePortResultsSchema, WriteError)) {
       return false;
     }
 
     Stmt Rename(Handle, "update functions set name = ?, mangled_function = ? where address = ?");
     Stmt Origin(Handle,
-                     "insert or replace into dsig_name_origin (address, name, origin_address, origin_name, "
-                     "hops, cumulative_ratio, heuristic, first_labelled_at) values (?, ?, ?, ?, ?, ?, ?, ?)");
+                "insert or replace into dsig_name_origin (address, name, origin_address, origin_name, "
+                "hops, cumulative_ratio, heuristic, first_labelled_at) values (?, ?, ?, ?, ?, ?, ?, ?)");
     Stmt Log(Handle,
-                  "insert into dsig_port_log (hop, results_rowid, type, line, description, ratio, address, "
-                  "ref_address, ref_name, ref_mangled, name_before, mangled_before, confidence, hops, action) "
-                  "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+             "insert into dsig_port_log (hop, results_rowid, type, line, description, ratio, address, "
+             "ref_address, ref_name, ref_mangled, name_before, mangled_before, confidence, hops, action) "
+             "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     if (!Rename.Ok() || !Origin.Ok() || !Log.Ok()) {
       WriteError = sqlite3_errmsg(Handle);
-      return false;
-    }
-    if (!Exec(Handle, "delete from dsig_port_log;", WriteError)) {
       return false;
     }
 
@@ -1437,10 +1509,7 @@ LabelPortResult PortLabels(const LabelPortOptions& Options, const std::vector<La
       }
     }
 
-    // dsig_provenance: the parent's hops, then this one (PortSymbols semantics).
-    if (!Exec(Handle, "delete from dsig_provenance;", WriteError)) {
-      return false;
-    }
+    // dsig_provenance: the parent's hops, then this one.
     Stmt Hop(Handle, InsertHopSql);
     if (!Hop.Ok()) {
       WriteError = sqlite3_errmsg(Handle);
@@ -1455,7 +1524,7 @@ LabelPortResult PortLabels(const LabelPortOptions& Options, const std::vector<La
     }
     HopRecord NewRecord;
     NewRecord.Hop = Result.NewHop;
-    NewRecord.SourcePath = Options.ReferencePath;
+    NewRecord.SourcePath = StoredPath(Options.ReferencePath, Options.StoreFullPaths);
     NewRecord.SourceInputMd5 = ReferenceIdentity.InputMd5;
     NewRecord.SourceFileSha256 = ReferenceIdentity.FileSha256;
     NewRecord.TargetInputMd5 = TargetIdentity.InputMd5;
@@ -1479,31 +1548,39 @@ LabelPortResult PortLabels(const LabelPortOptions& Options, const std::vector<La
     }
 
     // dsig_port_results: the parent's rows, then this hop's.
-    if (!Exec(Handle, "delete from dsig_port_results;", WriteError)) {
-      return false;
+    const std::vector<const char*>& Columns = PortResultsColumnList();
+    std::string ColumnText;
+    std::string Placeholders;
+    for (const char* Column : Columns) {
+      ColumnText += std::string(ColumnText.empty() ? "" : ", ") + Column;
+      Placeholders += Placeholders.empty() ? "?" : ", ?";
     }
-    const std::string InsertResultsSql = std::string("insert or replace into dsig_port_results (") +
-                                         PortResultsColumns +
-                                         ") values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    const std::string InsertResultsSql =
+        "insert or replace into dsig_port_results (" + ColumnText + ") values (" + Placeholders + ")";
     Stmt Results(Handle, InsertResultsSql.c_str());
     if (!Results.Ok()) {
       WriteError = sqlite3_errmsg(Handle);
       return false;
     }
     for (const StoredRow& Row : ParentPortResults) {
-      for (int Column = 0; Column < PortResultsColumnCount; ++Column) {
-        Results.Cell(Column + 1, Row[static_cast<size_t>(Column)]);
+      for (size_t Column = 0; Column < Row.size(); ++Column) {
+        Results.Cell(static_cast<int>(Column) + 1, Row[Column]);
       }
       if (!Results.Run()) {
         WriteError = sqlite3_errmsg(Handle);
         return false;
       }
     }
+    // The results file's config names its databases as the producer typed them; they follow the same
+    // path policy as the other path columns.
+    const auto ConfigPath = [&Options](const std::string& Path) {
+      return Options.StoreFullPaths ? Path : BaseNameAnySeparator(Path);
+    };
     Results.Int(1, Result.NewHop);
-    Results.Text(2, Options.ResultsPath);
+    Results.Text(2, StoredPath(Options.ResultsPath, Options.StoreFullPaths));
     Results.Text(3, Options.ResultsSha256);
-    Results.Text(4, Options.ResultsMainDb);
-    Results.Text(5, Options.ResultsDiffDb);
+    Results.Text(4, ConfigPath(Options.ResultsMainDb));
+    Results.Text(5, ConfigPath(Options.ResultsDiffDb));
     Results.Text(6, Options.ResultsVersion);
     Results.Text(7, Options.ResultsDate);
     Results.Int(8, Options.IncludeMultimatch ? 1 : 0);
@@ -1520,6 +1597,8 @@ LabelPortResult PortLabels(const LabelPortOptions& Options, const std::vector<La
     Results.Int(19, Result.NamesSkippedRatio);
     Results.Int(20, Result.NamesSkippedExisting);
     Results.Int(21, Result.NamesSkippedDuplicate);
+    Results.Int(22, Options.OverwriteStripped ? 1 : 0);
+    Results.Text(23, Options.ResultsSource);
     if (!Results.Run()) {
       WriteError = sqlite3_errmsg(Handle);
       return false;
@@ -1531,32 +1610,21 @@ LabelPortResult PortLabels(const LabelPortOptions& Options, const std::vector<La
     sqlite3_exec(Handle, "rollback transaction;", nullptr, nullptr, nullptr);
     sqlite3_close(Handle);
     RemoveDatabaseFiles(Temporary);
-    return Fail(PortFailure::Io, "output: " + WriteError);
+    return Fail(PortFailure::Io, "output '" + Options.OutputPath + "': " + WriteError);
   }
   if (sqlite3_close(Handle) != SQLITE_OK) {
     RemoveDatabaseFiles(Temporary);
-    return Fail(PortFailure::Io, "output: cannot close the database");
+    return Fail(PortFailure::Io, "output '" + Options.OutputPath + "': cannot close the database");
   }
 
-  // Closing the last connection checkpoints and deletes the -wal; a stale -wal/-shm left beside the
-  // final name would be replayed into the new file, so those go first.
-  RemoveDatabaseFiles(Options.OutputPath);
-  std::error_code RenameError;
-  std::filesystem::rename(Temporary, Options.OutputPath, RenameError);
-  if (!RenameError && FileSizeOrZero(Temporary + "-wal") > 0) {
-    std::filesystem::rename(Temporary + "-wal", Options.OutputPath + "-wal", RenameError);
-  }
-  if (RenameError) {
-    RemoveDatabaseFiles(Temporary);
-    return Fail(PortFailure::Io, "cannot move the output into place: " + RenameError.message());
-  }
+  std::string PublishError;
+  const bool Published = PublishOutput(Temporary, Options.OutputPath, PublishError);
   RemoveDatabaseFiles(Temporary);
-
-  bool HashOk = false;
-  Result.OutputSha256 = Sha256::FileHex(Options.OutputPath, HashOk);
-  if (!HashOk) {
-    Result.OutputSha256.clear();
+  if (!Published) {
+    return Fail(PortFailure::Io, PublishError);
   }
+
+  Result.OutputSha256 = FileSha256Hex(Options.OutputPath).value_or(std::string());
   Result.Ok = true;
   return Result;
 }

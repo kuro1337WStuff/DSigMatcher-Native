@@ -1,5 +1,9 @@
-// `dsigmatcher port <ref.sqlite> <target.sqlite> -o <out.sqlite> --results <x.diaphora>`
-// (docs/parity/00-plan.md §7.1 D6, lane L11).
+// `dsigmatcher port <ref.sqlite> <target.sqlite> -o <out.sqlite> [--results <x.diaphora>]`
+// (docs/parity/00-plan.md §7.1 D6).
+//
+// Without --results the parity diff runs in-process first (Diff::RunDiff, exactly what `dsigmatcher
+// diff` runs) and writes its results file beside the output; the port then applies that file exactly
+// as `port --results` would. With --results the rows of the given file are applied.
 //
 // Reads a Diaphora results database, written by `python diaphora.py db1 db2 -o x.diaphora` or by our
 // own `diff`, turns every `results` row into a LabelProposal and hands them to DSig::PortLabels
@@ -27,12 +31,27 @@
 #include <vector>
 
 #include "dsigmatcher/Provenance.h"
-#include "dsigmatcher/Sha256.h"
 #include "dsigmatcher/cli/Commands.h"
+#include "dsigmatcher/diff/Pipeline.h"
 
 namespace DSig::Cli {
 
 namespace {
+
+using Diff::JsonValue;
+
+std::filesystem::path PathOf(const std::string& Utf8) {
+  try {
+    return std::filesystem::path(std::u8string(Utf8.begin(), Utf8.end()));
+  } catch (const std::exception&) {
+    return std::filesystem::path(Utf8);
+  }
+}
+
+std::string Utf8Of(const std::filesystem::path& Path) {
+  const std::u8string Text = Path.u8string();
+  return std::string(Text.begin(), Text.end());
+}
 
 struct ResultsFile {
   std::vector<LabelProposal> Rows;
@@ -129,14 +148,26 @@ bool HasTable(sqlite3* Handle, const char* Table) {
   return Found;
 }
 
-bool ReadResultsFile(const std::string& Path, ResultsFile& Out, std::string& Error) {
+// Reads every results row. ExitCode on failure: kExitIo when the file is not an SQLite database at
+// all, kExitUnsupported when it is one but not a Diaphora results file.
+bool ReadResultsFile(const std::string& Path, ResultsFile& Out, std::string& Error, int& ExitCode) {
   sqlite3* Handle = nullptr;
   const std::string Uri = ReadOnlyDatabaseUri(Path);
+  ExitCode = kExitIo;
   if (sqlite3_open_v2(Uri.c_str(), &Handle, SQLITE_OPEN_READONLY | SQLITE_OPEN_URI, nullptr) != SQLITE_OK) {
-    Error = Handle != nullptr ? sqlite3_errmsg(Handle) : "cannot allocate handle";
+    Error = "cannot open it: " + std::string(Handle != nullptr ? sqlite3_errmsg(Handle) : "cannot allocate handle");
     sqlite3_close(Handle);
     return false;
   }
+  // A read-only open succeeds on any file; the first schema read tells whether it is a database.
+  char* Probe = nullptr;
+  if (sqlite3_exec(Handle, "pragma schema_version", nullptr, nullptr, &Probe) != SQLITE_OK) {
+    Error = "not an SQLite database (" + std::string(Probe != nullptr ? Probe : sqlite3_errmsg(Handle)) + ")";
+    sqlite3_free(Probe);
+    sqlite3_close(Handle);
+    return false;
+  }
+  ExitCode = kExitUnsupported;
   bool Ok = true;
   if (!HasTable(Handle, "results")) {
     Error = "no 'results' table; not a Diaphora results file";
@@ -214,46 +245,153 @@ bool ReadResultsFile(const std::string& Path, ResultsFile& Out, std::string& Err
 
 std::string Count(int64_t Value) { return std::to_string(Value); }
 
+void RemoveResultsFile(const std::string& Path) {
+  std::error_code Error;
+  for (const char* Suffix : {"", "-wal", "-shm", "-journal"}) {
+    std::filesystem::remove(PathOf(Path + Suffix), Error);
+  }
+}
+
+// The diff's exit code. RunDiff reports an unexpected exception as an I/O failure whose message starts
+// with "internal error: "; the CLI reports that as an internal error instead.
+int DiffExitCode(const Diff::DiffOutcome& Outcome) {
+  if (Outcome.Status == Diff::DiffStatus::Io && Outcome.Message.rfind("internal error: ", 0) == 0) {
+    return kExitInternal;
+  }
+  return static_cast<int>(Outcome.Status);
+}
+
+}
+
+std::string DefaultResultsPath(const std::string& Output) {
+  const std::filesystem::path Native = PathOf(Output);
+  return Utf8Of(Native.parent_path() / PathOf(Diff::PathStem(Utf8Of(Native.filename())) + ".diaphora"));
 }
 
 CommandOutcome RunPortFromResults(const PortFromResultsArgs& Args) {
   CommandOutcome Outcome;
-  const auto Failure = [&Outcome](int Code, std::string Message) {
+  const bool InProcess = Args.Results.empty();
+  std::string ResultsPath = Args.Results;
+  bool DiffRan = false;
+  const auto Failure = [&](int Code, std::string Message) {
     Outcome.ExitCode = Code;
     Outcome.Message = std::move(Message);
     Outcome.Report.clear();
+    if (InProcess && DiffRan && !Args.KeepResults) {
+      RemoveResultsFile(ResultsPath);
+    }
     return Outcome;
   };
 
-  if (Args.Results.empty()) {
-    return Failure(kExitUnsupported,
-                   "port without --results runs the parity diff in-process (lane L9); not implemented yet");
-  }
-  if (Args.StrictSqlite || Args.IgnoreSmallFunctions) {
-    return Failure(kExitUsage, "--strict-sqlite and --ignore-small-functions configure the in-process diff; "
-                               "they do not apply to port --results");
+  if (!InProcess && (Args.StrictSqlite || Args.AllowSqliteMismatch || Args.IgnoreSmallFunctions || Args.Quiet ||
+                     !Args.KeepResults || !Args.ResultsOutput.empty())) {
+    return Failure(kExitUsage,
+                   "--strict-sqlite, --allow-sqlite-mismatch, --ignore-small-functions, --quiet and "
+                   "--no-keep-results configure the in-process diff; they do not apply to port --results");
   }
   if (Args.Reference.empty() || Args.Target.empty() || Args.Output.empty()) {
-    return Failure(kExitUsage, "port --results needs <reference> <target> -o <output>");
+    return Failure(kExitUsage, "port needs <reference> <target> -o <output>");
   }
   if (!(Args.MinRatio >= 0.0 && Args.MinRatio <= 1.0)) {
-    return Failure(kExitUsage, "min-ratio must be between 0.0 and 1.0");
+    return Failure(kExitUsage, "min-ratio must be a number between 0.0 and 1.0");
   }
   if (Args.MaxHops < -1) {
     return Failure(kExitUsage, "max-hops must be zero or greater");
   }
+  if (Args.OverwriteStripped && !Args.Overwrite) {
+    return Failure(kExitUsage, "--overwrite-stripped needs --overwrite-existing");
+  }
+
+  if (InProcess) {
+    ResultsPath = !Args.ResultsOutput.empty()
+                      ? Args.ResultsOutput
+                      : (Args.KeepResults ? DefaultResultsPath(Args.Output) : Args.Output + ".dsig-results-tmp");
+  }
+
+  // Every refusal the port itself would make is made before the diff runs, so a port that cannot
+  // succeed never replaces an existing results file: the results file (written by the diff) and the
+  // output files (written by the port) must not alias the inputs or each other.
+  {
+    std::vector<NamedPath> Inputs = DatabaseFileSet("the reference database", Args.Reference);
+    for (NamedPath& File : DatabaseFileSet("the target database", Args.Target)) {
+      Inputs.push_back(std::move(File));
+    }
+    std::vector<NamedPath> Written = DatabaseFileSet("the output", Args.Output);
+    for (NamedPath& File : DatabaseFileSet("the temporary output", Args.Output + ".dsig-tmp")) {
+      Written.push_back(std::move(File));
+    }
+    if (InProcess) {
+      const std::vector<NamedPath> Results = DatabaseFileSet("the results file", ResultsPath);
+      if (const std::optional<std::string> Alias = FindPathAlias(Results, Inputs)) {
+        return Failure(kExitUsage, *Alias);
+      }
+      if (const std::optional<std::string> Alias = FindPathAlias(Written, Results)) {
+        return Failure(kExitUsage, *Alias + "; choose another -o");
+      }
+    } else {
+      for (NamedPath& File : DatabaseFileSet("the results file", ResultsPath)) {
+        Inputs.push_back(std::move(File));
+      }
+    }
+    if (const std::optional<std::string> Alias = FindPathAlias(Written, Inputs)) {
+      return Failure(kExitUsage, *Alias);
+    }
+    const std::filesystem::path Directory = PathOf(Args.Output).parent_path();
+    std::error_code Error;
+    if (!Directory.empty() && !std::filesystem::is_directory(Directory, Error)) {
+      return Failure(kExitIo, "output directory '" + Utf8Of(Directory) + "' does not exist");
+    }
+  }
+
+  JsonValue DiffData = JsonValue::Null();
+  if (InProcess) {
+    // The inputs are checked the way the port checks them, so a missing or wrong reference is reported
+    // by path before the diff opens anything.
+    for (const auto& [Role, Path] : {std::pair<const char*, const std::string*>{"reference", &Args.Reference},
+                                     std::pair<const char*, const std::string*>{"target", &Args.Target}}) {
+      const DatabaseIdentity Identity = InspectDatabase(*Path);
+      if (!Identity.Ok) {
+        return Failure(Identity.Failure == PortFailure::Input ? kExitUnsupported : kExitIo,
+                       std::string(Role) + ": " + Identity.Error);
+      }
+    }
+    Diff::DiffArgs Diffing;
+    Diffing.Db1 = Args.Reference;
+    Diffing.Db2 = Args.Target;
+    Diffing.Out = ResultsPath;
+    Diffing.Config.IgnoreSmallFunctions = Args.IgnoreSmallFunctions;
+    Diffing.StrictSqlite = Args.StrictSqlite;
+    Diffing.AllowSqliteMismatch = Args.AllowSqliteMismatch;
+    Diffing.Quiet = Args.Quiet;
+    DiffRan = true;
+    const Diff::DiffOutcome Diffed = Diff::RunDiff(Diffing);
+    if (Diffed.Status != Diff::DiffStatus::Ok) {
+      return Failure(DiffExitCode(Diffed), "diff: " + Diffed.Message);
+    }
+    DiffData = JsonValue::Object();
+    DiffData.Set("mode", JsonValue::String(std::string(1, Diffed.Mode)));
+    DiffData.Set("best", JsonValue::UInt(Diffed.Best));
+    DiffData.Set("partial", JsonValue::UInt(Diffed.Partial));
+    DiffData.Set("unreliable", JsonValue::UInt(Diffed.Unreliable));
+    DiffData.Set("multimatch", JsonValue::UInt(Diffed.Multimatch));
+    Outcome.Report.push_back("diff             : mode " + std::string(1, Diffed.Mode) + ", best " +
+                             std::to_string(Diffed.Best) + ", partial " + std::to_string(Diffed.Partial) +
+                             ", unreliable " + std::to_string(Diffed.Unreliable) + ", multimatch " +
+                             std::to_string(Diffed.Multimatch));
+  }
+
   std::error_code Error;
-  if (!std::filesystem::is_regular_file(Args.Results, Error)) {
-    return Failure(kExitIo, "cannot open results file '" + Args.Results + "'");
+  if (!std::filesystem::is_regular_file(PathOf(ResultsPath), Error)) {
+    return Failure(kExitIo, "cannot open results file '" + ResultsPath + "'");
   }
 
   ResultsFile Results;
   std::string ReadError;
-  if (!ReadResultsFile(Args.Results, Results, ReadError)) {
-    return Failure(kExitUnsupported, "results file '" + Args.Results + "': " + ReadError);
+  int ReadExit = kExitIo;
+  if (!ReadResultsFile(ResultsPath, Results, ReadError, ReadExit)) {
+    return Failure(ReadExit, "results file '" + ResultsPath + "': " + ReadError);
   }
-  bool HashOk = false;
-  const std::string ResultsSha256 = Sha256::FileHex(Args.Results, HashOk);
+  const std::string ResultsSha256 = FileSha256Hex(ResultsPath).value_or(std::string());
 
   for (LabelProposal& Row : Results.Rows) {
     Row.Selected = Row.Category == "best" || Row.Category == "partial" ||
@@ -265,16 +403,19 @@ CommandOutcome RunPortFromResults(const PortFromResultsArgs& Args) {
   Options.ReferencePath = Args.Reference;
   Options.TargetPath = Args.Target;
   Options.OutputPath = Args.Output;
-  Options.OtherInputs = {Args.Results};
+  Options.OtherInputs = {ResultsPath};
   Options.OverwriteExistingNames = Args.Overwrite;
+  Options.OverwriteStripped = Args.OverwriteStripped;
   Options.MinCumulativeRatio = Args.MinRatio;
   Options.MaxHops = Args.MaxHops;
-  Options.ResultsPath = Args.Results;
-  Options.ResultsSha256 = HashOk ? ResultsSha256 : std::string();
+  Options.StoreFullPaths = Args.StoreFullPaths;
+  Options.ResultsPath = ResultsPath;
+  Options.ResultsSha256 = ResultsSha256;
   Options.ResultsMainDb = Results.MainDb;
   Options.ResultsDiffDb = Results.DiffDb;
   Options.ResultsVersion = Results.Version;
   Options.ResultsDate = Results.Date;
+  Options.ResultsSource = InProcess ? "in-process diff" : "results file";
   Options.IncludeMultimatch = Args.IncludeMultimatch;
   Options.IncludeUnreliable = Args.IncludeUnreliable;
 
@@ -290,6 +431,9 @@ CommandOutcome RunPortFromResults(const PortFromResultsArgs& Args) {
         break;
     }
     return Failure(kExitUnsupported, Port.Error);
+  }
+  if (InProcess && !Args.KeepResults) {
+    RemoveResultsFile(ResultsPath);
   }
 
   std::map<std::string, int64_t> AppliedPerCategory;
@@ -307,6 +451,14 @@ CommandOutcome RunPortFromResults(const PortFromResultsArgs& Args) {
     }
     return Text;
   };
+  const auto PerCategoryJson = [](const std::map<std::string, int64_t>& Counts) {
+    JsonValue Object = JsonValue::Object();
+    for (const char* Category : {"best", "partial", "unreliable", "multimatch"}) {
+      const auto Found = Counts.find(Category);
+      Object.Set(Category, JsonValue::Int(Found == Counts.end() ? 0 : Found->second));
+    }
+    return Object;
+  };
   std::string Categories = "best, partial";
   if (Args.IncludeUnreliable) {
     Categories += ", unreliable";
@@ -314,12 +466,15 @@ CommandOutcome RunPortFromResults(const PortFromResultsArgs& Args) {
   if (Args.IncludeMultimatch) {
     Categories += ", multimatch";
   }
+  const std::string ResultsShown =
+      InProcess ? ResultsPath + (Args.KeepResults ? " (in-process diff, kept)" : " (in-process diff, deleted)")
+                : ResultsPath;
 
   Outcome.ExitCode = kExitOk;
-  Outcome.Report = {
+  const std::vector<std::string> Lines = {
       "reference        : " + Args.Reference,
       "target           : " + Args.Target,
-      "results          : " + Args.Results,
+      "results          : " + ResultsShown,
       "results sha256   : " + Options.ResultsSha256,
       "output           : " + Args.Output,
       "output sha256    : " + Port.OutputSha256,
@@ -338,6 +493,44 @@ CommandOutcome RunPortFromResults(const PortFromResultsArgs& Args) {
       "skipped duplicate: " + Count(Port.NamesSkippedDuplicate),
       "label columns    : name, mangled_function",
   };
+  Outcome.Report.insert(Outcome.Report.end(), Lines.begin(), Lines.end());
+
+  JsonValue Data = JsonValue::Object();
+  Data.Set("reference", JsonValue::String(Args.Reference));
+  Data.Set("target", JsonValue::String(Args.Target));
+  Data.Set("output", JsonValue::String(Args.Output));
+  Data.Set("output_sha256", JsonValue::String(Port.OutputSha256));
+  Data.Set("results", JsonValue::String(ResultsPath));
+  Data.Set("results_sha256", JsonValue::String(Options.ResultsSha256));
+  Data.Set("results_source", JsonValue::String(Options.ResultsSource));
+  Data.Set("results_kept", JsonValue::Bool(!InProcess || Args.KeepResults));
+  Data.Set("diff", std::move(DiffData));
+  Data.Set("lineage", JsonValue::String(Port.Lineage));
+  Data.Set("hop", JsonValue::Int(Port.NewHop));
+  Data.Set("functions_reference", JsonValue::Int(Port.FunctionsReference));
+  Data.Set("functions_target", JsonValue::Int(Port.FunctionsTarget));
+  Data.Set("results_rows", PerCategoryJson(Results.RowsPerCategory));
+  JsonValue Selected = JsonValue::Array();
+  for (const char* Category : {"best", "partial", "unreliable", "multimatch"}) {
+    const std::string Name(Category);
+    if (Name == "best" || Name == "partial" || (Name == "unreliable" && Args.IncludeUnreliable) ||
+        (Name == "multimatch" && Args.IncludeMultimatch)) {
+      Selected.Push(JsonValue::String(Name));
+    }
+  }
+  Data.Set("selected_categories", std::move(Selected));
+  Data.Set("proposals", JsonValue::Int(Port.Proposals));
+  Data.Set("selected", JsonValue::Int(Port.Selected));
+  Data.Set("names_applied", JsonValue::Int(Port.NamesApplied));
+  Data.Set("names_applied_per_category", PerCategoryJson(AppliedPerCategory));
+  Data.Set("names_confirmed", JsonValue::Int(Port.NamesConfirmed));
+  Data.Set("skipped_existing", JsonValue::Int(Port.NamesSkippedExisting));
+  Data.Set("skipped_hops", JsonValue::Int(Port.NamesSkippedHops));
+  Data.Set("skipped_ratio", JsonValue::Int(Port.NamesSkippedRatio));
+  Data.Set("skipped_not_portable", JsonValue::Int(Port.NamesSkippedNotPortable));
+  Data.Set("skipped_conflict", JsonValue::Int(Port.NamesSkippedConflict));
+  Data.Set("skipped_duplicate", JsonValue::Int(Port.NamesSkippedDuplicate));
+  Outcome.Data = std::move(Data);
   return Outcome;
 }
 
