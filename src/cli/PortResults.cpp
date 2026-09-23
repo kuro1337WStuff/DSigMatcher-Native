@@ -83,7 +83,10 @@ std::optional<uint64_t> ParseHexAddress(std::string_view Text) {
 }
 
 // "%.7f" % ratio (D:282): digits, one '.', digits. Only those characters are passed to strtod, so the
-// result does not depend on the C locale's decimal point beyond the default "C" locale.
+// result does not depend on the C locale's decimal point beyond the default "C" locale. No clamp is
+// applied: Diaphora never stores a ratio above 1.0 (check_ratio clamps to 0.99, 03a step 5, and both
+// bonus sites test `r + MATCHES_BONUS_RATIO < 1.0` first, D:2203-2204 and D:3109-3110), so
+// confidence = ratio x parent confidence stays within [0, 1] for Diaphora-produced results.
 std::optional<double> ParseRatio(std::string_view Text) {
   if (Text.empty()) {
     return std::nullopt;
