@@ -381,6 +381,11 @@ PortResult PortSymbols(const PortOptions& Options) {
       continue;
     }
 
+    if (IsPortableSymbol(TargetName) && TargetName == ReferenceName) {
+      ++Result.NamesConfirmed;
+      continue;
+    }
+
     const auto Inherited = ReferenceOrigins.find(ReferenceAddress);
     const bool HasHistory = Inherited != ReferenceOrigins.end();
 
