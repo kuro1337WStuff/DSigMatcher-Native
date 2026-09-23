@@ -1,0 +1,15 @@
+{"ev":"point","name":"before:cleanup:3217:1","best":2,"partial":3,"unreliable":0}
+{"ev":"cleanup","site":3217,"n":1,"best":2,"partial":3,"unreliable":0}
+{"ev":"point","name":"after:cleanup:3217:1","best":2,"partial":3,"unreliable":0}
+{"ev":"point","name":"before:cleanup:3185:1","best":2,"partial":3,"unreliable":0}
+{"ev":"cleanup","site":3185,"n":1,"best":2,"partial":3,"unreliable":0}
+{"ev":"point","name":"after:cleanup:3185:1","best":2,"partial":3,"unreliable":0}
+{"ev":"add_match","seq":5,"ctx":"find_matches_diffing:0","name1":"same_exact","name2":"same_exact","ea1":"8192","ea2":"8448","desc":"Callee found diffing matches pseudo-code (iteration #1)","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"add_match","seq":6,"ctx":"find_matches_diffing:0","name1":"same_changed","name2":"same_changed","ea1":"12288","ea2":"12544","desc":"Callee found diffing matches pseudo-code (iteration #1)","ratio_bits":"3fecd414f55a8a90","chooser":"partial","result":"appended"}
+{"ev":"add_match","seq":7,"ctx":"find_matches_diffing:0","name1":"gate_edge_a","name2":"gate_edge_b","ea1":"24576","ea2":"24832","desc":"Callee found diffing matches pseudo-code (iteration #1)","ratio_bits":"3fecd414f55a8a90","chooser":"partial","result":"appended"}
+{"ev":"point","name":"before:cleanup:3185:2","best":3,"partial":5,"unreliable":0}
+{"ev":"cleanup","site":3185,"n":2,"best":2,"partial":4,"unreliable":0}
+{"ev":"point","name":"after:cleanup:3185:2","best":2,"partial":4,"unreliable":0}
+{"ev":"point","name":"before:cleanup:3185:3","best":2,"partial":4,"unreliable":0}
+{"ev":"cleanup","site":3185,"n":3,"best":2,"partial":4,"unreliable":0}
+{"ev":"point","name":"after:cleanup:3185:3","best":2,"partial":4,"unreliable":0}

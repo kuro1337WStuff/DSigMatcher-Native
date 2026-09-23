@@ -1,0 +1,30 @@
+{
+ "generator": "tests/diff/fixtures/callee/gen_callee_fixtures.py",
+ "scenario": "exp_z",
+ "diaphora": "3.4.2-4-g621ec26",
+ "python": "3.13.12",
+ "sqlite_version": "3.51.1",
+ "has_cdifflib": false,
+ "pythonhashseed": "0",
+ "mode": "N",
+ "iterations": [
+  0
+ ],
+ "after_present": [],
+ "find_one_match_diffing": {
+  "assembly:outer0:inner1": 1,
+  "pseudocode:outer0:inner1": 1
+ },
+ "cleanup_sites": {
+  "1551": 2,
+  "3185": 1,
+  "3217": 1,
+  "3655": 1
+ },
+ "exception": {
+  "type": "ZeroDivisionError",
+  "message": "division by zero",
+  "line": 3089,
+  "function": "find_one_match_diffing"
+ }
+}

@@ -1,0 +1,10 @@
+{"ev":"point","name":"before:cleanup:3217:2","best":1,"partial":1,"unreliable":0}
+{"ev":"cleanup","site":3217,"n":2,"best":1,"partial":1,"unreliable":0}
+{"ev":"point","name":"after:cleanup:3217:2","best":1,"partial":1,"unreliable":0}
+{"ev":"point","name":"before:cleanup:3185:4","best":1,"partial":1,"unreliable":0}
+{"ev":"cleanup","site":3185,"n":4,"best":1,"partial":1,"unreliable":0}
+{"ev":"point","name":"after:cleanup:3185:4","best":1,"partial":1,"unreliable":0}
+{"ev":"add_match","seq":2,"ctx":"find_matches_diffing:1","name1":"alpha_old_callee","name2":"beta_new_callee","ea1":"8192","ea2":"8448","desc":"Callee found diffing matches pseudo-code (iteration #1)","ratio_bits":"3fecd414f55a8a90","chooser":"partial","result":"duplicate"}
+{"ev":"point","name":"before:cleanup:3185:5","best":1,"partial":1,"unreliable":0}
+{"ev":"cleanup","site":3185,"n":5,"best":1,"partial":1,"unreliable":0}
+{"ev":"point","name":"after:cleanup:3185:5","best":1,"partial":1,"unreliable":0}
