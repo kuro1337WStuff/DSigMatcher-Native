@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux / GCC
+            os: ubuntu-latest
+          - name: Windows / MSVC
+            os: windows-latest
+          - name: macOS / Clang
+            os: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install SQLite3 development files (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsqlite3-dev
+
+      - name: Install SQLite3 development files (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install sqlite3
+          echo "SQLITE_PREFIX=$(brew --prefix sqlite3)" >> "$GITHUB_ENV"
+
+      - name: Install SQLite3 development files (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          vcpkg install sqlite3:x64-windows
+          $Prefix = ($env:VCPKG_INSTALLATION_ROOT -replace '\\', '/') + '/installed/x64-windows'
+          "SQLITE_PREFIX=$Prefix" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Configure
+        shell: bash
+        run: |
+          if [ -n "$SQLITE_PREFIX" ]; then
+            cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$SQLITE_PREFIX"
+          else
+            cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          fi
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Report test binaries
+        shell: bash
+        run: |
+          ./build/dsigmatcher --help
+          echo "--- ctest rerun with timing ---"
+          ctest --test-dir build --output-on-failure -V 2>&1 | grep -E "checks|checks run|Test #|tests passed" || true

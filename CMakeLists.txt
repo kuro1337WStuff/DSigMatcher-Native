@@ -92,6 +92,13 @@ target_link_libraries(dsigmatcher_pe_tests PRIVATE dsigmatcher_core)
 dsig_apply_warnings(dsigmatcher_pe_tests)
 add_test(NAME peimage COMMAND dsigmatcher_pe_tests)
 
+set(DSIG_CORPUS_ROOT "" CACHE PATH
+    "Directory holding the win32u test corpus; real-binary PE tests skip when it is absent")
+if(DSIG_CORPUS_ROOT)
+  target_compile_definitions(dsigmatcher_pe_tests PRIVATE
+    DSIG_CORPUS_ROOT="${DSIG_CORPUS_ROOT}")
+endif()
+
 add_executable(dsigmatcher_resolve_tests tests/resolve_tests.cpp)
 target_link_libraries(dsigmatcher_resolve_tests PRIVATE dsigmatcher_core)
 dsig_apply_warnings(dsigmatcher_resolve_tests)

@@ -1168,6 +1168,54 @@ will add `matches` and `symbols_to_port` tables to that input. It does not trunc
 — the existing `functions` rows survive — so it is a surprise rather than data loss, but it does mutate
 a file the user passed as read-only input. Same canonicalisation should be applied there.
 
+### Continuous integration across three toolchains
+
+`.github/workflows/ci.yml` builds and tests on Ubuntu/GCC, Windows/MSVC and macOS/Clang for every push
+to `main`, every tag, and every pull request.
+
+**The reason this exists is portability, not convenience.** Everything so far has been verified on one
+toolchain — MSVC 19.51 on Windows x64. The thread-pool work already produced a concrete warning about
+that: a nested-`ParallelFor` use-after-free did not deadlock locally **only because MSVC's `std::mutex`
+is recursive**, being backed by `CRITICAL_SECTION`. The identical code on libstdc++ or libc++ would have
+hung instead of corrupting state. That class of bug is structurally invisible from this machine, and a
+Linux job is the only way to see it.
+
+Secondary benefit: it removes the "did I remember to rebuild" failure mode, which produced a genuinely
+misleading green result earlier in this session when a broken build was tested through stale binaries.
+
+**Prerequisite that had to be resolved first.** The `kuro1337WStuff` OAuth token carried
+`gist, read:org, repo` and no `workflow` scope. GitHub does not merely decline to run a workflow in that
+case — it **rejects the entire push** that touches `.github/workflows/`. Committing one prematurely
+would have broken every subsequent push until it was removed. Scope added via
+`gh auth switch --user kuro1337WStuff` then `gh auth refresh -h github.com -s workflow`, then switched
+back; `gh auth refresh` has no `--user` flag and only operates on the active account.
+
+**Coverage caveat, stated plainly.** `dsigmatcher_pe_tests` runs 302 checks with the win32u corpus
+present and **198 without it** — 104 checks, including every assertion against a real Microsoft binary
+and the CodeView GUID cross-check, only run where the corpus exists. CI runners have no corpus, so CI
+covers 198. The synthetic PE images still exercise the malformed-input and forwarder paths. Verified
+locally by configuring with `-DDSIG_CORPUS_ROOT` pointing at a nonexistent directory: exit code 0,
+`198 checks run, 0 failed, 2 suites skipped`.
+
+That corpus path also drove a small design change. The test originally hardcoded
+`C:\Users\Loki\dsig-corpus\...` — a personal absolute path in published source, which both leaked a
+username and made the real-binary tests unrunnable for anyone else. It is now a CMake cache option
+`DSIG_CORPUS_ROOT` defaulting to the repo-relative `corpus/`, which `.gitignore` already excludes. An
+environment variable was the first attempt and was rejected: MSVC flags `getenv` as C4996, and this
+project holds a zero-warning line, so the options were a platform-specific `_dupenv_s` branch, a
+blanket `_CRT_SECURE_NO_WARNINGS`, or configure-time injection. The last is portable across all three
+CI compilers and keeps the source clean.
+
+**Deliberately not enabled: `-Werror`.** GCC and Clang warn on things MSVC does not, so treating
+warnings as errors would likely fail the first CI run for reasons unrelated to correctness. The plan is
+to run clean once, review whatever the other two compilers report, fix the real findings, and only then
+add `-Werror`. Enabling it before knowing what it catches would just produce a red badge and pressure
+to suppress rather than fix.
+
+Also not enabled: dependency caching for the `FetchContent` Zydis/Zycore fetch, and any lint or
+sanitiser job. Both are worth adding; neither is worth adding before the three-platform build is known
+to be green.
+
 ### Not yet done
 
 - 38 remaining heuristics: 4 `Best`, 26 `Partial`, 8 `Unreliable`
