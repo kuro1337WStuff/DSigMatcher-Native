@@ -1,0 +1,35 @@
+{
+ "generator": "tools/parity/make_fixture.py",
+ "scenario": "scenario.py",
+ "diaphora": "3.4.2-4-g621ec26",
+ "python": "3.13.12",
+ "sqlite_version": "3.51.1",
+ "has_cdifflib": false,
+ "cdifflib_warning_present": true,
+ "pythonhashseed": "0",
+ "mode": "N",
+ "final_results": {
+  "best": 1,
+  "partial": 1,
+  "unreliable": 0,
+  "multimatch": 0
+ },
+ "results_rows": 2,
+ "results_by_type": {
+  "best": 1,
+  "partial": 1
+ },
+ "unmatched_rows": {
+  "primary": 1,
+  "secondary": 1
+ },
+ "config_version": [
+  "3.4"
+ ],
+ "self_check": {
+  "capture_vs_cli_results": true,
+  "capture_vs_cli_unmatched": true,
+  "dumps_vs_cli_results": true,
+  "dumps_vs_cli_unmatched": true
+ }
+}
