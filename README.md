@@ -29,9 +29,9 @@ What it adds around the diff:
 
 Contents: [Download](#download) · [Requirements](#requirements) · [Quick start](#quick-start) ·
 [Querying the results](#querying-the-results) · [Command reference](#command-reference) ·
-[Exit codes](#exit-codes) · [Parity guarantee](#parity-guarantee) ·
-[Known limitations](#known-limitations) · [Building from source](#building-from-source) ·
-[Licence](#licence-and-attribution)
+[Exit codes](#exit-codes) · [Crash recovery](#crash-recovery) ·
+[Parity guarantee](#parity-guarantee) · [Known limitations](#known-limitations) ·
+[Building from source](#building-from-source) · [Licence](#licence-and-attribution)
 
 ---
 
@@ -42,16 +42,19 @@ Release archives are on the
 
 | Platform | Archive | Contents |
 |---|---|---|
-| Windows x64 (Windows 10 or later) | `dsigmatcher-1.0.0-windows-x64.zip` | `dsigmatcher.exe`, `dsig_export.py` and the documents, all in one folder |
-| Linux x64 (any distribution) | `dsigmatcher-1.0.0-linux-x64.tar.gz` | `bin/dsigmatcher`, `share/dsigmatcher/tools/export/dsig_export.py`, the documents |
-| macOS 26.0 or later, Apple silicon and Intel | `dsigmatcher-1.0.0-macos-universal2.tar.gz` | same layout as Linux |
+| Windows x64 | `dsigmatcher-1.0.0-windows-x64.zip` | `dsigmatcher.exe`, `dsig_export.py` and the documents, all in one folder |
+| Linux x64 (any distribution) | `dsigmatcher-1.0.0-linux-x64.tar.gz` | `bin/dsigmatcher`, `share/dsigmatcher/tools/export/dsig_export.py`, `share/doc/dsigmatcher/`, the documents |
+| macOS 13 or later, Apple silicon and Intel | `dsigmatcher-1.0.0-macos-universal2.tar.gz` | same layout as Linux |
 
 Each archive also holds `README.md` (this file), `LICENSE`, `NOTICE` and `THIRD_PARTY_NOTICES.md`.
 
 The binaries have no run-time dependencies beyond the operating system. SQLite 3.51.1 and the
-C/C++ runtime are linked in, so there is no `sqlite3.dll` or Visual C++ redistributable to install.
-The Linux binary is fully static and runs on any x86-64 distribution. The macOS binary is
-ad-hoc signed and not notarised. `dsig_export.py` is only used by `extract`, `ingest` and
+C/C++ runtime are linked in. On Windows, `dsigmatcher.exe` is a single executable that needs no
+DLL besides Windows' own: there is no `sqlite3.dll` or Visual C++ redistributable to install.
+The Linux binary is fully static (no shared libraries, no dynamic loader) and runs on any x86-64
+distribution. The macOS binary is one universal2 file for macOS 13 or later, ad-hoc signed and not
+notarised. DSigMatcher was developed and measured on Windows 11; the release workflow tests each
+archive on its platform's CI runners. `dsig_export.py` is only used by `extract`, `ingest` and
 `update`; keep it next to the executable (Windows) or in the `share/` tree beside `bin/`
 (Linux, macOS).
 
@@ -96,7 +99,7 @@ Diaphora's exporter running inside IDA (`update` ingests the new build as its fi
 
 | Requirement | Details |
 |---|---|
-| IDA Pro 9.x with idalib | The headless IDA library. Exports need the **Hex-Rays decompiler** for the binary's architecture; without it the export is refused (exit 4). |
+| IDA Pro 9.x with idalib | The headless IDA library. Exports need the **Hex-Rays decompiler** for the binary's architecture; without it the export is refused (exit 4) unless `--allow-no-decompiler` is given (see [`extract` and `ingest`](#extract-and-ingest)). |
 | A Python that can load idalib | Python 3.8 or later. If the `idapro` package is not installed in it, the copy in `<IDA>/idalib/python` is used. Diaphora's own Python dependencies (for example `pygments`) must be installed in the same Python. |
 | A Diaphora checkout | Diaphora is **not bundled**. Use revision 3.4.2-4-g621ec26 (commit `621ec26`), the one the parity guarantee was measured with. It is imported read-only and never modified. |
 
@@ -193,9 +196,9 @@ The same layout as Diaphora's:
 | `results` | `type` (`best`, `partial`, `unreliable`, `multimatch`), `line`, `address`, `name`, `address2`, `name2`, `ratio`, `nodes1`, `nodes2`, `description` (the heuristic or pass that produced the match) |
 | `unmatched` | `type` (`primary`, `secondary`), `line`, `address`, `name` |
 
-Addresses are stored as 8-digit lower-case hex text and ratios as text with 7 decimals, as
-Diaphora writes them. `address`/`name` belong to the first database given to `diff`, and
-`address2`/`name2` to the second.
+Addresses are stored as lower-case hex text of at least 8 digits (`%08x`) and ratios as text
+with 7 decimals, as Diaphora writes them. `address`/`name` belong to the first database given to
+`diff`, and `address2`/`name2` to the second.
 
 ```sql
 -- How many matches each heuristic produced, per category
@@ -248,20 +251,21 @@ compare `printf('%08x', f.address)` with `results.address2`.
 ## Command reference
 
 ```
+dsigmatcher extract <in.i64|in.idb> -o <out.sqlite> [tool options]
+dsigmatcher ingest  <binary> -o <out.sqlite> [--pdb <file> | --no-pdb] [tool options]
 dsigmatcher diff    <db1.sqlite> <db2.sqlite> [-o <out.diaphora>] [options]
 dsigmatcher port    <reference.sqlite> <target.sqlite> -o <out.sqlite> [--results <x.diaphora>] [options]
 dsigmatcher update  <labelled.sqlite> <new binary> -o <new-labelled.sqlite> [options]
-dsigmatcher extract <in.i64|in.idb> -o <out.sqlite> [tool options]
-dsigmatcher ingest  <binary> -o <out.sqlite> [--pdb <file> | --no-pdb] [tool options]
-dsigmatcher info    <database.sqlite>
+dsigmatcher info    <database.sqlite> [--json]
 dsigmatcher version            (also --version, -V)
 ```
 
-`dsigmatcher <command> --help` lists a command's options, and `dsigmatcher --help-all` also lists
-the developer options (tracing, state snapshots and single-stage replay, used by the parity
-tools). Every command accepts `--json`, which prints one JSON object with the outcome on stdout
-instead of the text summary. Paths may contain any Unicode character, and on Windows they may be
-UNC paths (`\\server\share\...`).
+`dsigmatcher --help` lists the commands and the exit codes. `dsigmatcher <command> --help` lists one
+command's options, and `dsigmatcher <command> --help-all` (or `dsigmatcher --help-all` for every
+command) also lists the developer options: tracing, state snapshots and single-stage replay, used by
+the parity tools. `extract`, `ingest`, `diff`, `port`, `update` and `info` accept `--json`, which
+prints one JSON object with the outcome on stdout instead of the text summary. Paths may contain any
+Unicode character, and on Windows they may be UNC paths (`\\server\share\...`).
 
 ### `diff`
 
@@ -276,6 +280,9 @@ replaced; an output that names one of the inputs is refused.
 | `--strict-sqlite` | Exit 5 unless the SQLite in use is 3.51.1 (always true for the release binaries). |
 | `--allow-sqlite-mismatch` | Do not warn when SQLite is another version (source builds against a system SQLite). |
 | `--quiet` | Do not print Diaphora's progress and summary lines on stderr. |
+| `--json` | Print one JSON object with the outcome on stdout. |
+| `--checkpoint-dir <dir>` | Save the diff's state in `<dir>` after every stage, so that an interrupted run can be resumed (see [Crash recovery](#crash-recovery)). |
+| `--resume <dir>` | Continue an interrupted run from the last stage saved in `<dir>`, with the same two exports. The results are the same as those of an uninterrupted run. |
 
 The options that change Diaphora's configuration away from its defaults (`--unreliable`,
 `--relaxed-ratio`, `--use-trained-model`, `--project-script`) are refused with exit 4.
@@ -297,9 +304,11 @@ to that diff.
 | `--include-unreliable` | Also apply unreliable rows. |
 | `--min-ratio <r>` | Skip names whose cumulative confidence would fall below `r` (0.0 to 1.0). |
 | `--max-hops <n>` | Skip names that have already travelled through more than `n` ports. |
-| `--overwrite-existing` | Replace real names that the target already has. |
+| `--overwrite-existing` | Replace real names that the target already has (alias `--overwrite`). |
 | `--overwrite-stripped` | With `--overwrite-existing`: let rows from Diaphora's "stripped binary" shortcut replace real names too. |
 | `--store-full-paths` | Record absolute input paths in the provenance tables instead of file names. |
+| `--no-keep-results` | Without `--results`: delete the results file of the diff that `port` ran, after the port. |
+| `--json` | Print one JSON object with the outcome on stdout. |
 
 ### `update`
 
@@ -307,9 +316,11 @@ The whole carry-forward step in one command: the new binary is exported (as `ing
 against the labelled export, and the names are ported into `-o`. The intermediate export, its
 sidecar and the results file are kept beside the output (`<output stem>.ingest.sqlite`,
 `<output stem>.ingest.export.json`, `<output stem>.diaphora`). It takes `ingest`'s `--pdb` /
-`--no-pdb` and tool options and the `port` options. Every argument and path is checked before the
-export starts; after that, the first step that fails stops the command with that step's exit
-code.
+`--no-pdb` and tool options, the `port` options, `diff`'s `--ignore-small-functions`,
+`--strict-sqlite`, `--allow-sqlite-mismatch` and `--quiet`, and `--json`. Every argument and path
+is checked before the export starts; after that, the first step that fails stops the command with
+that step's exit code, and the files of the steps that finished stay beside the output (see
+[Crash recovery](#crash-recovery)).
 
 ### `extract` and `ingest`
 
@@ -332,12 +343,15 @@ Both write the export and a JSON sidecar (`<out stem>.export.json`) describing h
 | `--temp-dir <dir>` | Where the work directory is created (default: the system temp directory). |
 | `--keep-temp` | Keep the work directory (copies, logs) after the run. |
 | `--timeout <seconds>` | Stop the export after this long (exit 6). |
+| `--allow-no-decompiler` | Export even when the Hex-Rays decompiler is not available, instead of refusing with exit 4. The export then has no pseudo-code, so Diaphora's pseudo-code heuristics find nothing in it, and a diff against it matches fewer functions than a diff against an export made with the decompiler. |
+| `--quiet` | Do not print the export's progress lines on stderr (errors are still printed). |
+| `--json` | Print one JSON object with the outcome on stdout. |
 
 ### `info`
 
 Prints a database's identity (file SHA-256, function count, processor, input MD5), its provenance
 chain and hop history, and a summary of how many ported names there are and how confident they
-are.
+are. `--json` prints the same as one JSON object.
 
 ### `version`
 
@@ -352,13 +366,44 @@ Prints `dsigmatcher <version>` on the first line and the linked SQLite version o
 | 0 | Success. |
 | 2 | Usage error: bad arguments, or an output path that would overwrite an input. |
 | 3 | Diaphora itself would raise an error on these inputs; nothing is written. |
-| 4 | Unsupported or not an export: a refused non-default option, a file that is not a Diaphora export or results file, results that belong to other exports, or a missing tool (Python, IDA, Hex-Rays, Diaphora, `dsig_export.py`). |
+| 4 | Unsupported input, configuration or tool: a refused non-default option; an SQLite database that is not a Diaphora export (either input of `diff`; when it is the second one, `db2`, Diaphora first writes an empty results file, and so does `diff`) or not a results file; results that belong to other exports; or a missing tool (Python, IDA, Hex-Rays, Diaphora, `dsig_export.py`). |
 | 5 | SQLite is not 3.51.1 and `--strict-sqlite` was given. |
-| 6 | I/O error: a missing or unreadable input, an unwritable output, a failed or timed-out export. |
+| 6 | I/O or environment failure: a missing or unreadable input, a file that is not SQLite at all, an unwritable output, a failed or timed-out export. |
 | 70 | Internal error (a bug; please report it with the command line). |
 
 `extract`, `ingest` and `update` map the export script's own exit codes onto this table; the
 mapping is in `tools/export/README.md`.
+
+---
+
+## Crash recovery
+
+**No output is ever half-written.** Every command writes its output under a temporary name in the
+output's directory and renames it over the output only when it is complete. If a run is killed,
+crashes, runs out of disk space or loses power, the output path still holds the previous file (or
+nothing), never a partial file that could be mistaken for a complete one. Temporary files left by a
+killed run sit next to the output, named after it with a `.tmp-…` or `.dsig-…` suffix, and can be
+deleted.
+
+**Long diffs can be resumed.** A diff runs through a fixed series of stages: the pre-loop passes,
+the SQL heuristics, callee diffing, the related passes and the final pass. With
+`--checkpoint-dir <dir>`, `diff` saves its complete state in `<dir>` after every stage. If the run
+stops, start it again with `--resume <dir>`:
+
+```sh
+dsigmatcher diff v1.sqlite v2.sqlite -o v1_vs_v2.diaphora --checkpoint-dir v1_vs_v2.ckpt
+# ... interrupted ...
+dsigmatcher diff v1.sqlite v2.sqlite -o v1_vs_v2.diaphora --resume v1_vs_v2.ckpt
+```
+
+The stages that were saved are not run again. The `.diaphora` file is still written only at the
+end, and it holds the same rows as an uninterrupted run would write: progress survives in the
+checkpoint directory, not in a partial results file.
+
+**`update` keeps what it finished.** Each step's output is complete before the next step starts. If
+`update` stops in the diff or the port, `<output stem>.ingest.sqlite` (the export of the new build,
+the slow part) is already complete beside the output, and `diff` and `port` can be run on it by hand
+instead of exporting again.
 
 ---
 
@@ -404,13 +449,22 @@ Conditions:
   in CI, including the stage-by-stage suites whose expected values come from real Diaphora, but the
   full reference pairs have not been rerun there.
 
-A pair whose Diaphora run takes about a day (sechost, PDB → no PDB) had not finished when v1.0.0
-was prepared, so it is not in the table.
+An eighth pair (sechost, PDB → no PDB), whose Diaphora run takes about a day, is being run again;
+its parity result is pending, so it is not in the table.
 
 Diaphora's result is not always right: the parity guarantee means DSigMatcher makes the same
-mistakes Diaphora makes. Scored against the PDB names of the target builds, Diaphora and
-DSigMatcher give identical scores on every pair (for example, 482 correct, 35 wrong and 104
-missed of 622 functions on userenv 9168 → 9278).
+mistakes Diaphora makes. These are the names `port` applies, scored against the PDB names of
+target builds that were analysed without their PDB:
+
+| Pair | Functions | Correct | Wrong | Missed |
+|---|---:|---:|---:|---:|
+| userenv 9168 → 9278 | 622 | 482 (+1 correct under an alias) | 35 | 104 |
+| cryptbase 1 → 8875 | 43 | 27 | 2 | 14 |
+| cryptbase 8875 → 9444 | 43 | 43 | 0 | 0 |
+
+Because the results files are identical, porting Diaphora's own results gives the same scores. On
+cryptbase 8875 → 9444, names that IDA generates for the unnamed target, such as `DllEntryPoint`,
+count as placeholders, so the real name from the reference replaces them.
 
 ---
 
@@ -439,8 +493,6 @@ missed of 622 functions on userenv 9168 → 9278).
 - **Recorded paths.** The provenance tables store input file names only (the SHA-256 columns
   identify the files); `--store-full-paths` stores absolute paths, which include your user name
   and directory layout if you share the database.
-- **macOS 26.0 or later.** The macOS build needs a C++ library feature (floating-point
-  `std::from_chars`) that Apple ships from macOS 26.0.
 - **Speed.** v1.0 runs Diaphora's SQL heuristics unchanged, so the cost of a few wide constants
   joins is still SQLite's. Planned optimisations are in `docs/fusion/INVENTORY.md` and
   `docs/design-future.md`.
@@ -463,8 +515,8 @@ ctest --test-dir build --output-on-failure
   "x64 Native Tools" prompt (or after `vcvars64.bat`); CMake and Ninja ship with Visual Studio.
 - **Linux:** GCC or Clang, CMake and Ninja from the distribution.
 - **macOS:** Xcode command-line tools, and CMake and Ninja (for example from Homebrew). Add
-  `-DCMAKE_OSX_DEPLOYMENT_TARGET=26.0`, and `"-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"` for a
-  universal binary.
+  `-DCMAKE_OSX_DEPLOYMENT_TARGET=13.0` (the release's target) and
+  `"-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"` for a universal binary.
 
 Build options:
 
@@ -476,9 +528,10 @@ Build options:
 | `BUILD_TESTING` | `ON` | Build the test suites. |
 | `FETCHCONTENT_SOURCE_DIR_SQLITE3` | | An unpacked amalgamation directory, for offline builds. |
 
-`cmake --install build --prefix <dir> --component dsigmatcher` installs `bin/dsigmatcher` and
-`share/dsigmatcher/tools/export/dsig_export.py`. The official archives are built only by
-`.github/workflows/release.yml`.
+`cmake --install build --prefix <dir> --component dsigmatcher` installs `bin/dsigmatcher`,
+`share/dsigmatcher/tools/export/dsig_export.py`, and `LICENSE`, `NOTICE`,
+`THIRD_PARTY_NOTICES.md` and `README.md` in `share/doc/dsigmatcher/`. The official archives are
+built only by `.github/workflows/release.yml`.
 
 The design documents in `docs/parity/` describe how each part of Diaphora was ported. `tools/`
 holds the Python tools that build the reference results and check parity; they are not needed to
