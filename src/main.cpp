@@ -355,6 +355,7 @@ int RunPort(const Parsed& Arguments) {
 
   std::printf("matches          : %lld\n", static_cast<long long>(Result.Matches));
   std::printf("names applied    : %lld\n", static_cast<long long>(Result.NamesApplied));
+  std::printf("names confirmed  : %lld\n", static_cast<long long>(Result.NamesConfirmed));
   std::printf("skipped existing : %lld\n", static_cast<long long>(Result.NamesSkippedExisting));
   std::printf("skipped hop cap  : %lld\n", static_cast<long long>(Result.NamesSkippedHops));
   std::printf("skipped ratio    : %lld\n", static_cast<long long>(Result.NamesSkippedRatio));

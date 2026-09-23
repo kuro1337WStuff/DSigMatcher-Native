@@ -27,9 +27,9 @@ measurements actually showed — including results that contradicted the design 
 
 Diaphora was read, not guessed at. Established facts that drove the design:
 
-- **Schema** (`db_support/schema.py`): `functions` has 48 columns; 11 supporting tables. The full
+- **Schema** (`db_support/schema.py`): `functions` has 49 columns; 12 supporting tables. The full
   column set is the ingest contract.
-- **Cascade** (`diaphora_heuristics.py`): 46 heuristics, 3 categories — `Best` (12), `Partial` (30),
+- **Cascade** (`diaphora_heuristics.py`): 50 heuristics, 3 categories — `Best` (12), `Partial` (30),
   `Unreliable` (8). Each is a SQL join with a shared `SELECT_FIELDS` projection, a `%POSTFIX%` size
   gate (`and f.instructions > 5 and df.instructions > 5`), a ratio type and flags.
 - **Driver** (`diaphora.py:1462+`): parallelism is at *heuristic* granularity via `threads_apply`,
@@ -141,8 +141,8 @@ The premise that parallelising everything is not automatically faster is **confi
 5. **The hard ceiling is architectural**: heuristic-level parallelism cannot exceed the number of
    heuristics. With 8 implemented, 8 threads is the maximum useful width.
 
-**Important caveat on finding 5.** Only 8 of Diaphora's 46 heuristics exist so far. Once the
-`Partial` (30) and `Unreliable` (8) categories land, the heuristic-level ceiling rises to 46 and this
+**Important caveat on finding 5.** Only 8 of Diaphora's 50 heuristics exist so far. Once the
+`Partial` (30) and `Unreliable` (8) categories land, the heuristic-level ceiling rises to 50 and this
 analysis must be redone. The current 2.2× is partly an artifact of an incomplete cascade, not only of
 the scheduler.
 
@@ -654,7 +654,7 @@ Three conclusions, one of which reverses a previous priority:
    Resolve is not where the remaining time is.
 2. **The binding constraint is the heuristic count.** Speedup saturates at 3.05x with 8 heuristics, and
    efficiency at 8 threads is 37.9% because one wave of 8 items is bounded by the slowest. Implementing
-   the 38 remaining Diaphora heuristics raises the scheduling ceiling from 8 to 46 and should improve
+   the 38 remaining Diaphora heuristics raises the scheduling ceiling from 8 to 50 and should improve
    scaling more than any scheduler tuning. **Priority inverted: more heuristics before more threading.**
 3. **All of the 6x cost increase is in the text-keyed joins.** Resolve, which never touches text, is
    unchanged. That confirms fusion and integer-key precomputation target precisely the right code, and
@@ -778,7 +778,7 @@ Separately caught during test authoring: `std::string("5" "121" "343")` is C++ a
 concatenation, producing `"5121343"` — not the intended `5 * 121 * 343 = 207515`. The assertion was
 wrong before the code was. Worth remembering that concatenated string literals compile silently.
 
-### Four Partial heuristics: 8 of 46 becomes 12
+### Four Partial heuristics: 8 of 50 becomes 12
 
 Added `Same KOKA hash and MD-Index`, `Same constants`, `Same rare KOKA hash` and `Same rare MD Index`,
 transcribed from `diaphora_heuristics.py` rather than reconstructed from memory. `MatchCategory` is now
@@ -1025,9 +1025,94 @@ the third, and Hex-Rays microcode for the fourth. `microcode_spp` in particular 
 natively at all, since it indexes `dir(ida_hexrays)` names; that is an open scope question rather than
 an implementation task.
 
+### Audit pass
+
+A deliberate audit of the whole tree, run while the CFG work was in flight. It found one semantic bug,
+a documentation error that had propagated into the public README, and a scope claim that was wrong in
+the flattering direction.
+
+**1. I had the Diaphora counts wrong, publicly.** The README and this journal both said **46
+heuristics** and **48 columns**. The real numbers are **50** and **49**, confirmed two independent
+ways: `HEURISTICS.append` appears 50 times and there are 50 `NAME =` assignments; the column count
+comes from materialising Diaphora's own `TABLES` list in SQLite and reading `pragma
+table_info(functions)`.
+
+The error traced back to an early grep over a truncated view of `diaphora_heuristics.py` whose count I
+never verified against `HEURISTICS.append`. It then propagated into nine places across two documents,
+including a category breakdown that did not sum to its own stated total (12 + 30 + 8 = 50, not 46) —
+an arithmetic inconsistency sitting in plain sight in a table I had written.
+
+`tools/schema_coverage.py` now derives both numbers from Diaphora's source at run time, so the counts
+in prose can be re-checked rather than trusted. Lesson: **any count quoted in documentation should be
+generated, not typed.**
+
+**2. A scope claim was wrong in the flattering direction.** The README said "all eight `Best`-category
+exact heuristics", which reads as though `Best` were complete. `Best` has **twelve**; four are missing:
+
+- *Same address, nodes, edges and mnemonics*
+- *Same RVA*
+- *Equal assembly or pseudo-code*
+- *Microcode mnemonics small primes product*
+
+Reworded to "eight of the twelve". Understating remaining work is the more dangerous direction of
+documentation error, because it is the one nobody complains about.
+
+**3. Schema coverage is 55.1%.** 27 of 49 `functions` columns are ingested. That is sufficient for the
+12 implemented heuristics and insufficient for the remaining 38. Not ingested: `names`, `prototype`,
+`primes_value`, `comment`, `pseudocode`, `pseudocode_hash1/2/3`, `pseudocode_primes`,
+`function_flags`, `assembly`, `prototype2`, `tarjan_topological_sort`, `strongly_connected_spp`,
+`mnemonics_spp`, `switches`, `bytes_sum`, `assembly_addrs`, `userdata`, `microcode`,
+`microcode_spp`, `export_time`. Twelve supporting tables (`instructions`, `basic_blocks`,
+`bb_relations`, `bb_instructions`, `function_bblocks`, `callgraph`, `constants`,
+`compilation_units`, `compilation_unit_functions`, `program_data`, `program`, `version`) are not read
+at all beyond `program`. Recorded so it is a known boundary rather than a surprise.
+
+**4. Semantic bug in `port`: names that never travelled were counted as ported.** When the target
+already carried the *identical* portable name, the skip guard
+
+```cpp
+if (!OverwriteExistingNames && IsPortableSymbol(TargetName) && TargetName != ReferenceName)
+```
+
+did not fire, because the final conjunct is false. The name was then "applied" — a no-op `UPDATE` —
+counted in `NamesApplied`, given a fresh `dsig_name_origin` row with `hops = parent + 1`, and had its
+`cumulative_ratio` multiplied by the match ratio. Three consequences: the applied metric was inflated,
+the hop counter overstated staleness for a name that was never inferred, and confidence decayed for no
+reason.
+
+Fixed by treating an identical portable name as a **confirmation**, checked before hop and ratio
+computation: no `UPDATE`, no origin row, no hop increment, counted separately in `NamesConfirmed`.
+Covered by a new fixture function whose name is identical in every version; the chain test now asserts
+`Matches == 4`, `NamesApplied == 3`, `NamesConfirmed == 1`, `NamesSkippedExisting == 0`.
+
+`NamesConfirmed` is reported but **not persisted** into `dsig_provenance` — adding a column would
+change the provenance schema for databases already labelled. Deliberate scope decision; the persisted
+`names_applied` is now accurate, which was the actual defect.
+
+**5. Clean-slate build verified.** Deleted `build/` entirely and reconfigured: `FetchContent`
+re-fetched Zycore at its pin and Zydis at tag `v4.1.1`, configured in 22.3 s, built every target with
+zero `/W4` warnings, 4/4 suites pass. A fresh clone builds.
+
+**6. Repository hygiene.** `git ls-files` filtered for `.pdb`, `.dll`, `.sqlite`, `.exe`, `.obj`,
+`.lib`, `.pyc`, `__pycache__` and `build/`: nothing matched. No binaries, no build output, no Microsoft
+corpus files tracked.
+
+Unit suite now **293 checks, 0 failed**.
+
+**Not covered by this audit**, stated so the absence is not mistaken for assurance:
+
+- No sanitiser run. `/RTC1` is Debug-only and this is a Release build; no ASan, no `/analyze`, no
+  fuzzing. `PeImage` parses untrusted input and has only targeted malformed-case tests.
+- `PeImage` forwarder and ordinal-only export paths remain exercised **only** by synthetic images —
+  win32u has neither.
+- The 12 implemented heuristics have never been compared against Diaphora's actual output on the same
+  input. Correctness so far means "matches the SQL I transcribed", not "matches Diaphora".
+- No measurement of memory high-water mark. The realistic corpus interns 73 MiB per side at 19,000
+  functions; at 200,000 functions that scales to roughly 770 MiB per side and has not been tested.
+
 ### Not yet done
 
-- 38 remaining heuristics (`Partial`, `Unreliable` categories)
+- 38 remaining heuristics: 4 `Best`, 26 `Partial`, 8 `Unreliable`
 - Constants and call-graph matching; call-graph match propagation
 - Fuzzy/LSH candidate generation, bounded edit-distance verification, maximum-cardinality assignment
 - Native PE loader and disassembler — this is what removes the IDA dependency, and it is the gate on

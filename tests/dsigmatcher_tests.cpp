@@ -831,6 +831,22 @@ void TestProvenanceChain() {
       Rows.push_back(Ambiguous);
     }
 
+    TestFunction Shared;
+    Shared.Id = 4;
+    Shared.Name = "Real_Shared";
+    Shared.Address = HexAddress(0x140003000ull + Delta);
+    Shared.Rva = std::to_string(0x3000ull + Delta);
+    Shared.BytesHash = "shared-stable-bytes";
+    Shared.FunctionHash = "shared-stable-fh";
+    Shared.CleanAssembly = "asm-shared-stable";
+    Shared.CleanPseudo = "pseudo-shared-stable";
+    Shared.CleanMicrocode = "micro-shared-stable";
+    Shared.Mnemonics = "push mov call ret";
+    Shared.Instructions = 24;
+    Shared.Nodes = 4;
+    Shared.PseudocodeLines = 10;
+    Rows.push_back(Shared);
+
     return Rows;
   };
 
@@ -853,7 +869,7 @@ void TestProvenanceChain() {
   const DatabaseIdentity RawIdentity = InspectDatabase(V1);
   CHECK(RawIdentity.Ok);
   CHECK(!RawIdentity.HasProvenance);
-  CHECK_EQ(RawIdentity.FunctionCount, static_cast<int64_t>(3));
+  CHECK_EQ(RawIdentity.FunctionCount, static_cast<int64_t>(4));
   CHECK(!RawIdentity.FileSha256.empty());
 
   PortOptions FirstHop;
@@ -867,6 +883,9 @@ void TestProvenanceChain() {
   CHECK(FirstResult.Ok);
   CHECK_EQ(FirstResult.NewHop, static_cast<int64_t>(1));
   CHECK_EQ(FirstResult.NamesApplied, static_cast<int64_t>(3));
+  CHECK_EQ(FirstResult.Matches, static_cast<int64_t>(4));
+  CHECK_EQ(FirstResult.NamesConfirmed, static_cast<int64_t>(1));
+  CHECK_EQ(FirstResult.NamesSkippedExisting, static_cast<int64_t>(0));
   CHECK_EQ(ReadNameAtAddress(V1Labelled, V1UniqueAddress), std::string("Real_Unique"));
 
   const double AmbiguousHop1 = ReadCumulativeRatio(V1Labelled, "Real_Ambig_0");

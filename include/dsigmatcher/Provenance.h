@@ -71,6 +71,7 @@ struct PortResult {
   std::string Error;
   int64_t Matches = 0;
   int64_t NamesApplied = 0;
+  int64_t NamesConfirmed = 0;
   int64_t NamesSkippedExisting = 0;
   int64_t NamesSkippedHops = 0;
   int64_t NamesSkippedRatio = 0;
