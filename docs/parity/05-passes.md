@@ -1,5 +1,7 @@
 # 05: Non-heuristic matching passes (Diaphora 3.4.2)
 
+> **Historical spec.** Written on 2026-09-23 against an earlier revision (`34ed418`), before the port existed; its status remarks ("not implemented", test counts, runs "still running", open questions) are historical. See [README.md](README.md) in this directory for how to read it; quoted Diaphora code is (c) Joxean Koret, AGPL-3.0-or-later, and quoted CPython `difflib` code is under the PSF License Version 2.
+
 **Summary.** These are the passes in `CBinDiff.diff()` that are *not* entries in `diaphora_heuristics.HEURISTICS`. Under the default standalone configuration (`python diaphora.py db1 db2 -o out`, no `DIAPHORA_*` env vars) the following run:
 0. `equal_db()` (diaphora.py:3600), which is log-only (§1.2).
 1. `check_callgraph`, which is log-only.

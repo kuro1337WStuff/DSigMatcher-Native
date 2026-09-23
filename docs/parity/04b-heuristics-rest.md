@@ -1,5 +1,7 @@
 # 04b: Remaining Partial and Unreliable heuristics (H29-H50)
 
+> **Historical spec.** Written on 2026-09-23 against an earlier revision (`34ed418`), before the port existed; its status remarks ("not implemented", test counts, runs "still running", open questions) are historical. See [README.md](README.md) in this directory for how to read it; quoted Diaphora code is (c) Joxean Koret, AGPL-3.0-or-later, and quoted CPython `difflib` code is under the PSF License Version 2.
+
 ## Summary
 
 - **Scope.** `diaphora_heuristics.py:699-1323`: the last 14 Partial heuristics (H29-H42), all 8 Unreliable heuristics (H43-H50) and the self-test helpers at the end of the file. Numbering continues 04a: `H<n>` is `HEURISTICS[n-1]`.

@@ -1,5 +1,7 @@
 # 08: Export schema and data encoding (ingestion spec for the native loader)
 
+> **Historical spec.** Written on 2026-09-23 against an earlier revision (`34ed418`), before the port existed; its status remarks ("not implemented", test counts, runs "still running", open questions) are historical. See [README.md](README.md) in this directory for how to read it; quoted Diaphora code is (c) Joxean Koret, AGPL-3.0-or-later, and quoted CPython `difflib` code is under the PSF License Version 2.
+
 ## Summary
 
 - **Storage class comes from column affinity, not from the Python type.** Every `text`/`varchar` column stores TEXT, even when the exporter bound a Python `int`. `integer` columns turn numeric strings back into INTEGER, or into REAL when the value exceeds int64. That makes the `get_valid_prop` ">0xFFFFFFFF → str" rule a no-op for TEXT columns. It matters only for INTEGER columns that receive a value above 2^63, which then become a lossy REAL [EMP]. **No INTEGER column receives such a value in practice.** The one theoretical case, `function_flags = BADADDR`, cannot happen: `read_function` returns early when `get_func(f)` is None (`diaphora_ida.py:3208-3211`), and `idc.get_func_attr` returns BADADDR only when `get_func` is None ([IDA] 9.4 `idc.py:3114-3127`). In all 7 real exports every INTEGER column holds only INTEGER [REAL]. The loader should still check the type tag.

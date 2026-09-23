@@ -1,5 +1,7 @@
 # 07: The native codebase and what has to change for Diaphora parity
 
+> **Historical spec.** Written on 2026-09-23 against an earlier revision (`34ed418`), before the port existed; its status remarks ("not implemented", test counts, runs "still running", open questions) are historical. See [README.md](README.md) in this directory for how to read it; quoted Diaphora code is (c) Joxean Koret, AGPL-3.0-or-later, and quoted CPython `difflib` code is under the PSF License Version 2.
+
 ## Summary
 
 - **What exists now.** `dsig-parity` (branch `parity`, HEAD `34ed418`) holds a C++20 static library, `dsigmatcher_core`, plus a CLI (`diff`/`port`/`info`) and 5 test executables. The build is clean at /W4 and all 5 ctest suites pass: 316 + 67 + 302 + 825 + 152,784 checks, verified 2026-09-23 with `dsig_build.cmd`. The diff engine is 12 hash-join heuristics that run independently and in parallel. `MatchStore` then sorts their output and resolves it greedily to 1:1, and the ratio is binary (1.0, or 0.5 when a match is ambiguous).

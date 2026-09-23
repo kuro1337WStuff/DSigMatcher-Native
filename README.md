@@ -1,228 +1,507 @@
-# DSigMatcher-Native
+# DSigMatcher Native
 
-**A native C++ binary diffing engine — Diaphora parity, recoded from scratch for speed.**
+**Diaphora's binary diff as one native executable, with the same results, row for row.**
 
-DSigMatcher-Native does the job [Diaphora](https://github.com/joxeankoret/diaphora) does: take two versions of a binary, determine which function in the new build corresponds to which function in the old build, and then **move names and symbols across** so that a stripped, recompiled, or freshly patched target inherits the annotations that already exist in the reference build.
+DSigMatcher Native (`dsigmatcher`) matches the functions of two builds of a program and carries
+names from a labelled build to a new one. Its diff engine is a C++20 port of
+[Diaphora](https://github.com/joxeankoret/diaphora) 3.4.2 by Joxean Koret. It reads the same
+SQLite exports Diaphora's exporter writes, runs Diaphora's own SQL heuristics through SQLite, and
+writes the same `.diaphora` results file. On every reference pair tested, the output is identical
+to Diaphora's: the same rows, in the same order, with the same line numbers and ratios.
 
-What differs is the implementation. Diaphora is Python driving a SQLite database that an IDA plugin exported. DSigMatcher-Native is a single native C++ executable — no interpreter, no serialization round-trip, no GIL — with a matching pipeline engineered so the dominant cost scales with the size of the input instead of the square of the function-pair count.
+What it adds around the diff:
 
-The target is simple: same inputs, same matches, same ported symbols, in a fraction of the wall-clock time.
+- **Speed.** One native process, no Python. On the largest finished reference pair, a native diff
+  takes about a minute where Diaphora takes hours.
+- **Label once, carry forward.** You name functions in one build in IDA. `port` then writes those
+  names into the export of the next build, and that output is itself a valid export, so it becomes
+  the reference for the build after that. Each hop is recorded, with a confidence that shrinks as
+  a name travels.
+- **One command per step.** `extract` and `ingest` drive IDA's headless library (idalib) and
+  Diaphora's unmodified exporter for you; `update` does a whole release step in one go.
+
+| | |
+|---|---|
+| Version | 1.0.0 |
+| Platforms | Windows x64, Linux x64, macOS universal2 (arm64 + x86_64) |
+| Licence | AGPL-3.0-or-later (see [Licence and attribution](#licence-and-attribution)) |
+| Parity reference | Diaphora 3.4.2-4-g621ec26, default configuration, SQLite 3.51.1 |
+
+Contents: [Download](#download) · [Requirements](#requirements) · [Quick start](#quick-start) ·
+[Querying the results](#querying-the-results) · [Command reference](#command-reference) ·
+[Exit codes](#exit-codes) · [Parity guarantee](#parity-guarantee) ·
+[Known limitations](#known-limitations) · [Building from source](#building-from-source) ·
+[Licence](#licence-and-attribution)
 
 ---
 
-## Why
+## Download
 
-Function-level binary diffing is the load-bearing step in patch analysis. You have a build with symbols and a build without them, or two builds where only one has been reversed, and you need to transfer what you know from one to the other. The naive formulation is a maximum-weight bipartite matching over `n × m` function pairs, which is `O(n·m)` candidate generation before you have even scored anything — and on a large binary that is hundreds of thousands of pairs.
+Release archives are on the
+[v1.0.0 release page](https://github.com/kuro1337WStuff/DSigMatcher-Native/releases/tag/v1.0.0).
 
-Diaphora solves this with a staged heuristic cascade and it works well. DSigMatcher-Native keeps the staged cascade, because the staging is the genuinely good idea, and attacks the constant factors and the asymptotics underneath it:
-
-- **Candidate generation is index-driven, not pair-driven.** Functions are bucketed by signature, and only functions that land in a related bucket are ever compared. The `O(n·m)` term never materializes.
-- **Every similarity measure is bounded.** Fuzzy comparisons use banded dynamic programming with an early-abort on the distance threshold, so a comparison costs `O(d·s)` for threshold `d` rather than `O(s²)`.
-- **The whole pipeline is parallel.** Ingest, hashing, candidate generation and verification are all embarrassingly parallel across functions and buckets. DSigMatcher-Native uses every hardware thread it is given.
-- **Allocation is kept out of the hot path.** Arena-backed storage, structure-of-arrays record layout, and zero-copy views over the mapped input.
-
----
-
-## Scope: what "Diaphora parity" means here
-
-Parity is defined against Diaphora's observable behaviour, not its internals.
-
-| Capability | In scope | Notes |
+| Platform | Archive | Contents |
 |---|---|---|
-| Two-database diff producing matched function pairs with a confidence score | Yes | Core deliverable. |
-| Staged matching cascade (exact → structural → fuzzy → relaxed) | Yes | Same tiering philosophy, rederived implementation. |
-| Call-graph-aware match propagation | Yes | A confirmed match constrains and seeds its neighbours. |
-| Name / symbol / prototype porting from reference to target | Yes | The primary output artifact. |
-| Export of results for application in IDA Pro / Ghidra | Yes | DSigMatcher-Native computes; the disassembler applies. |
-| Consuming Diaphora's existing SQLite exports | Yes | Direct compatibility path, so existing workflows keep working. |
-| Native PE / ELF / Mach-O loader and built-in disassembler | Roadmap | Removes the IDA dependency entirely. Tracked separately from the parity goal. |
-| ML-assisted matching | Roadmap | Diaphora 3 ships an ML engine; a native equivalent is a later milestone. |
+| Windows x64 (Windows 10 or later) | `dsigmatcher-1.0.0-windows-x64.zip` | `dsigmatcher.exe`, `dsig_export.py` and the documents, all in one folder |
+| Linux x64 (any distribution) | `dsigmatcher-1.0.0-linux-x64.tar.gz` | `bin/dsigmatcher`, `share/dsigmatcher/tools/export/dsig_export.py`, the documents |
+| macOS 26.0 or later, Apple silicon and Intel | `dsigmatcher-1.0.0-macos-universal2.tar.gz` | same layout as Linux |
 
-Out of scope: reproducing Diaphora's Python plugin surface, and bit-for-bit reproducing its scoring weights. Scores will be *comparable*, not identical.
+Each archive also holds `README.md` (this file), `LICENSE`, `NOTICE` and `THIRD_PARTY_NOTICES.md`.
 
----
+The binaries have no run-time dependencies beyond the operating system. SQLite 3.51.1 and the
+C/C++ runtime are linked in, so there is no `sqlite3.dll` or Visual C++ redistributable to install.
+The Linux binary is fully static and runs on any x86-64 distribution. The macOS binary is
+ad-hoc signed and not notarised. `dsig_export.py` is only used by `extract`, `ingest` and
+`update`; keep it next to the executable (Windows) or in the `share/` tree beside `bin/`
+(Linux, macOS).
 
-## Matching pipeline
+### Verify the download
 
-Matching runs as an ordered cascade. Each stage consumes the unmatched residue left by the stage before it, so expensive comparisons are only ever paid for on the small set of functions that cheap comparisons could not resolve.
+`SHA256SUMS` on the release page lists the SHA-256 of every archive.
 
-**Stage 0 — Ingest and normalize.**
-Load both inputs, build function records, canonicalize instructions. Register allocation and address-relative operands are normalized away so that a function that merely moved or got re-allocated does not stop matching itself.
+```sh
+# Linux
+sha256sum --check --ignore-missing SHA256SUMS
+# macOS
+shasum -a 256 --check --ignore-missing SHA256SUMS
+```
 
-**Stage 1 — Exact signature.**
-Hash the normalized instruction stream and the raw byte stream per function. Identical hashes are a match. This is a single pass over both sides through an open-addressing hash table; it typically disposes of the large majority of untouched functions immediately.
+```powershell
+# Windows (PowerShell): compare the printed hash with the line in SHA256SUMS
+Get-FileHash .\dsigmatcher-1.0.0-windows-x64.zip -Algorithm SHA256
+```
 
-**Stage 2 — Symbol and name.**
-Where both sides carry names, exact name equality is a high-confidence match. Demangled forms are compared as well as mangled, so a change in mangling scheme does not defeat the stage.
-
-**Stage 3 — Constants and references.**
-Inverted index from constant value, string reference and import reference to the functions that use it. Distinctive constants are strong evidence; high-frequency values (`0`, `1`, small integers, common masks) are suppressed by a frequency stop-list so they do not explode the candidate sets.
-
-**Stage 4 — Structural / call-graph.**
-Build both call graphs, then propagate. A function whose set of already-matched callees is identical on both sides is matched even if its own body changed. This is where the cascade earns its keep on rebuilt code — it converts local certainty into global certainty at `O(V + E)`.
-
-**Stage 5 — Fuzzy candidates via LSH.**
-For everything still unmatched, generate candidates with multi-probe locality-sensitive hashing over instruction n-gram shingles. This is the stage that replaces brute-force pairwise comparison: index build is linear, and each probe returns at most `k` candidates.
-
-**Stage 6 — Verification.**
-Score each candidate pair properly — bounded-band edit distance on the instruction sequence, basic-block count and shape comparison, cyclomatic complexity delta, callee-overlap. Early-abort the moment the running cost exceeds the acceptance threshold.
-
-**Stage 7 — Assignment and conflict resolution.**
-Fuzzy stages can propose several targets for one function. DSigMatcher-Native resolves this to a strict one-to-one assignment using Hopcroft–Karp on the bipartite candidate graph, `O(E·√V)`, restricted to edges above the confidence floor. Below the floor, matches are emitted as *partial / best-effort* rather than silently forced.
-
----
-
-## Complexity budget
-
-`n` = functions in the reference build, `m` = functions in the target build, `N = n + m`, `s` = mean instructions per function, `E` = call-graph edges, `d` = edit-distance threshold, `k` = candidates per probe.
-
-| Stage | Asymptotic | Comment |
-|---|---|---|
-| 0. Ingest + normalize | `O(N · s)` | Parallel over functions. |
-| 1. Exact signature | `O(N · s)` | Hashing dominates; lookup is `O(1)` amortized. |
-| 2. Symbol / name | `O(N)` | Single indexed pass. |
-| 3. Constants + refs | `O(N · c)` | `c` = refs per function; stop-list bounds bucket size. |
-| 4. Call-graph propagation | `O(V + E)` | BFS over matched neighbourhoods. |
-| 5. LSH candidate gen | `O(N · s + m · k)` | Replaces the `O(n · m)` pairwise term. |
-| 6. Verification | `O(P · d · s)` | `P` = candidate pairs, `P ≪ n·m`. Banded DP, early-abort. |
-| 7. Assignment | `O(E'·√V)` | `E'` = surviving high-confidence edges. |
-
-The headline is stage 5: **`O(n·m)` is removed from the pipeline entirely.** Verification only ever runs on pairs that an index nominated.
-
----
-
-## Concurrency model
-
-- **Work-stealing thread pool** sized to the hardware concurrency, with an explicit oversubscription override for benchmarking.
-- **Parallel-for** over function records in stages 0–3. Each thread accumulates into thread-local hash shards; shards are merged once at the barrier. No contention on the hot path, no shared mutable index.
-- **Sharded candidate queues** feeding stage 6, so verification workers pull without a global lock.
-- **Per-bucket parallelism** in stages 5 and 6 — buckets are independent by construction.
-- **Deterministic output.** Parallelism must not change results. Every intermediate is tagged with a stable sort key and reductions are order-independent, so the emitted match set is byte-identical whether DSigMatcher-Native runs on 4 threads or 128. A single-threaded mode exists specifically to make this auditable.
-
-## Memory model
-
-- Input is memory-mapped; records hold views, not copies.
-- Arena allocation per stage, bulk-freed at the barrier. No `new`/`delete` inside inner loops.
-- Function records are stored structure-of-arrays so the scan-heavy stages stream linearly through cache.
-- Peak resident set is targeted at a small multiple of the input size, independent of thread count.
-
----
-
-## Status
-
-**Working vertical slice — exact-match tier only.**
-
-What is implemented and verified:
-
-- Ingest of Diaphora SQLite exports into structure-of-arrays records over a string arena, with column detection so older or partial exports still load.
-- Twelve of Diaphora's 50 heuristics, reimplemented as native hash-indexed joins rather than SQL. Eight of the twelve `Best`-category heuristics (*Same RVA and hash*, *Same order and hash*, *Function Hash*, *Bytes hash*, *Same address and mnemonics*, *Same cleaned assembly*, *Same cleaned microcode*, *Same cleaned pseudo-code*), plus four `Partial` heuristics (*Same KOKA hash and MD-Index*, *Same constants*, *Same rare KOKA hash*, *Same rare MD Index*). Predicates, size gates, rarity CTE semantics and `sub_`/`nullsub` name handling follow Diaphora's definitions. `tools/schema_coverage.py` recomputes these counts from Diaphora's own source rather than trusting prose.
-- MD5 and SHA-256, both self-contained. MD5 is verified against RFC 1321 and cross-checked against Python's `hashlib`; SHA-256 against NIST vectors.
-- The Koret–Karamitas graph hash, including the arbitrary-precision integer rendering that Diaphora's `str(hash)` implies. Verified against nine oracle vectors generated with Python's bignums, up to a 167,210-digit value.
-- A native PE32/PE32+ reader (headers, sections, exports with forwarder detection, CodeView RSDS), independently audited field-by-field against `pefile` with zero mismatches on two real Microsoft binaries.
-- An x86-64 disassembler backend over Zydis v4.1.1, behind a narrow interface that exposes operand displacements — the discriminator needed to tell struct getters apart.
-- Deterministic resolution of raw candidate pairs into a strict one-to-one match set, highest ratio first.
-- Output of a `matches` table plus a `symbols_to_port` table — the name/symbol move-over artifact.
-- Chainable `port`: writes a labelled copy of the target that is itself a valid Diaphora export, so symbols roll forward release after release without returning to IDA. Each hop is recorded with both binaries' md5, both files' SHA-256, and a per-name cumulative confidence that decays multiplicatively.
-- Heuristic-level parallelism over a persistent thread pool, matching Diaphora's execution model. Measured scaling reaches roughly 3.0–3.2× on 32 threads and is bounded primarily by the heuristic count. See `JOURNAL.md`.
-
-What is **not** implemented yet: the remaining 38 heuristics (4 `Best`, 26 `Partial`, 8 `Unreliable`), 22 of the 49 `functions` columns, the separate `constants` table joins, call-graph matching and propagation, fuzzy/LSH candidate generation, bounded edit-distance verification, maximum-cardinality assignment, Diaphora's graded similarity ratio (`compare_function_rows`) and its per-heuristic `min` thresholds, and the native PE/ELF loader path end to end.
-
-No benchmark against Diaphora has been run, and no timings are quoted here as parity evidence. Correctness is established by five native test suites — 316 assertions in `dsigmatcher_tests`, 67 in `dsigmatcher_disasm_tests`, 302 in `dsigmatcher_pe_tests`, 825 in `dsigmatcher_resolve_tests`, and 152,784 in `dsigmatcher_cfg_tests` — against synthetic corpora with known ground truth, plus oracle vectors from Python for the cryptographic, bignum and prime-table code, plus an independent `pefile` cross-audit for the PE reader. All five are built and run on **Linux/GCC, Windows/MSVC and macOS/Clang** by `.github/workflows/ci.yml`; the PE suite runs 198 of its 302 checks without the win32u corpus, so the real-binary assertions only execute where `-DDSIG_CORPUS_ROOT` points at one. **No suite has yet run against a real Diaphora export**, so byte-level agreement with what IDA's Diaphora writes remains unproven. Real-corpus numbers will be published once the cascade is complete enough to produce a full match set.
-
-Note also that the pipeline described above is the *target* design. The current implementation follows Diaphora's heuristic-cascade structure for parity; the LSH and maximum-cardinality-assignment stages are additions intended to replace parts of that cascade, and are not built yet.
-
-## Build
-
-Requires a C++20 compiler (plus a C compiler for SQLite), CMake 3.20+ and Ninja. Verified with MSVC 19.51 (VS 2026) on Windows x64; CI also builds with GCC on Linux and Clang on macOS.
+Then check the binary:
 
 ```
+$ dsigmatcher --version
+dsigmatcher 1.0.0
+SQLite 3.51.1
+```
+
+On macOS, a browser download is quarantined; run
+`xattr -d com.apple.quarantine bin/dsigmatcher` once, or allow it under System Settings, Privacy
+& Security. On Windows, SmartScreen may warn because the executable is not code-signed.
+
+---
+
+## Requirements
+
+**`diff`, `port`, `info` and `version` need only the binary.** They work on Diaphora exports
+(`.sqlite`) and results files (`.diaphora`) that already exist, including exports made by
+Diaphora's own IDA plugin.
+
+**`extract`, `ingest` and `update` need IDA and Diaphora**, because they produce exports with
+Diaphora's exporter running inside IDA (`update` ingests the new build as its first step).
+
+| Requirement | Details |
+|---|---|
+| IDA Pro 9.x with idalib | The headless IDA library. Exports need the **Hex-Rays decompiler** for the binary's architecture; without it the export is refused (exit 4). |
+| A Python that can load idalib | Python 3.8 or later. If the `idapro` package is not installed in it, the copy in `<IDA>/idalib/python` is used. Diaphora's own Python dependencies (for example `pygments`) must be installed in the same Python. |
+| A Diaphora checkout | Diaphora is **not bundled**. Use revision 3.4.2-4-g621ec26 (commit `621ec26`), the one the parity guarantee was measured with. It is imported read-only and never modified. |
+
+The tools are found in this order; the first one that exists wins:
+
+| Tool | Flag | Environment | Then |
+|---|---|---|---|
+| Python | `--python <exe>` | `DSIG_PYTHON` | `python.exe` / `python3.exe` (Windows) or `python3` / `python` on `PATH` |
+| IDA | `--ida-dir <dir>` | `DSIG_IDADIR`, then `IDADIR` | the install directory recorded in idalib's `ida-config.json` |
+| Diaphora | `--diaphora-dir <dir>` | `DSIG_DIAPHORA_DIR` | required, no default |
+| `dsig_export.py` | `--export-script <file>` | `DSIG_EXPORT_SCRIPT` | beside the executable, then `<prefix>/share/dsigmatcher/tools/export/` |
+
+Every tool is checked before anything starts, and all missing ones are named in one message
+(exit 4). `tools/export/README.md` describes the export bridge in full: isolation from your IDA
+settings and plugins, PDB handling, the JSON sidecar it writes, and its own exit codes.
+
+Environment variables named `DIAPHORA_*` are ignored on purpose. The engine always runs
+Diaphora's default configuration; see [Parity guarantee](#parity-guarantee).
+
+---
+
+## Quick start
+
+The workflow is **label once, carry forward**: name functions in one build, then move those names
+to every later build without opening IDA again.
+
+```sh
+# 1. Export the build you labelled in IDA (the .i64 is copied first and never modified).
+dsigmatcher extract app-v1.i64 -o v1.sqlite --diaphora-dir /path/to/diaphora
+
+# 2. Export the new build straight from the binary (analysed from scratch, no PDB).
+dsigmatcher ingest app-v2.dll -o v2.sqlite --diaphora-dir /path/to/diaphora
+
+# 3. Diff them. The results file is the same file Diaphora would write.
+dsigmatcher diff v1.sqlite v2.sqlite -o v1_vs_v2.diaphora
+
+# 4. Carry the names over. The output is a copy of v2.sqlite with v1's names applied.
+dsigmatcher port v1.sqlite v2.sqlite --results v1_vs_v2.diaphora -o v2_labelled.sqlite
+#    (Steps 3 and 4 in one: without --results, port runs the diff itself and keeps the
+#    results file beside the output, here as v2_labelled.diaphora.)
+
+# 5. See what happened.
+dsigmatcher info v2_labelled.sqlite
+```
+
+Set `DSIG_DIAPHORA_DIR` (and `DSIG_IDADIR` if IDA is not found on its own) to leave out the
+flags. For the next release, `v2_labelled.sqlite` is the reference:
+
+```sh
+dsigmatcher ingest app-v3.dll -o v3.sqlite
+dsigmatcher diff v2_labelled.sqlite v3.sqlite -o v2_vs_v3.diaphora
+dsigmatcher port v2_labelled.sqlite v3.sqlite --results v2_vs_v3.diaphora -o v3_labelled.sqlite
+```
+
+**One step: `update`.** `update` ingests the new binary, diffs it against the labelled export
+and ports the names, in one command:
+
+```sh
+dsigmatcher update v2_labelled.sqlite app-v3.dll -o v3_labelled.sqlite
+```
+
+Beside the output it keeps the intermediate files, so every step can be inspected:
+`v3_labelled.ingest.sqlite` (the unlabelled export of the new build), its sidecar
+`v3_labelled.ingest.export.json`, and `v3_labelled.diaphora` (the results that were applied).
+Run `dsigmatcher update --help` for its options.
+
+What `port` applies, by default:
+
+- **best** and **partial** rows of the results file. **multimatch** and **unreliable** rows are
+  applied only with `--include-multimatch` / `--include-unreliable`: on the reference pairs,
+  multimatch rows were mostly wrong.
+- only real names: IDA's placeholder names (`sub_*`, `nullsub_*`, `j_*`, `unknown_libname_*`,
+  `DllEntryPoint`, `start`) and empty names are never ported, and never count as a name the
+  target already has.
+- never over a real name the target already has, unless `--overwrite-existing`. A hand label
+  always beats an inferred one. Rows from Diaphora's "stripped binary" shortcut never replace a
+  real name unless `--overwrite-stripped` is given as well.
+- A name that would end up on two functions is dropped from both.
+
+---
+
+## Querying the results
+
+Both outputs are ordinary SQLite databases; open them with the `sqlite3` shell or any SQLite
+library.
+
+### The `.diaphora` results file (`diff`)
+
+The same layout as Diaphora's:
+
+| Table | Columns |
+|---|---|
+| `config` | `main_db`, `diff_db` (the two exports, as given on the command line), `version`, `date` |
+| `results` | `type` (`best`, `partial`, `unreliable`, `multimatch`), `line`, `address`, `name`, `address2`, `name2`, `ratio`, `nodes1`, `nodes2`, `description` (the heuristic or pass that produced the match) |
+| `unmatched` | `type` (`primary`, `secondary`), `line`, `address`, `name` |
+
+Addresses are stored as 8-digit lower-case hex text and ratios as text with 7 decimals, as
+Diaphora writes them. `address`/`name` belong to the first database given to `diff`, and
+`address2`/`name2` to the second.
+
+```sql
+-- How many matches each heuristic produced, per category
+SELECT type, description, COUNT(*) AS n
+FROM results
+GROUP BY type, description
+ORDER BY type, n DESC;
+
+-- The weakest partial matches: good candidates for a manual look
+SELECT address, name, address2, name2, ratio, description
+FROM results
+WHERE type = 'partial'
+ORDER BY CAST(ratio AS REAL)
+LIMIT 20;
+```
+
+### The labelled export (`port`, `update`)
+
+A byte copy of the target export in which only `functions.name` and `functions.mangled_function`
+change, plus four tables that Diaphora ignores:
+
+| Table | One row per | Main columns |
+|---|---|---|
+| `dsig_provenance` | hop, carried forward from the reference | `hop`, `source_input_md5`, `target_input_md5`, `source_file_sha256`, `applied_at`, `tool_version`, `matches`, `names_applied`, `lineage` (the md5 chain of every build the names passed through) |
+| `dsig_name_origin` | ported name | `address`, `name`, `origin_address`, `origin_name` (in the hand-labelled build), `hops`, `cumulative_ratio` (the product of the ratios of every hop), `heuristic` |
+| `dsig_port_results` | hop, carried forward from the reference | the results file that was applied (name and SHA-256), the flags used, and the count of every decision |
+| `dsig_port_log` | results row of this hop | reference and target names, `confidence`, `hops`, `action` (`applied`, `confirmed`, `not_selected`, `skipped_not_portable`, `skipped_conflict`, `skipped_existing`, `skipped_hops`, `skipped_ratio`, `skipped_duplicate_name`) |
+
+```sql
+-- Names that have travelled far or lost confidence
+SELECT o.address, f.name, o.origin_name, o.hops, o.cumulative_ratio, o.heuristic
+FROM dsig_name_origin AS o
+JOIN functions AS f ON f.address = o.address
+WHERE o.cumulative_ratio < 0.8 OR o.hops > 3
+ORDER BY o.cumulative_ratio;
+
+-- The hop history of this database
+SELECT hop, applied_at, source_input_md5, target_input_md5, matches, names_applied
+FROM dsig_provenance
+ORDER BY hop;
+```
+
+In an export, `functions.address` is decimal text; in a results file it is hex. To join the two,
+compare `printf('%08x', f.address)` with `results.address2`.
+
+`dsigmatcher info <db>` prints the same identity, lineage and confidence summary without SQL.
+
+---
+
+## Command reference
+
+```
+dsigmatcher diff    <db1.sqlite> <db2.sqlite> [-o <out.diaphora>] [options]
+dsigmatcher port    <reference.sqlite> <target.sqlite> -o <out.sqlite> [--results <x.diaphora>] [options]
+dsigmatcher update  <labelled.sqlite> <new binary> -o <new-labelled.sqlite> [options]
+dsigmatcher extract <in.i64|in.idb> -o <out.sqlite> [tool options]
+dsigmatcher ingest  <binary> -o <out.sqlite> [--pdb <file> | --no-pdb] [tool options]
+dsigmatcher info    <database.sqlite>
+dsigmatcher version            (also --version, -V)
+```
+
+`dsigmatcher <command> --help` lists a command's options, and `dsigmatcher --help-all` also lists
+the developer options (tracing, state snapshots and single-stage replay, used by the parity
+tools). Every command accepts `--json`, which prints one JSON object with the outcome on stdout
+instead of the text summary. Paths may contain any Unicode character, and on Windows they may be
+UNC paths (`\\server\share\...`).
+
+### `diff`
+
+Runs Diaphora's diff on two exports and writes Diaphora's results file. Without `-o` the file is
+named `<db1 stem>_vs_<db2 stem>.diaphora`, as Diaphora would name it. An existing output is
+replaced; an output that names one of the inputs is refused.
+
+| Option | Meaning |
+|---|---|
+| `-o, --output <path>` | The results file. |
+| `--ignore-small-functions` | Diaphora's `DIFFING_IGNORE_SMALL_FUNCTIONS` option: the SQL heuristics skip functions with 5 instructions or fewer. Off by default, as in Diaphora; the parity measurements used the default. |
+| `--strict-sqlite` | Exit 5 unless the SQLite in use is 3.51.1 (always true for the release binaries). |
+| `--allow-sqlite-mismatch` | Do not warn when SQLite is another version (source builds against a system SQLite). |
+| `--quiet` | Do not print Diaphora's progress and summary lines on stderr. |
+
+The options that change Diaphora's configuration away from its defaults (`--unreliable`,
+`--relaxed-ratio`, `--use-trained-model`, `--project-script`) are refused with exit 4.
+
+### `port`
+
+Applies match results to the target export and writes a labelled copy. The inputs are never
+modified. With `--results`, the rows of that file are applied (from `dsigmatcher diff` or from
+Diaphora itself). Without it, `port` first runs the same diff as `dsigmatcher diff` and keeps its
+results file beside the output as `<output stem>.diaphora`; the `diff` options
+`--ignore-small-functions`, `--strict-sqlite`, `--allow-sqlite-mismatch` and `--quiet` then apply
+to that diff.
+
+| Option | Meaning |
+|---|---|
+| `-o, --output <path>` | Required. The labelled copy of the target. |
+| `--results <x.diaphora>` | The results file to apply. Its rows must belong to these two exports, or nothing is written (exit 4). |
+| `--include-multimatch` | Also apply multimatch rows. |
+| `--include-unreliable` | Also apply unreliable rows. |
+| `--min-ratio <r>` | Skip names whose cumulative confidence would fall below `r` (0.0 to 1.0). |
+| `--max-hops <n>` | Skip names that have already travelled through more than `n` ports. |
+| `--overwrite-existing` | Replace real names that the target already has. |
+| `--overwrite-stripped` | With `--overwrite-existing`: let rows from Diaphora's "stripped binary" shortcut replace real names too. |
+| `--store-full-paths` | Record absolute input paths in the provenance tables instead of file names. |
+
+### `update`
+
+The whole carry-forward step in one command: the new binary is exported (as `ingest`), diffed
+against the labelled export, and the names are ported into `-o`. The intermediate export, its
+sidecar and the results file are kept beside the output (`<output stem>.ingest.sqlite`,
+`<output stem>.ingest.export.json`, `<output stem>.diaphora`). It takes `ingest`'s `--pdb` /
+`--no-pdb` and tool options and the `port` options. Every argument and path is checked before the
+export starts; after that, the first step that fails stops the command with that step's exit
+code.
+
+### `extract` and `ingest`
+
+`extract` exports an existing IDA database with every name and type in it. The database is copied
+into a private work directory, opened without auto-analysis and closed without saving; its SHA-256
+is checked before and after.
+
+`ingest` analyses a raw binary from scratch. By default no PDB is used and no symbol server is
+contacted. `--pdb <file>` applies exactly that PDB, which must match the binary (GUID and age);
+`--no-pdb` states the default explicitly.
+
+Both write the export and a JSON sidecar (`<out stem>.export.json`) describing how it was made.
+
+| Tool option | Meaning |
+|---|---|
+| `--python <exe>` | The Python that runs idalib and Diaphora. |
+| `--ida-dir <dir>` | The IDA 9.x installation. |
+| `--diaphora-dir <dir>` | The Diaphora checkout. |
+| `--export-script <file>` | `dsig_export.py`, if it is not in its usual place. |
+| `--temp-dir <dir>` | Where the work directory is created (default: the system temp directory). |
+| `--keep-temp` | Keep the work directory (copies, logs) after the run. |
+| `--timeout <seconds>` | Stop the export after this long (exit 6). |
+
+### `info`
+
+Prints a database's identity (file SHA-256, function count, processor, input MD5), its provenance
+chain and hop history, and a summary of how many ported names there are and how confident they
+are.
+
+### `version`
+
+Prints `dsigmatcher <version>` on the first line and the linked SQLite version on the second.
+
+---
+
+## Exit codes
+
+| Code | Meaning |
+|---|---|
+| 0 | Success. |
+| 2 | Usage error: bad arguments, or an output path that would overwrite an input. |
+| 3 | Diaphora itself would raise an error on these inputs; nothing is written. |
+| 4 | Unsupported or not an export: a refused non-default option, a file that is not a Diaphora export or results file, results that belong to other exports, or a missing tool (Python, IDA, Hex-Rays, Diaphora, `dsig_export.py`). |
+| 5 | SQLite is not 3.51.1 and `--strict-sqlite` was given. |
+| 6 | I/O error: a missing or unreadable input, an unwritable output, a failed or timed-out export. |
+| 70 | Internal error (a bug; please report it with the command line). |
+
+`extract`, `ingest` and `update` map the export script's own exit codes onto this table; the
+mapping is in `tools/export/README.md`.
+
+---
+
+## Parity guarantee
+
+For two Diaphora exports, `dsigmatcher diff` writes the same `.diaphora` file as
+
+```
+python diaphora.py db1.sqlite db2.sqlite -o out.diaphora
+```
+
+run from Diaphora 3.4.2-4-g621ec26 in its **default configuration** (no `DIAPHORA_*` variables):
+the same `results` and `unmatched` rows, in the same stored order, with the same `line` numbers,
+ratios, categories and descriptions. This is "L2" parity. Only the `config` row can differ: its
+`date` is the time of the run, and `main_db` / `diff_db` are the two paths as you typed them.
+
+It was measured on every finished pair of the reference set: real Diaphora exports of real
+binaries, each diffed by unmodified Diaphora and by `dsigmatcher`, then compared field by field
+with `tools/parity/run_parity.py`.
+
+| Pair | Diaphora mode | Rows | Parity | Native time |
+|---|---|---:|---|---:|
+| ls-old → ls (Diaphora's test samples) | normal | 278 | identical | 2.2 s |
+| ls → ls-old | normal | 286 | identical | 1.6 s |
+| userenv 9168 (PDB) → 9278 (no PDB) | normal | 2180 | identical | 63 s (Diaphora: hours) |
+| userenv 9168 (PDB) → 9278 (PDB) | patch diff | 643 | identical | 0.13 s |
+| win32u 9168 (hand-labelled `.i64`) → 9444 (no PDB) | stripped binary | 1510 | identical | 0.15 s |
+| cryptbase 1 (PDB) → 8875 (no PDB) | normal | 29 | identical | 0.2 s |
+| cryptbase 8875 (PDB) → 9444 (no PDB) | stripped binary | 43 | identical | 0.03 s |
+
+Conditions:
+
+- **SQLite 3.51.1.** Diaphora's results depend on the order in which SQLite's query planner returns
+  rows, so the engine runs Diaphora's SQL through the same SQLite version the reference runs used,
+  compiled with the same options. The release binaries bundle it. A source build against another
+  SQLite (`-DDSIG_VENDORED_SQLITE=OFF`) warns, and then only the set of rows is expected to match,
+  not their order.
+- **The same exports.** Exports depend on the IDA version, the Diaphora revision and the analysing
+  machine; `extract` and `ingest` use Diaphora's own exporter, but the guarantee is about the diff
+  of two given exports.
+- **Measured on Windows x64.** The reference pairs need the private corpus and were run on Windows.
+  On Linux and macOS the release builds use the same bundled SQLite and pass the same test suites
+  in CI, including the stage-by-stage suites whose expected values come from real Diaphora, but the
+  full reference pairs have not been rerun there.
+
+A pair whose Diaphora run takes about a day (sechost, PDB → no PDB) had not finished when v1.0.0
+was prepared, so it is not in the table.
+
+Diaphora's result is not always right: the parity guarantee means DSigMatcher makes the same
+mistakes Diaphora makes. Scored against the PDB names of the target builds, Diaphora and
+DSigMatcher give identical scores on every pair (for example, 482 correct, 35 wrong and 104
+missed of 622 functions on userenv 9168 → 9278).
+
+---
+
+## Known limitations
+
+- **One Python set-order effect.** Diaphora's "Same constants related matches" pass iterates a
+  Python `set`, whose order changes with Python's per-process string hash seed. DSigMatcher uses
+  one fixed order. Intermediate states can then differ from a particular Diaphora run in that pass
+  only; on every reference pair the next cleanup step removed the difference and the final results
+  were identical.
+- **Diaphora's defaults only.** Heuristics that Diaphora marks unreliable, the unreliable category,
+  relaxed ratios, the machine-learning model and project scripts are all off in Diaphora's
+  default configuration, and DSigMatcher does not offer them (exit 4).
+- **`extract`, `ingest` and `update` need IDA.** There is no native exporter yet.
+- **"Stripped binary" mode inherits Diaphora's shortcut.** When Diaphora decides two exports are
+  the same binary with symbols stripped, it pairs functions by address. On a build where functions
+  moved, many of those best rows are wrong (1172 of 1509 on the win32u pair). `port` never lets
+  those rows replace a real name unless asked twice (`--overwrite-existing --overwrite-stripped`),
+  but review stripped-mode results before porting them into an unnamed target.
+- **Multimatch rows are opt-in** because most of them were wrong on the reference pairs (73
+  correct, 1580 wrong on userenv).
+- **A function missed once stays unnamed.** A name that is not ported at one hop is absent from
+  the reference of the next hop.
+- **IDA's other automatic names** (beyond the placeholders listed under Quick start, for example
+  names IDA derives from imports or strings) count as real names, as they do in Diaphora.
+- **Recorded paths.** The provenance tables store input file names only (the SHA-256 columns
+  identify the files); `--store-full-paths` stores absolute paths, which include your user name
+  and directory layout if you share the database.
+- **macOS 26.0 or later.** The macOS build needs a C++ library feature (floating-point
+  `std::from_chars`) that Apple ships from macOS 26.0.
+- **Speed.** v1.0 runs Diaphora's SQL heuristics unchanged, so the cost of a few wide constants
+  joins is still SQLite's. Planned optimisations are in `docs/fusion/INVENTORY.md` and
+  `docs/design-future.md`.
+
+---
+
+## Building from source
+
+Requirements: CMake 3.20 or later, Ninja, a C++20 compiler and a C compiler, and network access at
+configure time (CMake downloads Zydis, Zycore and the SQLite 3.51.1 amalgamation, each pinned by
+hash or commit).
+
+```sh
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build build
-```
-
-On Windows with Visual Studio, run `vcvars64.bat` first; CMake and Ninja ship with the IDE.
-
-SQLite 3.51.1 is bundled by default: CMake downloads the official amalgamation from sqlite.org (hash-pinned, `cmake/VendoredSqlite.cmake`) and links it statically, compiled with the same options as the SQLite the Diaphora reference runs used. Diaphora's results depend on the order in which SQLite's query planner returns rows, so the bundled copy gives the reference row order on every platform, and the order-sensitive (L2) parity checks run everywhere. `build/dsig_sqlite_info` prints the linked SQLite's version and compile options. For offline builds, unpack the amalgamation zip and pass `-DFETCHCONTENT_SOURCE_DIR_SQLITE3=<dir>`.
-
-`-DDSIG_VENDORED_SQLITE=OFF` uses the system SQLite instead (`find_package(SQLite3)`; add `-DCMAKE_PREFIX_PATH=<prefix>` if CMake does not find it; on Windows CMake copies the `sqlite3.dll` it finds next to the import library beside the executables). Unless that SQLite is also 3.51.1, row order can differ from Diaphora's, so results match only at the order-insensitive L1 level (same rows, any order) and `diff` prints a warning.
-
-## Usage
-
-```
-dsigmatcher diff <reference.sqlite> <target.sqlite> [options]
-dsigmatcher port <reference.sqlite> <target.sqlite> -o <output.sqlite> [options]
-dsigmatcher info <database.sqlite>
-
-diff options:
-  -o, --output <path>          write match results to a SQLite database
-  -t, --threads <n>            worker threads (default: hardware concurrency)
-      --ignore-small-functions apply the instructions > 5 size gate
-      --assume-same-cpu        run processor specific heuristics unconditionally
-
-port options (in addition to the above):
-  -o, --output <path>          required; labelled copy of the target database
-      --min-ratio <r>          drop names whose cumulative confidence falls below r
-      --max-hops <n>           drop names that have travelled through more than n diffs
-      --overwrite-existing     replace real names already present in the target
-```
-
-Environment: `DIAPHORA_*` variables are deliberately ignored. The parity engine is not Diaphora and has no environment configuration: `diff` always runs Diaphora's default standalone configuration (`docs/parity/00-plan.md` §1.1), and the non-default settings (`--unreliable`, `--relaxed-ratio`, `--use-trained-model`, `--project-script`) are refused with exit code 4. Paths may contain any Unicode characters and may be UNC paths (`\\server\share\...`). `--quiet` silences Diaphora's summary lines but not the warning about a SQLite other than the oracle's 3.51.1 (`--allow-sqlite-mismatch` acknowledges it). `dsigmatcher --help` lists the current `diff` options.
-
-`reference` is the database carrying the symbols you want; `target` is the one that receives them. `diff` writes `matches` (every resolved pair with ratio and category) and `symbols_to_port` (only rows where the reference name is a real symbol and differs from the target's current name). `info` prints a database's identity, provenance chain and name-confidence histogram.
-
-## Rolling symbols forward across releases
-
-`port` is the chainable operation. Its output is **itself a valid Diaphora-schema database** — a byte copy of the target with names updated and provenance tables added — so the output of one release becomes the reference for the next, without going back through IDA:
-
-```
-dsigmatcher port v1_labelled.sqlite v2.sqlite -o v2_labelled.sqlite
-dsigmatcher port v2_labelled.sqlite v3.sqlite -o v3_labelled.sqlite
-```
-
-You label once in IDA, export, and then roll the symbols forward indefinitely as new builds ship.
-
-Each hop is recorded in `dsig_provenance` with both binaries' `program.md5sum` (Diaphora's `GetInputFileMD5()`, i.e. the version identity), the SHA-256 of both database files, the timestamp, the tool version, and the full match and skip counts. The `lineage` column accumulates the md5 chain, so any labelled database can state exactly which releases its names travelled through. Hop *N+1* records the SHA-256 of hop *N*'s output as its `source_file_sha256`, which makes the chain tamper-evident without the self-reference of storing a file's own hash inside itself.
-
-Per-name provenance lives in `dsig_name_origin`: the address and name in the *original* hand-labelled database, how many hops the name has travelled, and a `cumulative_ratio` that multiplies the confidence of every hop it survived. A name matched at 0.5 twice is recorded at 0.25, not 0.5 — so `--min-ratio` and `--max-hops` can prune stale labels before they propagate further.
-
-By default a real symbol already present in the target is **preserved**, not overwritten; hand-labelling always beats inference. Use `--overwrite-existing` to force it.
-
-## Tests
-
-`dsigmatcher_tests` is a self-contained native suite — no external test framework, no Python. It builds Diaphora-schema SQLite databases in temp files and exercises the library end to end:
-
-```
 cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-82 assertions across 7 suites: SHA-256 against NIST vectors (including the 1,000,000-byte case and chunked-versus-whole equivalence), string-arena behaviour, the `sub_`/`nullsub`/portability predicates, `MatchStore` dedup and strict 1:1 resolution, ingest round-trip with field fidelity, matcher accuracy against synthetic ground truth, and a two-hop provenance chain.
+- **Windows:** Visual Studio 2022 or later with the C++ workload. Run the commands from an
+  "x64 Native Tools" prompt (or after `vcvars64.bat`); CMake and Ninja ship with Visual Studio.
+- **Linux:** GCC or Clang, CMake and Ninja from the distribution.
+- **macOS:** Xcode command-line tools, and CMake and Ninja (for example from Homebrew). Add
+  `-DCMAKE_OSX_DEPLOYMENT_TARGET=26.0`, and `"-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"` for a
+  universal binary.
 
-The synthetic generator (`src/Synth.cpp`) carries per-function ground truth, so accuracy is measured as precision and recall rather than as a match count. It deliberately emits **different bytes per side** for recompiled and ambiguous functions and **shuffles target row order**, so greedy 1:1 resolution cannot succeed by index alignment. One assertion exists purely to keep that honest: `CHECK(Precision < 0.999)` fails the build if the fixture ever starts leaking the answer again. An earlier version of the generator did exactly that and reported a meaningless `precision 1.0000`.
+Build options:
 
-The two-hop chain test verifies that a name matched at 0.5 twice is recorded at 0.25, that stable names hold at 1.0, and that `--max-hops` and `--min-ratio` both prune as documented.
+| Option | Default | Effect |
+|---|---|---|
+| `DSIG_VENDORED_SQLITE` | `ON` | Build the bundled SQLite 3.51.1 with the reference options. `OFF` uses the system SQLite (`find_package(SQLite3)`); see [Parity guarantee](#parity-guarantee). |
+| `DSIG_STATIC_RUNTIME` | `ON` | Link the C/C++ runtime statically (MSVC `/MT`; `-static-libstdc++ -static-libgcc` on Linux). |
+| `DSIG_FULLY_STATIC` | `OFF` | Linux: link fully statically. Meant for musl (Alpine); the Linux release is built this way. |
+| `BUILD_TESTING` | `ON` | Build the test suites. |
+| `FETCHCONTENT_SOURCE_DIR_SQLITE3` | | An unpacked amalgamation directory, for offline builds. |
 
-## Benchmark
+`cmake --install build --prefix <dir> --component dsigmatcher` installs `bin/dsigmatcher` and
+`share/dsigmatcher/tools/export/dsig_export.py`. The official archives are built only by
+`.github/workflows/release.yml`.
 
-`dsigmatcher_bench` measures per-heuristic cost and whole-cascade scaling so that parallelism is applied on evidence rather than by default:
+The design documents in `docs/parity/` describe how each part of Diaphora was ported. `tools/`
+holds the Python tools that build the reference results and check parity; they are not needed to
+use `dsigmatcher`.
 
-```
-build/dsigmatcher_bench -n 50000 -r 3 -t 1,2,4,8,16,24,32
-```
+---
 
-It reports each heuristic's serial cost and raw match count, the serial `Resolve` floor, accuracy against ground truth, and wall time / speedup / efficiency at every requested thread count, taking the best of `-r` repetitions.
+## Licence and attribution
 
-On a 32-thread machine at 47,500 functions per side, heuristic-level parallelism peaks near **2.2×** and is bounded both by the heuristic count and by the serial `Resolve` pass. Parallelising everything is measurably *not* the fastest option here; `JOURNAL.md` has the numbers and the analysis.
+DSigMatcher Native is free software under the **GNU Affero General Public License, version 3 or
+(at your option) any later version**. See [`LICENSE`](LICENSE).
 
-## Journal
+- The diff engine is a C++ translation of the diffing logic of **Diaphora**, Copyright (c)
+  2015-2026 Joxean Koret, AGPL-3.0-or-later, revision 3.4.2-4-g621ec26. It embeds Diaphora's
+  heuristic and stage SQL verbatim (`src/diff/RegistrySql.inc`, `src/diff/StageSql.inc`).
+  [`NOTICE`](NOTICE) has the full attribution and a description of the changes.
+- The text-diff code is a translation of **CPython 3.13's `difflib`** (PSF License Version 2).
+  **Zydis** and **Zycore** (MIT) are linked in, and **SQLite** (public domain) is bundled.
+  [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) has their licence texts.
+- Diaphora, IDA Pro and the Hex-Rays decompiler are **not** included. `extract`, `ingest` and
+  `update` use your own installation of each.
 
-`JOURNAL.md` is the working log: what was built, what was tested, what broke, what the measurements showed, and which findings contradicted the design intent. Read it before trusting any number in this README.
-
-
-## Prior art
-
-DSigMatcher-Native is a clean-room reimplementation of the binary diffing approach pioneered by **Diaphora**, copyright Jose Miguel Escribano and contributors, distributed under the **GNU Affero General Public License v3.0**. Diaphora established that a staged heuristic cascade with call-graph propagation is the right shape for this problem; this project rederives that shape in native code with different data structures, different scoring and a different execution model.
-
-No Diaphora source code is incorporated, copied, or translated. What is reused is the *observable interface*: the SQLite schema that Diaphora's exporters emit, and the taxonomy of matching heuristics it applies. Consuming a documented file format and reimplementing an algorithmic approach independently does not create a derivative work, so Diaphora's AGPLv3 does not propagate to this project. Licensing for DSigMatcher-Native has not yet been chosen.
-
-SQLite 3.51.1 is bundled by default (downloaded at configure time, not committed); `-DDSIG_VENDORED_SQLITE=OFF` links the system SQLite via `find_package(SQLite3)` instead. SQLite itself is public domain.
+**Source code.** The complete corresponding source of each release is the git tag of the same
+name in <https://github.com/kuro1337WStuff/DSigMatcher-Native>, for example
+[`v1.0.0`](https://github.com/kuro1337WStuff/DSigMatcher-Native/tree/v1.0.0); the release page
+also offers it as an archive.
