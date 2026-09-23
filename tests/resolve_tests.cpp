@@ -101,10 +101,18 @@ bool SameMatches(const std::vector<Match>& Left, const std::vector<Match>& Right
   if (Left.size() != Right.size()) {
     return false;
   }
-  if (Left.empty()) {
-    return true;
+
+  for (size_t Index = 0; Index < Left.size(); ++Index) {
+    const Match& First = Left[Index];
+    const Match& Second = Right[Index];
+    if (First.Index1 != Second.Index1 || First.Index2 != Second.Index2 ||
+        First.HeuristicId != Second.HeuristicId || First.Ratio != Second.Ratio ||
+        First.Category != Second.Category) {
+      return false;
+    }
   }
-  return std::memcmp(Left.data(), Right.data(), Left.size() * sizeof(Match)) == 0;
+
+  return true;
 }
 
 std::vector<Match> ResolveAt(const std::vector<Match>& Raw, unsigned ThreadCount) {
