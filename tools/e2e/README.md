@@ -1,9 +1,10 @@
 # End-to-end tools: port on results, ground truth, chain (lane L11)
 
 Plan: `docs/parity/00-plan.md` §7.1 D6 (port redesigned around results files), D8 (ground truth),
-§7.2 "L11". The C++ side is `dsigmatcher port ... --results` (`src/cli/PortResults.cpp`, engine
-`DSig::PortLabels` in `src/Provenance.cpp`); the Python here drives it, scores it and chains it.
-`ctest` never runs these scripts; the C++ suite is `cli_port_results`.
+§7.2 "L11". The C++ side is `dsigmatcher port` (`src/cli/PortResults.cpp`, engine
+`DSig::PortLabels` in `src/Provenance.cpp`) and `dsigmatcher update` (`src/cli/Update.cpp`); the
+Python here drives them, scores them and chains them. `ctest` never runs these scripts; the C++
+suites are `cli_port_results`, `cli_update` and `cli_commands`.
 
 | File | Does |
 |---|---|
@@ -32,21 +33,28 @@ from the corpus, so they are never committed.
 
 ```
 dsigmatcher port <ref.sqlite> <target.sqlite> -o <out.sqlite> --results <x.diaphora>
-                 [--include-multimatch] [--include-unreliable] [--overwrite-existing]
-                 [--min-ratio <r>] [--max-hops <n>]
+                 [--include-multimatch] [--include-unreliable] [--overwrite-existing [--overwrite-stripped]]
+                 [--min-ratio <r>] [--max-hops <n>] [--store-full-paths] [--json]
+dsigmatcher port <ref.sqlite> <target.sqlite> -o <out.sqlite> [--no-keep-results] [same options]
+dsigmatcher update <labelled.sqlite> <new-binary> -o <new-labelled.sqlite> [ingest and port options]
 ```
 
 The results file is Diaphora's `save_results` layout (`D:2374-2429`, 01 §11, 09): `results(type,
 line, address, name, address2, name2, ratio, nodes1, nodes2, description)`, addresses `"%08x"`
 of `int(ea)`, ratio `"%.7f"`. It may come from Diaphora or from our `diff`. Every row is read,
 checked and logged; best and partial rows are applied by default, unreliable and multimatch rows
-only when asked. Without `--results`, `port` keeps its legacy engine until lane L9.
+only when asked. Without `--results`, `port` runs the parity diff in-process first (exactly
+`dsigmatcher diff`), keeps its results as `<output dir>/<output stem>.diaphora` (deleted afterwards
+with `--no-keep-results`) and applies them exactly as `--results` would. `update` is `ingest` of the
+new binary (to `<stem>.ingest.sqlite`) followed by that plain `port`; it keeps the intermediate
+export and the `.diaphora` beside the output and stops with the exit code of the first failing step.
 
 **Refusals (nothing is written).** An output that resolves to the reference, the target or the
 results file (exit 2). A results row whose `address`/`address2` is not a function of the given
 reference/target, or whose `name`/`name2` is neither that function's `name` nor its
-`mangled_function` (exit 4: the results belong to another pair). A file that is not a results DB
-or an export (exit 4). A missing file (exit 6).
+`mangled_function` (exit 4: the results belong to another pair). An SQLite file that is not a
+results DB or not an export (exit 4). A missing file, a file that is not SQLite at all, or a missing
+output directory (exit 6).
 
 **Decision per row**, in stored order (best, partial, unreliable, multimatch, each by descending
 ratio):
@@ -54,14 +62,17 @@ ratio):
 1. not in an included category: `not_selected` (logged, never applied);
 2. the target function was already claimed by an earlier selected row: `skipped_conflict`
    (the first row is the strongest evidence for that function);
-3. the reference name is not a real symbol (`sub_*`, `nullsub*`, empty): `skipped_not_portable`;
+3. the reference name is not a real symbol but an IDA placeholder (`sub_*`, `nullsub*`, `j_*`,
+   `unknown_libname_*`, `DllEntryPoint`, `start`, empty, `...`): `skipped_not_portable`. A target
+   function that carries such a placeholder counts as unnamed, so its placeholder is replaced;
 4. the target already carries the identical real name: `confirmed` (no update, no origin row, no
    hop; the legacy "confirmation" rule);
 5. hops = parent hops + 1 and confidence = ratio x parent confidence, from the reference's
    `dsig_name_origin` row for that function, used only while the reference still carries the
    recorded name; otherwise hops 1 and confidence = ratio. Then `--max-hops` (`skipped_hops`),
    `--min-ratio` (`skipped_ratio`), and a real target name is kept unless `--overwrite-existing`
-   (`skipped_existing`). Otherwise `applied`.
+   (`skipped_existing`); a "Same binary with symbols stripped" row (Diaphora pairs those by address)
+   replaces a real name only with `--overwrite-stripped` as well. Otherwise `applied`.
 6. After all rows: an applied name (or mangled name) that would appear on two functions of the
    output is not applied (`skipped_duplicate_name`), repeated until stable. A multimatch row that
    gives one reference function to two targets therefore labels neither.
@@ -88,14 +99,20 @@ Deliberately **not** written:
   a like-for-like no-PDB target in the next hop.
 - No `ANALYZE`, `VACUUM` or index change: the target's `sqlite_stat1` and indices stay as exported.
 
-Added tables (all `create if not exists`; Diaphora ignores them):
+Added tables (Diaphora ignores them). They are rebuilt by every port, so a target that was itself a
+port output gets one consistent history, never a merge of two:
 
 | Table | Rows |
 |---|---|
-| `dsig_provenance` | one per hop (the parent's hops, then this one); unchanged legacy schema |
-| `dsig_name_origin` | one per applied name: origin address and name, hops, cumulative confidence, `heuristic` = `<category>:<description>`, first labelled at |
-| `dsig_port_results` | one per hop that used `--results`: the results file (path, sha256, its `config` row), flags, counts; carried forward like `dsig_provenance` |
+| `dsig_provenance` | one per hop (the parent's hops, then this one) |
+| `dsig_name_origin` | one per name this hop applied: origin address and name, hops, cumulative confidence, `heuristic` = `<category>:<description>`, first labelled at |
+| `dsig_port_results` | one per hop: the results file (path, sha256, its `config` row), where it came from (`results_source`: `results file` or `in-process diff`), flags (`include_*`, `overwrite`, `overwrite_stripped`), counts; carried forward like `dsig_provenance` |
 | `dsig_port_log` | this hop only: one per results row, with the reference and target names and the action taken |
+
+Paths in these tables (`source_path`, `results_path`, `results_main_db`, `results_diff_db`) are file
+names only by default: the sha256 columns identify the files, and a full path would record the
+author's user name and directory layout. `--store-full-paths` stores absolute, normalised paths (the
+two `results_*_db` columns as the results file's `config` row has them).
 
 Inputs are read through `file:...?mode=ro&immutable=1` when they are WAL-mode files with no
 committed `-wal` frames, so a port never creates `-wal`/`-shm` files beside an oracle export.
