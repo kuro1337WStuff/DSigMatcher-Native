@@ -14,8 +14,10 @@
 //                     float_richcompare (exact int/float comparison);
 //   * repr(float)     Python/pystrtod.c format_float_short with mode 'r' (shortest round trip,
 //                     exponent form when decpt <= -4 or decpt > 16).
-// No floating-point from_chars/to_chars is used (Apple libc++ lacks them, 03a §5); the decimal to
-// double conversion is exact big-integer arithmetic, portable to MSVC, GCC and Clang.
+// This file uses no floating-point from_chars/to_chars (older Apple libc++ lacks them, 03a §5): its
+// decimal to double conversion is exact big-integer arithmetic, portable to MSVC, GCC and Clang. (Other
+// files do use them where the CI's standard libraries provide them, for example Json.cpp AsDouble and
+// Trace.cpp FormatPercent2; ResultsWriter.cpp guards its use with __cpp_lib_to_chars.)
 
 #include "dsigmatcher/diff/PyValue.h"
 
@@ -26,6 +28,7 @@
 #include <string>
 
 #include "dsigmatcher/diff/Errors.h"
+#include "dsigmatcher/diff/Json.h"
 
 namespace DSig::Diff {
 
@@ -628,8 +631,8 @@ std::string KindName(PyValue::Kind Kind) {
 
 // The C scanner raises RecursionError somewhere between depth 2500 and 3000 on this Python
 // (measured: dict nesting 2500 decodes, 3000 raises); the exact limit depends on the caller's stack
-// depth. NOT DETERMINED FROM SOURCE for Diaphora's stack, so the port stops well below it.
-constexpr int kMaxJsonDepth = 512;
+// depth. NOT DETERMINED FROM SOURCE for Diaphora's stack, so the port stops well below it, at the
+// engine-wide kMaxJsonDepth (Json.h), which JsonParse shares.
 
 struct JsonDepthExceeded {};
 

@@ -325,7 +325,6 @@ struct NativeRun {
   bool Returned = true;
   char Mode = 'N';
   std::vector<std::string> Log;
-  std::vector<std::string> Skipped;
   Early::EarlyFacts Facts;
   bool Written = false;
   DSig::Test::ResultsFile Results;
@@ -374,7 +373,6 @@ NativeRun RunNative(const DbPair& Pair, const std::string& Out, const std::strin
   }
   R.Log = S.Log().Lines();
   R.Mode = S.Mode();
-  R.Skipped = S.SkippedStages();
   R.Facts = S.Ext<Early::EarlyFacts>();
   return R;
 }
@@ -534,8 +532,8 @@ void TestFixtures(const std::string& Scratch) {
     }
 
     // the whole output: modes S and P need only lane L5 and the final pass; mode N needs every lane
-    std::string Output = "not compared (stages skipped: " + std::to_string(Run.Skipped.size()) + ")";
-    if (Run.Skipped.empty()) {
+    std::string Output = "not compared";
+    {
       const DSig::Test::ResultsFile Expected = DSig::Test::ReadExpectedFixture(Dir);
       const DSig::Test::CompareReport Report = DSig::Test::CompareResults(Expected, Run.Results);
       const bool Ok = Exact ? Report.L2Equal : Report.L1Equal;
@@ -648,16 +646,16 @@ void TestVectors(const std::string& Scratch) {
       for (const JsonValue& Line : V.At("log").Items()) {
         Expected.push_back(Line.AsString());
       }
-      Expected = ComparedLog(Expected, R.Skipped.empty());
+      Expected = ComparedLog(Expected, true);
       if (V.At("native_log_omitted").AsBool()) {
         // a float took part in check_callgraph's sums: the value is not reproduced (Preflight.cpp)
         Expected.erase(std::remove_if(Expected.begin(), Expected.end(),
                                       [](const std::string& L) { return L.starts_with("Call graphs from both"); }),
                        Expected.end());
       }
-      CHECK_TEXT_EQ(Joined(ComparedLog(R.Log, R.Skipped.empty())), Joined(Expected));
+      CHECK_TEXT_EQ(Joined(ComparedLog(R.Log, true)), Joined(Expected));
       // the output rows (modes S and P, or an early return): compared when every stage ran
-      if (V.Find("results") != nullptr && R.Skipped.empty()) {
+      if (V.Find("results") != nullptr) {
         DSig::Test::ResultsFile Want;
         Want.Schema = DSig::Test::DiaphoraSchema();
         Want.Config.push_back({"", "", "3.4", ""});
@@ -711,7 +709,9 @@ void TestVectors(const std::string& Scratch) {
   DSig::Test::Note(std::to_string(Passed) + "/" + std::to_string(Run) + " vectors passed (" + std::to_string(Raising) +
                    " where Diaphora raises, " + std::to_string(Refused) + " refused as not ported)");
   // The empty-result path through the CLI entry point (plan §3.10, 01 §5.1): no diff.version table ->
-  // diff() returns False, save_results still writes the config row and empty tables, exit 0.
+  // diff() returns False, save_results still writes the config row and empty tables. Audit F06 (v1.0.0
+  // product decision): the file stays Diaphora's, byte for byte, but RunDiff reports Unsupported (exit 4)
+  // with a message naming db2, so a caller never takes the empty file for "nothing matched".
   for (const JsonValue& V : File.At("vectors").Items()) {
     const std::string Name = V.At("name").AsString();
     if (Name != "version_missing" && Name != "version_empty") {
@@ -730,7 +730,9 @@ void TestVectors(const std::string& Scratch) {
     Args.Quiet = true;
     Args.AllowSqliteMismatch = true;
     const DiffOutcome Outcome = RunDiff(Args);
-    CHECK_NUM_EQ(static_cast<int>(Outcome.Status), static_cast<int>(DiffStatus::Ok));
+    CHECK_NUM_EQ(static_cast<int>(Outcome.Status), static_cast<int>(DiffStatus::Unsupported));
+    CHECK(Outcome.Message.find("is not a usable Diaphora export") != std::string::npos);
+    CHECK(Outcome.Message.find(Pair.Diff) != std::string::npos);
     CHECK(Outcome.OutputWritten && !Outcome.DiffReturned);
     const DSig::Test::ResultsFile Written = DSig::Test::ReadResultsFile(Args.Out);
     CHECK(Written.Error.empty() && Written.Results.empty() && Written.Unmatched.empty());
@@ -1025,7 +1027,7 @@ void TestCorpus(const std::string& Scratch) {
       const std::string Oracle = DSig::Test::OracleResultsPath(Pair, 1);
       const std::string TracePath = Join(Work, "full-trace.jsonl");
       const NativeRun R = RunNative(Dbs, Join(Work, Pair + ".diaphora"), std::string(), TracePath, Pair);
-      CHECK(!R.Raised && !R.Unsupported && R.Skipped.empty());
+      CHECK(!R.Raised && !R.Unsupported);
       const DSig::Test::CompareReport Report =
           DSig::Test::CompareResults(DSig::Test::ReadResultsFile(Oracle), R.Results);
       DSig::Test::Report(Report.DdlEqual && Report.L2Equal, (Pair + " full run L2").c_str(), __FILE__, __LINE__);

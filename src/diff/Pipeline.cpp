@@ -7,11 +7,13 @@
 #include <filesystem>
 #include <fstream>
 #include <map>
+#include <new>
 #include <tuple>
 #include <unordered_map>
 
 #include "FileIo.h"
 #include "dsigmatcher/diff/Errors.h"
+#include "dsigmatcher/diff/Json.h"
 #include "dsigmatcher/diff/StageSql.h"
 #include "dsigmatcher/diff/Stages.h"
 
@@ -53,7 +55,6 @@ struct DiffSession::Impl {
   std::map<int, int64_t> CleanupCounters;
   std::optional<int> Iteration;
   std::vector<std::string> Contexts;
-  std::vector<std::string> Skipped;
   std::unordered_map<std::type_index, std::shared_ptr<void>> Ext;
 };
 
@@ -133,14 +134,16 @@ namespace {
 // tools/parity/oracle_trace.py writes run.json into every capture directory; the native engine never
 // does. Writing native output there (or into a directory inside one, such as its snapshots/) would
 // overwrite or mix into an oracle capture, so such a directory is refused.
+// Throws UsageRefused (exit 2): RunDiff checks every write target this way before it opens anything.
 void RefuseOracleCapture(const fs::path& Dir, const std::string& Shown) {
   std::error_code Error;
   const fs::path Absolute = fs::absolute(Dir.empty() ? fs::path(".") : Dir, Error);
   const fs::path& Checked = Error ? Dir : Absolute;
   for (const fs::path& Candidate : {Checked, Checked.parent_path()}) {
     if (!Candidate.empty() && fs::exists(Candidate / "run.json", Error)) {
-      throw IoFailure("refusing to write into '" + Shown +
-                      "': it is (or is inside) an oracle capture, which holds run.json (tools/parity/oracle_trace.py)");
+      throw UsageRefused("refusing to write '" + Shown +
+                         "': its directory is (or is inside) an oracle capture, which holds run.json "
+                         "(tools/parity/oracle_trace.py)");
     }
   }
 }
@@ -155,6 +158,52 @@ bool IsSnapshotFileName(const std::string& Name) {
          Name.compare(Name.size() - 5, 5, ".json") == 0;
 }
 
+// index.json of a snapshot capture: a JSON array of [seq, point, file] rows, seq an integer, point a
+// string, file a string or null (the layout WriteIndexFile and oracle_trace.py write).
+bool IsCaptureIndex(const std::string& Bytes) {
+  try {
+    const JsonValue Rows = JsonParse(Bytes);
+    if (!Rows.IsArray()) {
+      return false;
+    }
+    for (const JsonValue& Row : Rows.Items()) {
+      if (!Row.IsArray() || Row.Items().size() != 3 || !Row.Items()[0].IsIntegerText() ||
+          !Row.Items()[1].IsString() || !(Row.Items()[2].IsString() || Row.Items()[2].IsNull())) {
+        return false;
+      }
+    }
+    return true;
+  } catch (const JsonError&) {
+    return false;
+  }
+}
+
+// Audit F29: EnableSnapshots deletes <dir>/index.json and the snapshot-named files under
+// <dir>/snapshots. It may do that only to an earlier capture: an index.json that is not a capture
+// index is somebody else's file, and the directory is refused (exit 2) with nothing deleted.
+void RefuseForeignSnapshotDir(const std::string& Dir) {
+  const fs::path Root = Detail::PathFromUtf8(Dir);
+  RefuseOracleCapture(Root, Dir);
+  std::error_code Error;
+  const fs::path Index = Root / "index.json";
+  if (fs::exists(Index, Error)) {
+    if (!fs::is_regular_file(Index, Error)) {
+      throw UsageRefused("refusing to use '" + Dir + "' as a snapshot directory: its index.json is not a file");
+    }
+    std::string Bytes;
+    try {
+      Bytes = Detail::ReadFileBytes(Detail::PathToUtf8(Index));
+    } catch (const IoFailure& Failure) {
+      throw UsageRefused("refusing to use '" + Dir + "' as a snapshot directory: " + Failure.What);
+    }
+    if (!IsCaptureIndex(Bytes)) {
+      throw UsageRefused("refusing to use '" + Dir +
+                         "' as a snapshot directory: its index.json is not a snapshot capture index, and "
+                         "--snapshot-dir replaces index.json (use an empty or new directory; nothing was changed)");
+    }
+  }
+}
+
 }
 
 void DiffSession::EnableSnapshots(const std::string& Dir, std::string PointGlobs, std::string CacheGlobs) {
@@ -163,7 +212,7 @@ void DiffSession::EnableSnapshots(const std::string& Dir, std::string PointGlobs
   // [seq, point, file]; the files are <Dir>/snapshots/NNNNN_<sanitised point>.json and `file` is that
   // path relative to <Dir> ("snapshots/..."), or null for a point --snapshot-points filtered out.
   const fs::path Root = Detail::PathFromUtf8(Dir);
-  RefuseOracleCapture(Root, Dir);
+  RefuseForeignSnapshotDir(Dir);  // also refuses an oracle capture (run.json)
   const fs::path Files = Root / "snapshots";
   std::error_code Error;
   fs::create_directories(Files, Error);
@@ -171,13 +220,25 @@ void DiffSession::EnableSnapshots(const std::string& Dir, std::string PointGlobs
     throw IoFailure("cannot create snapshot directory '" + Dir + "': " + Error.message());
   }
   // The oracle's PrepareOutDir removes an earlier capture's snapshots and index. Only files named like
-  // a snapshot are removed here, so stale ones never sit next to this run's.
+  // a snapshot are removed here, so stale ones never sit next to this run's. A file that cannot be
+  // removed is an error (audit F01): it is never overwritten in place later.
+  std::vector<fs::path> Stale;
   for (const fs::directory_entry& Entry : fs::directory_iterator(Files, Error)) {
     if (Entry.is_regular_file(Error) && IsSnapshotFileName(Detail::PathToUtf8(Entry.path().filename()))) {
-      fs::remove(Entry.path(), Error);
+      Stale.push_back(Entry.path());
     }
   }
-  fs::remove(Root / "index.json", Error);
+  if (Error) {
+    throw IoFailure("cannot list snapshot directory '" + Detail::PathToUtf8(Files) + "': " + Error.message());
+  }
+  Stale.push_back(Root / "index.json");
+  for (const fs::path& Path : Stale) {
+    Error.clear();
+    fs::remove(Path, Error);
+    if (Error) {
+      throw IoFailure("cannot remove '" + Detail::PathToUtf8(Path) + "': " + Error.message());
+    }
+  }
   Impl_->Snapshots = true;
   Impl_->SnapshotDir = Dir;
   Impl_->PointGlobs = std::move(PointGlobs);
@@ -242,7 +303,7 @@ void DiffSession::Cleanup(CleanupSite Site) {
   const int64_t N = ++Impl_->CleanupCounters[Line];
   const std::string Suffix = "cleanup:" + std::to_string(Line) + ":" + std::to_string(N);
   Point("before:" + Suffix);
-  InvokeStage(*this, Suffix, [&] { Impl_->State->Cleanup(Site); });
+  Impl_->State->Cleanup(Site);
   const MatchState& S = *Impl_->State;
   Impl_->Trace.Cleanup(Line, N, S.Items(Chooser::Best).size(), S.Items(Chooser::Partial).size(),
                        S.Items(Chooser::Unreliable).size());
@@ -416,6 +477,10 @@ void DiffSession::Restore(const StateSnapshot& Before) {
         }
       }
       if (!Found) {
+        // Real oracle caches hold keys that are not a (main function, diff function) pair of addresses
+        // (for example "4203192-4202448" in ls_vs_ls-old's captures), so such a key is kept under the
+        // first dash, as Python keeps it. A snapshot of another pair is refused by
+        // CheckSnapshotMatchesInputs through its items and totals instead (audit F28).
         const size_t Dash = Entry.Key.find('-');
         if (Dash == std::string::npos) {
           throw UnsupportedInput("ratios_cache key without '-': " + Entry.Key);
@@ -442,17 +507,62 @@ void DiffSession::FinishHarness() {
   if (Impl_->Snapshots) {
     WriteIndexFile(Impl_->SnapshotDir, Impl_->Index);  // also when no point was reached: "[]"
   }
-  if (Impl_->Trace.Enabled()) {
-    Impl_->Trace.Close();
+  Impl_->Trace.Finish();  // checked flush and close (audit F27); a no-op when the trace is off
+}
+
+void DiffSession::CheckSnapshotMatchesInputs(const StateSnapshot& Before) const {
+  // Audit F28: every address the snapshot carries must be a function of the side it belongs to, and
+  // the recorded function totals (0 before find_equal_matches sets them) must be the inputs' counts.
+  const Interners& Ids = Impl_->Ids;
+  const auto Require = [&](const std::string& Ea, const ExportData& Side, const char* Where) {
+    const std::optional<AddrId> Id = Ids.FindAddr(Ea);
+    if (!Id || !Side.Functions.FindRow(*Id)) {
+      throw UnsupportedInput("replay: snapshot address " + Ea + " (" + Where + ") is not a function of '" +
+                             Side.Path + "'; the snapshot (pair '" + Before.Pair +
+                             "') does not belong to these databases");
+    }
+  };
+  const auto RequireItems = [&](const std::vector<SnapItem>& Items, const char* Where) {
+    for (const SnapItem& It : Items) {
+      Require(It.Ea1, Impl_->Main, Where);
+      Require(It.Ea2, Impl_->Diff, Where);
+    }
+  };
+  RequireItems(Before.Best, "all_matches.best");
+  RequireItems(Before.Partial, "all_matches.partial");
+  RequireItems(Before.Unreliable, "all_matches.unreliable");
+  if (Before.Choosers) {
+    RequireItems(Before.Choosers->Best, "choosers.best");
+    RequireItems(Before.Choosers->Partial, "choosers.partial");
+    RequireItems(Before.Choosers->Unreliable, "choosers.unreliable");
+    RequireItems(Before.Choosers->Multimatch, "choosers.multimatch");
   }
+  if (Before.Unmatched) {
+    // "primary" lists diff-database functions and "secondary" main-database ones (D:2330-2354).
+    for (const auto& [Rows, Side, Where] :
+         {std::tuple{&Before.Unmatched->Primary, &Impl_->Diff, "unmatched.primary"},
+          std::tuple{&Before.Unmatched->Secondary, &Impl_->Main, "unmatched.secondary"}}) {
+      if (!*Rows) {
+        continue;
+      }
+      for (const SnapUnmatched& Row : **Rows) {
+        if (Row.Ea != "None") {
+          Require(Row.Ea, *Side, Where);
+        }
+      }
+    }
+  }
+  const auto RequireTotal = [&](int64_t Recorded, const ExportData& Side, const char* Name) {
+    const auto Count = static_cast<int64_t>(Side.Functions.Count());
+    if (Recorded != 0 && Recorded != Count) {
+      throw UnsupportedInput("replay: the snapshot records " + std::string(Name) + " = " + std::to_string(Recorded) +
+                             " but '" + Side.Path + "' has " + std::to_string(Count) +
+                             " functions; the snapshot (pair '" + Before.Pair + "') does not belong to these databases");
+    }
+  };
+  RequireTotal(Before.Flags.TotalFunctions1, Impl_->Main, "total_functions1");
+  RequireTotal(Before.Flags.TotalFunctions2, Impl_->Diff, "total_functions2");
 }
-
-void DiffSession::NoteSkipped(std::string_view Stage, std::string_view Reason) {
-  Impl_->Skipped.emplace_back(Stage);
-  Impl_->Log.Info("SKIPPED " + std::string(Stage) + ": " + std::string(Reason));
-}
-
-const std::vector<std::string>& DiffSession::SkippedStages() const { return Impl_->Skipped; }
 
 std::shared_ptr<void>& DiffSession::ExtSlot(std::type_index Type) { return Impl_->Ext[Type]; }
 
@@ -466,16 +576,6 @@ char DiffSession::Mode() const {
   return 'N';
 }
 
-bool InvokeStage(DiffSession& S, std::string_view Name, const std::function<void()>& F) {
-  try {
-    F();
-    return true;
-  } catch (const StageNotImplemented& Error) {
-    S.NoteSkipped(Name, Error.What);
-    return false;
-  }
-}
-
 // ---------------------------------------------------------------------------------------------
 // RunPipeline: diff() (D:3568-3701)
 
@@ -487,7 +587,7 @@ void LoopStage(DiffSession& S, const char* Name, int Iteration, void (*Fn)(DiffS
   S.Point("before:" + Base);
   {
     ContextScope Scope(S, Base);
-    InvokeStage(S, Base, [&] { Fn(S, Iteration); });
+    Fn(S, Iteration);
   }
   S.Point("after:" + Base);
 }
@@ -501,54 +601,34 @@ bool RunPipeline(DiffSession& S) {
 
   // D:3577-3591: `select value from diff.version`; failure or no row -> diff() returns False and
   // __main__ still calls save_results (D:3772-3773), which writes empty tables.
-  bool VersionOk = true;
-  InvokeStage(S, "check_version", [&] { VersionOk = StageCheckVersion(S); });
-  if (!VersionOk) {
+  if (!StageCheckVersion(S)) {
     return false;
   }
   S.RequireIngest();
 
   // D:3599-3601: do_continue is always True; equal_db only logs.
-  InvokeStage(S, "equal_db", [&] {
-    if (StageEqualDb(S)) {
-      S.Log().Info("The databases seems to be 100% equal");
-    }
-  });
+  if (StageEqualDb(S)) {
+    S.Log().Info("The databases seems to be 100% equal");
+  }
   // D:3603-3605 check_callgraph (validation; may raise)
-  InvokeStage(S, "check_callgraph", [&] { StageCheckCallgraph(S); });
+  StageCheckCallgraph(S);
   // D:3607-3610: project_script is None in the parity configuration (§1.1), so no load_hooks.
 
-  // D:3613-3614 find_equal_matches
-  const bool EqualImplemented = InvokeStage(S, "find_equal_matches", [&] {
+  // D:3613-3614 find_equal_matches (also sets total_functions1/2, D:1411-1422)
+  {
     ContextScope Scope(S, "find_equal_matches");
     StageFindEqualMatches(S);
-  });
-  if (!EqualImplemented) {
-    // Stub fallback only: the totals find_equal_matches would set (D:1411-1419 `select count(*)`),
-    // so that the stubbed pipeline still exercises all_functions_matched and the category lists.
-    S.State().SetTotals(static_cast<int64_t>(S.Main().Functions.Count()),
-                        static_cast<int64_t>(S.Diff().Functions.Count()));
   }
   S.Point("after:find_equal_matches");
 
-  bool SkipOthers = false;  // D:3616
-  const bool SameCpuImplemented =
-      InvokeStage(S, "same_processor", [&] { S.Flags().IsSameProcessor = StageSameProcessor(S); });  // D:3617
-  if (!SameCpuImplemented) {
-    // Stub fallback only, like the totals above (removed at L9): same_processor_both_databases
-    // (D:2950-2967) is `select 1 from main.program mp, diff.program dp where mp.processor =
-    // dp.processor` (D:2957-2960, kSqlSameProcessor) and `fetchone() is not None` (D:2962-2964).
-    // Without it the stubbed pipeline drops the SAME_CPU heuristics (H:44-48) from the category lists
-    // and its point sequence cannot be compared with an oracle capture's.
-    Statement Query = S.Db().Prepare(kSqlSameProcessor);
-    S.Flags().IsSameProcessor = Query.Step();
-  }
-  InvokeStage(S, "ratio_prepare", [&] { S.Engine().Prepare(); });  // plan §3.6: after IsSameProcessor
+  bool SkipOthers = false;                              // D:3616
+  S.Flags().IsSameProcessor = StageSameProcessor(S);    // D:3617
+  S.Engine().Prepare();                                 // plan §3.6: after IsSameProcessor
   if (S.Config().Experimental) {  // D:3618-3621
-    InvokeStage(S, "apply_dirty_heuristics", [&] {
+    {
       ContextScope Scope(S, "apply_dirty_heuristics");
       SkipOthers = StageApplyDirtyHeuristics(S);
-    });
+    }
     S.Point("after:apply_dirty_heuristics");
   }
 
@@ -556,7 +636,7 @@ bool RunPipeline(DiffSession& S) {
     S.Point("before:find_same_name");
     {
       ContextScope Scope(S, "find_same_name");
-      InvokeStage(S, "find_same_name", [&] { StageFindSameName(S); });
+      StageFindSameName(S);
     }
     S.Point("after:find_same_name");
   }
@@ -565,7 +645,7 @@ bool RunPipeline(DiffSession& S) {
     S.Point("before:find_remaining_functions");
     {
       ContextScope Scope(S, "find_remaining_functions");
-      InvokeStage(S, "find_remaining_functions", [&] { StageFindRemainingFunctions(S); });
+      StageFindRemainingFunctions(S);
     }
     S.Point("after:find_remaining_functions");
   } else {
@@ -573,11 +653,10 @@ bool RunPipeline(DiffSession& S) {
     // oracle_trace.py WrapStage makes "run_heuristics_for_category:Best" the main-thread ctx.
     {
       ContextScope Scope(S, "run_heuristics_for_category:Best");
-      InvokeStage(S, "run_heuristics_for_category:Best",
-                  [&] { StageRunHeuristicsForCategory(S, HeurCategory::Best); });
+      StageRunHeuristicsForCategory(S, HeurCategory::Best);
     }
     // D:3633-3634 find_partial_matches
-    InvokeStage(S, "find_partial_matches", [&] { StageFindPartialMatches(S); });
+    StageFindPartialMatches(S);
     // D:3636 apply_machine_learning: use_trained_model is False (§1.1), a no-op.
     // D:3638-3651: unreliable is False (§1.1), so neither unreliable nor experimental matches run.
 
@@ -610,13 +689,13 @@ bool RunPipeline(DiffSession& S) {
   S.Point("before:final_pass");  // D:3677
   {
     ContextScope Scope(S, "final_pass");
-    InvokeStage(S, "final_pass", [&] { StageFinalPass(S); });
+    StageFinalPass(S);
   }
   S.Point("after:final_pass");
 
   {
     ContextScope Scope(S, "find_unmatched");  // D:3680-3681
-    InvokeStage(S, "find_unmatched", [&] { StageFindUnmatched(S); });
+    StageFindUnmatched(S);
   }
   S.Point("after:find_unmatched");
   // D:3682 call_hook("on_finish"): patch_diff_vulns only shows a chooser, a no-op standalone.
@@ -680,7 +759,7 @@ StateSnapshot RunReplay(DiffSession& S, const StateSnapshot& Before, std::string
   const std::vector<std::string> Parts = SplitColons(Stage);
   const std::string& Base = Parts[0];
   S.Restore(Before);
-  InvokeStage(S, "ratio_prepare", [&] { S.Engine().Prepare(); });
+  S.Engine().Prepare();
 
   const auto IterationArg = [&]() -> int {
     if (Parts.size() >= 2) {
@@ -811,7 +890,7 @@ std::string PathStem(std::string_view Path) {
 }
 
 std::string DefaultOutputName(std::string_view Db1, std::string_view Db2) {
-  // D:3727-3731: f"{path1}_vs_{path2}.diaphora", relative to the current directory
+  // D:3753-3755: f"{path1}_vs_{path2}.diaphora", relative to the current directory
   return PathStem(Db1) + "_vs_" + PathStem(Db2) + ".diaphora";
 }
 
@@ -824,17 +903,137 @@ std::string SqliteMismatchWarning(std::string_view Version) {
 
 namespace {
 
-bool SamePath(const std::string& A, const std::string& B) {
-  // UTF-8 paths (FileIo.h): a narrow fs::path would use the ANSI code page on Windows.
-  const fs::path PathA = Detail::PathFromUtf8(A);
-  const fs::path PathB = Detail::PathFromUtf8(B);
-  std::error_code Error;
-  if (fs::exists(PathA, Error) && fs::exists(PathB, Error)) {
-    return fs::equivalent(PathA, PathB, Error);
+// One path RunDiff reads or writes, with the role its message names.
+struct RolePath {
+  std::string Role;
+  std::string Path;
+};
+
+// A SQLite database and the sidecar files SQLite may create, read or delete beside it.
+void AddDatabaseFiles(std::vector<RolePath>& Out, const std::string& Role, const std::string& Path) {
+  if (Path.empty()) {
+    return;
   }
-  const fs::path CanonA = fs::weakly_canonical(PathA, Error);
-  const fs::path CanonB = fs::weakly_canonical(PathB, Error);
-  return CanonA == CanonB;
+  Out.push_back({Role, Path});
+  for (const char* Suffix : {"-wal", "-shm", "-journal"}) {
+    Out.push_back({Role + "'s " + Suffix + " file", Path + Suffix});
+  }
+}
+
+std::string SnapshotIndexPath(const std::string& Dir) {
+  return Detail::PathToUtf8(Detail::PathFromUtf8(Dir) / "index.json");
+}
+
+std::string SnapshotFilesDir(const std::string& Dir) {
+  return Detail::PathToUtf8(Detail::PathFromUtf8(Dir) / "snapshots");
+}
+
+// Audit F01: every path diff writes or deletes, checked against every input BEFORE any file is opened,
+// so an alias is refused with exit 2 and nothing is touched. Inputs are db1, db2 and their -wal / -shm
+// / -journal files (SQLite reads a WAL and rolls back a hot journal), and the --replay snapshot. Written
+// are the output (-o, or --snapshot-out when replaying) with its SQLite sidecars and the writer's
+// temporary files, --trace, and <snapshot-dir>/index.json(.tmp); nothing may lie inside
+// <snapshot-dir>/snapshots, where snapshot-named files are deleted. Paths are compared by identity
+// (SameFilePath: hard links, 8.3 names, UNC shares, case), not by spelling. The write targets must not
+// alias each other either (--trace onto -o would interleave a JSONL trace with the results database).
+void RefusePathAliases(const DiffArgs& Args, const std::string& Out, bool Replay) {
+  std::vector<RolePath> Inputs;
+  AddDatabaseFiles(Inputs, "db1", Args.Db1);
+  AddDatabaseFiles(Inputs, "db2", Args.Db2);
+  if (Replay) {
+    Inputs.push_back({"the --replay snapshot", Args.ReplayPath});
+  }
+
+  std::vector<RolePath> OutFiles;
+  if (Replay) {
+    OutFiles.push_back({"--snapshot-out", Out});
+    OutFiles.push_back({"--snapshot-out's temporary file", Out + ".tmp"});
+  } else {
+    AddDatabaseFiles(OutFiles, "-o", Out);
+    for (const std::string& Scratch : ResultsWriterScratchPaths(Out)) {
+      OutFiles.push_back({"-o's temporary file", Scratch});
+    }
+  }
+  std::vector<RolePath> HarnessFiles;
+  if (!Args.TracePath.empty()) {
+    HarnessFiles.push_back({"--trace", Args.TracePath});
+  }
+  if (!Args.SnapshotDir.empty()) {
+    const std::string Index = SnapshotIndexPath(Args.SnapshotDir);
+    HarnessFiles.push_back({"--snapshot-dir's index.json", Index});
+    HarnessFiles.push_back({"--snapshot-dir's index.json.tmp", Index + ".tmp"});
+  }
+
+  const auto Refuse = [](const RolePath& Written, const RolePath& Other, const char* What) {
+    throw UsageRefused(Written.Role + " '" + Written.Path + "' is " + Other.Role + " '" + Other.Path + "'; " + What +
+                       " (nothing was changed)");
+  };
+  for (const std::vector<RolePath>* Group : {&OutFiles, &HarnessFiles}) {
+    for (const RolePath& Written : *Group) {
+      for (const RolePath& Input : Inputs) {
+        if (Detail::SameFilePath(Written.Path, Input.Path)) {
+          Refuse(Written, Input, "refusing to overwrite an input");
+        }
+      }
+    }
+  }
+  for (const RolePath& Harness : HarnessFiles) {
+    for (const RolePath& Output : OutFiles) {
+      if (Detail::SameFilePath(Harness.Path, Output.Path)) {
+        Refuse(Harness, Output, "the two outputs must be different files");
+      }
+    }
+  }
+  if (HarnessFiles.size() > 2 && !Args.TracePath.empty()) {
+    for (size_t Index = 1; Index < HarnessFiles.size(); ++Index) {
+      if (Detail::SameFilePath(HarnessFiles[0].Path, HarnessFiles[Index].Path)) {
+        Refuse(HarnessFiles[0], HarnessFiles[Index], "the two outputs must be different files");
+      }
+    }
+  }
+  if (!Args.SnapshotDir.empty()) {
+    const std::string Files = SnapshotFilesDir(Args.SnapshotDir);
+    std::vector<RolePath> Checked = Inputs;
+    Checked.insert(Checked.end(), OutFiles.begin(), OutFiles.end());
+    if (!Args.TracePath.empty()) {
+      Checked.push_back(HarnessFiles[0]);
+    }
+    for (const RolePath& Path : Checked) {
+      if (Detail::PathIsInside(Path.Path, Files) || Detail::SameFilePath(Path.Path, Files)) {
+        throw UsageRefused(Path.Role + " '" + Path.Path + "' lies inside the snapshot directory '" + Files +
+                           "', whose snapshot files are replaced by every run (nothing was changed)");
+      }
+    }
+  }
+}
+
+// Audit F25: the output's directory must exist and the output must not be a directory, checked before
+// the inputs are opened (the writer would only find out after the whole diff). Neither the directory
+// nor the output is created or deleted here, so Diaphora's replace-the-output behaviour is unchanged.
+void RequireOutputLocation(const std::string& Out, const char* Role) {
+  if (Out == ":memory:") {
+    return;
+  }
+  const fs::path Path = Detail::PathFromUtf8(Out);
+  std::error_code Error;
+  if (fs::is_directory(Path, Error)) {
+    throw IoFailure(std::string(Role) + " '" + Out + "' is a directory");
+  }
+  const fs::path Parent = Path.parent_path().empty() ? fs::path(".") : Path.parent_path();
+  Error.clear();
+  if (!fs::is_directory(Parent, Error)) {
+    throw IoFailure(std::string(Role) + " directory '" + Detail::PathToUtf8(Parent) + "' does not exist");
+  }
+}
+
+// FinishHarness on an error path: the error being handled is the one to report, so a second failure
+// while writing index.json or closing the trace is dropped here.
+void FinishHarnessQuietly(DiffSession& S) noexcept {
+  try {
+    S.FinishHarness();
+  } catch (...) {
+    // keep the original error
+  }
 }
 
 }
@@ -878,18 +1077,38 @@ DiffOutcome RunDiff(const DiffArgs& Args) {
       Out = Args.Out.empty() ? DefaultOutputName(Args.Db1, Args.Db2) : Args.Out;
     }
     Outcome.OutputPath = Out;
-    // Plan §2.1: an output path that aliases an input is refused (the writer deletes it first).
-    if (SamePath(Out, Args.Db1) || SamePath(Out, Args.Db2)) {
-      Outcome.Status = DiffStatus::Usage;
-      Outcome.Message = "output '" + Out + "' is one of the input databases";
-      return Outcome;
+
+    // Every check on the paths runs before any file is opened or written (audit F01, F25, F29).
+    RefusePathAliases(Args, Out, Replay);  // plan §2.1: an output that aliases an input is refused
+    RefuseOracleCapture(Detail::PathFromUtf8(Out).parent_path(), Out);
+    if (!Args.TracePath.empty()) {
+      RefuseOracleCapture(Detail::PathFromUtf8(Args.TracePath).parent_path(), Args.TracePath);
     }
+    if (!Args.SnapshotDir.empty()) {
+      RefuseForeignSnapshotDir(Args.SnapshotDir);
+    }
+    RequireOutputLocation(Out, Replay ? "--snapshot-out" : "output");
 
     DiffSession S(Args.Config);
     S.Log().SetQuiet(Args.Quiet);
     S.SetCuSource(Args.CuSource);
     S.Open(Args.Db1, Args.Db2);
     S.SetPairLabel(Args.PairLabel.empty() ? PathStem(Args.Db1) + "_vs_" + PathStem(Args.Db2) : Args.PairLabel);
+
+    std::optional<StateSnapshot> Before;
+    if (Replay) {
+      Before = ReadSnapshot(Args.ReplayPath);
+      // Audit F28: a snapshot of another pair is refused, not replayed against these inputs.
+      if (!Args.PairLabel.empty() && !Before->Pair.empty() && Before->Pair != Args.PairLabel) {
+        throw UnsupportedInput("replay: the snapshot is of pair '" + Before->Pair + "', not of --pair '" +
+                               Args.PairLabel + "'");
+      }
+      S.CheckSnapshotMatchesInputs(*Before);
+      if (Args.PairLabel.empty() && !Before->Pair.empty()) {
+        S.SetPairLabel(Before->Pair);
+      }
+    }
+
     // Snapshots first: EnableSnapshots clears stale snapshot files, and the trace may live in the same
     // capture directory (the oracle writes <capture>/trace.jsonl next to index.json).
     if (!Args.SnapshotDir.empty()) {
@@ -900,29 +1119,24 @@ DiffOutcome RunDiff(const DiffArgs& Args) {
     }
 
     if (Replay) {
-      const StateSnapshot Before = ReadSnapshot(Args.ReplayPath);
-      if (Args.PairLabel.empty() && !Before.Pair.empty()) {
-        S.SetPairLabel(Before.Pair);
-      }
       StateSnapshot After;
       try {
-        After = RunReplay(S, Before, Args.ReplayStage, Args.ReplayIteration, Args.ReplayHeuristic);
+        After = RunReplay(S, *Before, Args.ReplayStage, Args.ReplayIteration, Args.ReplayHeuristic);
       } catch (...) {
-        S.FinishHarness();
+        FinishHarnessQuietly(S);
         throw;
       }
       S.FinishHarness();
       WriteSnapshot(Out, After);  // compact, like every oracle snapshot
       Outcome.OutputWritten = true;
       Outcome.Mode = S.Mode();
-      Outcome.Skipped = S.SkippedStages();
       return Outcome;
     }
 
     try {
       Outcome.DiffReturned = RunPipeline(S);
     } catch (...) {
-      S.FinishHarness();
+      FinishHarnessQuietly(S);
       throw;
     }
     S.FinishHarness();
@@ -939,7 +1153,18 @@ DiffOutcome RunDiff(const DiffArgs& Args) {
     Outcome.Partial = S.Final().Partial.size();
     Outcome.Unreliable = S.Final().Unreliable.size();
     Outcome.Multimatch = S.Final().Multimatch.size();
-    Outcome.Skipped = S.SkippedStages();
+    if (!Outcome.DiffReturned) {
+      // Audit F06 (a product decision over plan §2.1 / §3.10): the file is Diaphora's empty results
+      // file, byte for byte, but the process says that db2 was not a usable export, so a caller that
+      // goes by the exit code never takes an empty result for "nothing matched".
+      Outcome.Status = DiffStatus::Unsupported;
+      Outcome.Message = "db2 '" + Args.Db2 +
+                        "' is not a usable Diaphora export (diff.version is missing or empty); Diaphora's "
+                        "empty results file was written to '" + Out + "' and holds no matches";
+    }
+  } catch (const UsageRefused& Error) {
+    Outcome.Status = DiffStatus::Usage;
+    Outcome.Message = Error.What;
   } catch (const DiaphoraWouldRaise& Error) {
     Outcome.Status = DiffStatus::WouldRaise;
     Outcome.Message = Error.what();
@@ -952,8 +1177,11 @@ DiffOutcome RunDiff(const DiffArgs& Args) {
   } catch (const JsonError& Error) {
     Outcome.Status = DiffStatus::Io;
     Outcome.Message = std::string("invalid snapshot JSON: ") + Error.what();
-  } catch (const std::exception& Error) {
+  } catch (const std::bad_alloc&) {
     Outcome.Status = DiffStatus::Io;
+    Outcome.Message = "out of memory";
+  } catch (const std::exception& Error) {
+    Outcome.Status = DiffStatus::Internal;
     Outcome.Message = std::string("internal error: ") + Error.what();
   }
   return Outcome;

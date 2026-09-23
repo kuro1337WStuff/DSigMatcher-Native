@@ -4,11 +4,13 @@
 //
 // The core library is exception-free; DSig::Diff uses exceptions because it is a literal port of
 // Python's propagation. RunDiff (Pipeline.h) is the only exception boundary and maps:
-//   DiaphoraWouldRaise   -> exit 3, no output file (Python raises, save_results never runs)
-//   UnsupportedInput     -> exit 4 (a configuration or input quirk the port refuses instead of guessing)
-//   IoFailure            -> exit 6
-// StageNotImplemented is thrown only by the L0 stubs of functions other lanes own; the pipeline
-// (InvokeStage in Pipeline.h) logs "SKIPPED" and continues. It never escapes RunDiff.
+//   UsageRefused              -> exit 2 (a command line the engine refuses before touching any file)
+//   DiaphoraWouldRaise        -> exit 3, no output file (Python raises, save_results never runs)
+//   UnsupportedInput          -> exit 4 (a configuration or input quirk the port refuses instead of guessing)
+//   IoFailure                 -> exit 6
+//   SqliteEnvironmentFailure  -> exit 6 (an IoFailure: the environment, not the data, made SQLite fail)
+// Only DiaphoraWouldRaise is ever caught inside the engine (the heuristic workers truncate a heuristic on
+// it, as Python's threads do); every other type always reaches RunDiff.
 
 #include <stdexcept>
 #include <string>
@@ -38,19 +40,34 @@ public:
   std::string What;
 };
 
-// Thrown by an L0 stub: "stage X not implemented". Caught by InvokeStage only.
-class StageNotImplemented final : public UnsupportedInput {
-public:
-  explicit StageNotImplemented(const std::string& Stage)
-      : UnsupportedInput("stage " + Stage + " not implemented"), StageName(Stage) {}
-
-  std::string StageName;
-};
-
 // A file could not be opened, read or written (exit 6). Not a Diaphora behaviour.
 class IoFailure : public std::runtime_error {
 public:
   explicit IoFailure(std::string WhatText)
+      : std::runtime_error(WhatText), What(std::move(WhatText)) {}
+
+  std::string What;
+};
+
+// SQLite failed because of the environment rather than the data or the SQL: a full disk, an I/O error,
+// a temporary file that cannot be created (a missing TMP directory), no memory, a corrupt or foreign
+// database file, a lock, a read-only file. Python would raise too, but such a failure is not a
+// Diaphora-parity raise: a heuristic worker must not swallow it (the run would silently lose rows), so it
+// derives from IoFailure (exit 6), never from DiaphoraWouldRaise. `Code` is the extended result code.
+class SqliteEnvironmentFailure : public IoFailure {
+public:
+  SqliteEnvironmentFailure(std::string WhatText, int ExtendedCode)
+      : IoFailure(std::move(WhatText)), Code(ExtendedCode) {}
+
+  int Code = 0;
+};
+
+// A command line the engine refuses before it reads or writes anything (exit 2): an output path that
+// aliases an input or one of its sidecar files, or a write target inside an oracle capture or a
+// directory that is not a snapshot capture.
+class UsageRefused : public std::runtime_error {
+public:
+  explicit UsageRefused(std::string WhatText)
       : std::runtime_error(WhatText), What(std::move(WhatText)) {}
 
   std::string What;

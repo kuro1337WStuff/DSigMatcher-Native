@@ -862,14 +862,9 @@ void TestRaiseAndRefuse(const std::string& Scratch) {
       S.Flags().HooksLoaded = true;
       AddSeed(S, "hub_fn", "hub_fn", 1.0, Chooser::Best);
     });
-    if (Hooked.Unsupported && Hooked.Unsupported->find("not implemented") != std::string::npos) {
-      // StageNotImplemented (an UnsupportedInput) from the L0 stub of lane L5's hook.
-      DSig::Test::Note("hooks: PatchDiffHookOnMatch is still the L0 stub (" + *Hooked.Unsupported + "); not compared");
-    } else {
-      CHECK(!Hooked.RaiseSite && !Hooked.Unsupported);
-      CHECK_TEXT_EQ(Hooked.Partial, Plain.Partial);
-      CHECK_TEXT_EQ(Hooked.Best, Plain.Best);
-    }
+    CHECK(!Hooked.RaiseSite && !Hooked.Unsupported);
+    CHECK_TEXT_EQ(Hooked.Partial, Plain.Partial);
+    CHECK_TEXT_EQ(Hooked.Best, Plain.Best);
   }
 }
 

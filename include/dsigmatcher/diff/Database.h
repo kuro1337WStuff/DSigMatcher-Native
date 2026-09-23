@@ -1,8 +1,12 @@
 #pragma once
 
 // Path A connection (docs/parity/00-plan.md §3.4). One read-only connection holds both exports:
-//   sqlite3_open_v2(<db1>, SQLITE_OPEN_READONLY)        (plain UTF-8 file name, no URI: lane R0 (f))
+//   sqlite3_open_v2(<db1>, SQLITE_OPEN_READONLY | SQLITE_OPEN_URI)
 //   ATTACH ? AS diff  with <db2> bound                  (read-only through the connection's open flags)
+// Each input is named by a "file:...?mode=ro&immutable=1" URI (DiffDatabase::UriForPath), so reading it
+// creates no -wal / -shm beside it; an input with a non-empty -wal or -journal keeps its plain UTF-8 file
+// name instead, so committed WAL frames are read and a hot journal is refused (lane F1, Database.cpp
+// InputFileName).
 // exactly the schema names Diaphora uses (`main`, and `diff` from `attach "<db2>" as diff`,
 // D:2441 / D:657). The engine never writes, never runs ANALYZE and never creates indexes, so the
 // planner sees the exporter's indices and sqlite_stat1 unchanged. `pragma threads` stays 0 so the
@@ -69,8 +73,25 @@ struct BindValue {
   }
 };
 
-// A prepared statement. Move-only. Errors from prepare or step throw DiaphoraWouldRaise("sqlite", ...),
-// because the same SQL error raises in Python at cur.execute / fetch.
+// True for the SQLite result codes that report the environment rather than the data or the SQL (the
+// primary code of `ExtendedCode`): SQLITE_FULL, SQLITE_IOERR (every extended code), SQLITE_CANTOPEN,
+// SQLITE_NOMEM, SQLITE_CORRUPT, SQLITE_NOTADB, SQLITE_BUSY, SQLITE_LOCKED, SQLITE_READONLY, SQLITE_PERM,
+// SQLITE_AUTH, SQLITE_PROTOCOL and SQLITE_INTERRUPT. Such a failure throws SqliteEnvironmentFailure
+// (exit 6), never DiaphoraWouldRaise: a heuristic worker must not swallow a full disk or a missing TMP
+// directory as if it were one of Diaphora's per-heuristic raises (audit F03).
+bool IsEnvironmentalSqliteError(int ExtendedCode);
+
+// sqlite3_initialize(), called before every open by DiffDatabase and the results writer (audit F31): a
+// SQLite built with SQLITE_OMIT_AUTOINIT (Python 3.14's sqlite3.dll, for example) crashes on the first
+// open otherwise. Idempotent and cheap once initialised. Throws IoFailure when it fails.
+void EnsureSqliteInitialized();
+
+// A prepared statement. Move-only. A failed prepare, bind or step throws SqliteEnvironmentFailure for
+// an environmental result code (IsEnvironmentalSqliteError) and otherwise DiaphoraWouldRaise with the
+// site "sqlite3_prepare", "sqlite3_bind" or "sqlite3_step" ("sqlite3 execute" for Python's own
+// ProgrammingError checks: more than one statement, a wrong number of bindings), because the same SQL
+// error raises in Python at cur.execute / fetch. The row sources add the site "fetch" for a TEXT value
+// Python cannot decode.
 class Statement {
 public:
   Statement() = default;
@@ -121,7 +142,8 @@ public:
   DiffDatabase(const DiffDatabase&) = delete;
   DiffDatabase& operator=(const DiffDatabase&) = delete;
 
-  // Opens `MainPath` read-only and attaches `DiffPath` as `diff`. Throws IoFailure.
+  // Opens `MainPath` read-only and attaches `DiffPath` as `diff`. Throws IoFailure
+  // (SqliteEnvironmentFailure for a corrupt or foreign file).
   void Open(const std::string& MainPath, const std::string& DiffPath);
   // Opens only a main database (tests, results files). Throws IoFailure.
   void OpenSingle(const std::string& MainPath);

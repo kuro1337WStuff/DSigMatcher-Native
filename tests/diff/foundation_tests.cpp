@@ -3,8 +3,8 @@
 //   * registry and stage SQL against tests/diff/generated/registry_expected.inc;
 //   * JSON, snapshot, trace and interner units;
 //   * FixtureDb, ingest and Path A on the committed synthetic fixture (tests/diff/fixtures/foundation);
-//   * the stubbed pipeline end to end: exit codes, Diaphora's DDL, the mode-N points (G0);
-//   * corpus (skipped without DSIG_CORPUS_ROOT): ingest census of the 7 exports, the stubbed diff of
+//   * the pipeline end to end: exit codes, Diaphora's DDL, the mode-N points (G0);
+//   * corpus (skipped without DSIG_CORPUS_ROOT): ingest census of the 7 exports, the diff of
 //     ls-old vs ls against the oracle file's DDL, results comparison self-checks;
 //   * SQLite 3.51.1 only: the Path A row-sequence census on the 5 oracle pairs and the
 //     find_same_name EXPLAIN QUERY PLAN (02 Appendix C). Sequences Python needed more than 5 s for run
@@ -18,6 +18,7 @@
 //     non-ASCII and UNC paths through the immutable URI.
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -639,21 +640,6 @@ void TestFinalResults() {
     CHECK(S.Log().Lines() == Expected);
   }
   {
-    // stub-only fallback: stages were skipped, so the zero total is the stubs' doing, not an input's
-    DiffSession S;
-    S.Log().SetQuiet(true);
-    S.NoteSkipped("find_equal_matches", "stub");
-    S.State().SetTotals(0, 0);
-    bool Threw = false;
-    try {
-      LogFinalResults(S);
-    } catch (const DiaphoraWouldRaise&) {
-      Threw = true;
-    }
-    CHECK(!Threw);
-    CHECK_NUM_EQ(S.Log().Lines().size(), 3);  // SKIPPED, Final results, Matched: not computed
-  }
-  {
     // show_summary (D:1631) raises before its first line too
     DiffSession S;
     S.Log().SetQuiet(true);
@@ -777,16 +763,19 @@ void TestFixtureIngest() {
     CHECK(Stat.Step() && Stat.Int(0) > 0);
     const auto Plan = Db.ExplainQueryPlan(kSqlSameName);
     CHECK(!Plan.empty());
-    // both databases are read-only: the non-URI open (lane R0 (f)) keeps SQLITE_OPEN_READONLY and the
-    // ATTACH inherits it (attach.c flags = db->openFlags)
+    // both databases are read-only: the open (lane R0 (f); the immutable URI of lane F1) keeps
+    // SQLITE_OPEN_READONLY and the ATTACH inherits it (attach.c flags = db->openFlags). SQLITE_READONLY is
+    // an environment failure (audit F03), never a Diaphora-parity raise a heuristic worker could swallow.
     for (const char* Sql : {"create table main.r0_probe (a)", "create table diff.r0_probe (a)",
                             "delete from diff.functions"}) {
       bool Refused = false;
       try {
         Statement Write = Db.Prepare(Sql);
         Write.Step();
-      } catch (const DiaphoraWouldRaise& Error) {
-        Refused = std::string(Error.Detail).find("readonly") != std::string::npos;
+      } catch (const SqliteEnvironmentFailure& Error) {
+        Refused = Error.What.find("readonly") != std::string::npos && (Error.Code & 0xff) == SQLITE_READONLY;
+      } catch (const DiaphoraWouldRaise&) {
+        Refused = false;
       }
       CHECK(Refused);
     }
@@ -1042,7 +1031,7 @@ void TestIngestQuirks() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// The stubbed pipeline end to end (G0) on the fixture
+// The pipeline end to end (G0) on the fixture
 
 const std::vector<DSig::Test::SchemaRow>& DiaphoraDdl() {
   // D:2387-2403 as stored in sqlite_master (01 §11.1)
@@ -1190,8 +1179,8 @@ void TestPipeline() {
       "after:find_same_name",
       "before:heuristic:11",
       "after:heuristic:11",
-      // SAME_CPU heuristics (H:44-48) run: both fixture exports are metapc, and while
-      // same_processor_both_databases is a stub RunPipeline evaluates D:2957-2960 itself
+      // SAME_CPU heuristics (H:44-48) run: both fixture exports are metapc
+      // (same_processor_both_databases, D:2950-2967)
       "before:heuristic:0",
       "after:heuristic:0",
       "before:heuristic:39",
@@ -1336,14 +1325,14 @@ void TestPipeline() {
     Guard.SnapshotDir = Oracle;
     Guard.TracePath.clear();
     const DiffOutcome Refused = RunDiff(Guard);
-    CHECK(Refused.Status == DiffStatus::Io);
+    CHECK(Refused.Status == DiffStatus::Usage);  // refused before anything is opened (exit 2)
     CHECK(Refused.Message.find("run.json") != std::string::npos);
     CHECK(!Exists(Join(Oracle, "index.json")) && !Exists(Join(Oracle, "snapshots")));
     Guard.SnapshotDir = Join(Oracle, "snapshots");  // inside one
-    CHECK(RunDiff(Guard).Status == DiffStatus::Io);
+    CHECK(RunDiff(Guard).Status == DiffStatus::Usage);
     Guard.SnapshotDir.clear();
     Guard.TracePath = Join(Oracle, "trace.jsonl");
-    CHECK(RunDiff(Guard).Status == DiffStatus::Io);
+    CHECK(RunDiff(Guard).Status == DiffStatus::Usage);
     CHECK(!Exists(Join(Oracle, "trace.jsonl")));
     CHECK_TEXT_EQ(ReadFile(Join(Oracle, "run.json")), "{\"status\": \"complete\"}\n");
   }
@@ -1436,16 +1425,6 @@ void TestPipeline() {
     S.Ext<Counter>().Value += 2;
     S.Ext<Counter>().Value += 3;
     CHECK_NUM_EQ(S.Ext<Counter>().Value, 5);
-    CHECK(!InvokeStage(S, "stub", [] { throw StageNotImplemented("x"); }));
-    CHECK(InvokeStage(S, "real", [] {}));
-    CHECK_NUM_EQ(S.SkippedStages().size(), 1);
-    bool Propagated = false;
-    try {
-      InvokeStage(S, "raises", [] { throw DiaphoraWouldRaise("D:1", "x"); });
-    } catch (const DiaphoraWouldRaise&) {
-      Propagated = true;
-    }
-    CHECK(Propagated);
     CHECK(S.Mode() == 'N');
     S.Flags().IsPatchDiff = true;
     CHECK(S.Mode() == 'P');
@@ -2362,7 +2341,7 @@ void TestSameNamePlan() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Corpus: the stubbed `diff ls-old ls` writes Diaphora's exact DDL (G0), results comparison
+// Corpus: `diff ls-old ls` writes Diaphora's exact DDL (G0), results comparison
 
 void TestCorpusDiffDdl() {
   if (!DSig::Test::ExportAvailable("ls-old") || !DSig::Test::ExportAvailable("ls") ||
@@ -2417,9 +2396,8 @@ void TestCorpusDiffDdl() {
 //     (and, modulo the producer string, the native writer produces the oracle's bytes);
 //   * the capture's file names, seq and iteration values follow the rules the native engine applies;
 //   * every trace event, re-emitted through TraceSink, reproduces the oracle's line byte for byte;
-//   * a native run of ls-old vs ls (stubbed stages) emits an in-order subsequence of the oracle's
-//     points with the same keys, labels, flags and iteration at every shared point, and S-L2-equal
-//     snapshots wherever the oracle's state is still empty.
+//   * a native run of ls-old vs ls emits the oracle's points with the same keys, labels, flags and
+//     iteration at every shared point, and S-L2-equal snapshots wherever the oracle's state is still empty.
 
 std::vector<std::string> MemberNames(const JsonValue& Object) {
   std::vector<std::string> Names;
@@ -2614,7 +2592,7 @@ void TestOracleConventions() {
     DSig::Test::RemoveScratchDir(Scratch);
   }
 
-  // 3. a native run with the stubbed stages against the capture
+  // 3. a native run against the capture
   if (!DSig::Test::ExportAvailable("ls-old") || !DSig::Test::ExportAvailable("ls")) {
     DSig::Test::Note("ls-old / ls exports missing: native comparison not run");
     return;
@@ -2659,18 +2637,7 @@ void TestOracleConventions() {
   }
   CHECK(Subsequence);
   CHECK(NativePoints.size() >= 3);
-  if (Outcome.Skipped.empty()) {
-    CHECK(NativePoints == Points);
-  } else {
-    size_t Common = 0;
-    while (Common < NativePoints.size() && Common < Points.size() && NativePoints[Common] == Points[Common]) {
-      ++Common;
-    }
-    DSig::Test::Note(std::to_string(NativePoints.size()) + " of the oracle's " + std::to_string(Points.size()) +
-                     " points reached with " + std::to_string(Outcome.Skipped.size()) +
-                     " stub stages skipped; sequences agree for the first " + std::to_string(Common) +
-                     (Common < Points.size() ? " (the oracle continues with " + Points[Common] + ")" : std::string()));
-  }
+  CHECK(NativePoints == Points);
   size_t Shared = 0;
   size_t SameShape = 0;
   size_t EmptyState = 0;
@@ -2714,6 +2681,694 @@ void TestOracleConventions() {
 
 }
 
+// ---------------------------------------------------------------------------------------------
+// v1.0.0 hardening (lane R1, audit findings F01, F03, F06, F25, F27, F28, F29, F30, F58): every case
+// here is a way to break the tool that the audit found; each check failed before its fix.
+
+// The snapshot file of `Point` in a capture directory ("" when absent).
+std::string CaptureSnapshotFile(const std::string& Capture, const std::string& Point) {
+  for (const IndexRow& Row : ReadIndex(Capture)) {
+    if (Row.Point == Point && Row.File) {
+      return Join(Capture, *Row.File);
+    }
+  }
+  return std::string();
+}
+
+void CopyFileTo(const std::string& From, const std::string& To) {
+  std::error_code Error;
+  fs::copy_file(Utf8ToPath(From), Utf8ToPath(To), fs::copy_options::overwrite_existing, Error);
+  CHECK(!Error);
+}
+
+#ifdef _WIN32
+// One environment variable of this process (inherited by RunCli's child), restored on destruction.
+class ScopedEnv {
+public:
+  ScopedEnv(const wchar_t* Name, const std::wstring& Value) : Name_(Name) {
+    wchar_t Buffer[32768];
+    const DWORD Length = GetEnvironmentVariableW(Name, Buffer, 32768);
+    Had_ = Length > 0 && Length < 32768;
+    if (Had_) {
+      Old_.assign(Buffer, Length);
+    }
+    SetEnvironmentVariableW(Name, Value.c_str());
+  }
+  ~ScopedEnv() { SetEnvironmentVariableW(Name_, Had_ ? Old_.c_str() : nullptr); }
+  ScopedEnv(const ScopedEnv&) = delete;
+  ScopedEnv& operator=(const ScopedEnv&) = delete;
+
+private:
+  const wchar_t* Name_;
+  bool Had_ = false;
+  std::wstring Old_;
+};
+#endif
+
+// F01: every path diff writes or deletes is checked against every input (and their SQLite sidecars)
+// before anything is opened; an alias is refused with exit 2 and no byte of any input changes.
+void TestPathAliases(const FixturePair& Pair) {
+  DSig::Test::Suite("F01 output / input aliases");
+  const std::string MainSha = Sha256Of(ReadFile(Pair.Main));
+  const std::string DiffSha = Sha256Of(ReadFile(Pair.Diff));
+  const auto InputsIntact = [&] {
+    return Sha256Of(ReadFile(Pair.Main)) == MainSha && Sha256Of(ReadFile(Pair.Diff)) == DiffSha;
+  };
+  DiffArgs Base;
+  Base.Db1 = Pair.Main;
+  Base.Db2 = Pair.Diff;
+  Base.Out = Join(Pair.Dir, "alias.diaphora");
+  Base.Quiet = true;
+  Base.AllowSqliteMismatch = true;
+  const auto Refused = [&](const DiffArgs& Args, const char* Label, const std::string& Mentions) {
+    const DiffOutcome Outcome = RunDiff(Args);
+    const bool Ok = Outcome.Status == DiffStatus::Usage && Outcome.Message.find(Mentions) != std::string::npos;
+    DSig::Test::Report(Ok, Label, __FILE__, __LINE__);
+    if (!Ok) {
+      DSig::Test::Note(std::string(Label) + ": status " + std::to_string(static_cast<int>(Outcome.Status)) + ", " +
+                       Outcome.Message);
+    }
+    CHECK(InputsIntact());
+    CHECK(!Exists(Base.Out));  // refused before the pipeline: nothing was written
+  };
+  {
+    DiffArgs A = Base;
+    A.TracePath = Pair.Main;  // --trace <db1> truncated the input and exited 0
+    Refused(A, "--trace <db1>", "db1");
+  }
+  {
+    DiffArgs A = Base;
+    A.TracePath = Pair.Main + "-wal";  // --trace onto the input's WAL lost its committed frames
+    Refused(A, "--trace <db1>-wal", "-wal");
+    CHECK(!Exists(Pair.Main + "-wal"));
+  }
+  {
+    DiffArgs A = Base;
+    A.Out = Pair.Diff + "-journal";  // a results DB posing as db2's hot journal broke the next diff
+    Refused(A, "-o <db2>-journal", "-journal");
+    CHECK(!Exists(Pair.Diff + "-journal"));
+  }
+  {
+    DiffArgs A = Base;
+    A.Out = Pair.Main + "-shm";
+    Refused(A, "-o <db1>-shm", "-shm");
+    CHECK(!Exists(Pair.Main + "-shm"));
+  }
+  {
+    DiffArgs A = Base;
+    A.TracePath = Base.Out;  // two outputs in one file
+    Refused(A, "--trace == -o", "different files");
+  }
+  {
+    // --snapshot-dir whose index.json is db1: the 5.4 MB input became a 38-byte index
+    const std::string Dir = Join(Pair.Dir, "ix");
+    std::error_code Error;
+    fs::create_directories(Utf8ToPath(Dir), Error);
+    const std::string Index = Join(Dir, "index.json");
+    CopyFileTo(Pair.Main, Index);
+    const std::string IndexSha = Sha256Of(ReadFile(Index));
+    DiffArgs A = Base;
+    A.Db1 = Index;
+    A.SnapshotDir = Dir;
+    A.SnapshotPoints = "none";
+    Refused(A, "--snapshot-dir whose index.json is db1", "db1");
+    CHECK_TEXT_EQ(Sha256Of(ReadFile(Index)), IndexSha);
+    CHECK(!Exists(Join(Dir, "snapshots")));
+    // the trace onto that index.json is refused too
+    DiffArgs B = Base;
+    B.SnapshotDir = Dir;
+    B.TracePath = Index;
+    CHECK(RunDiff(B).Status == DiffStatus::Usage);
+    CHECK_TEXT_EQ(Sha256Of(ReadFile(Index)), IndexSha);
+  }
+  {
+    // an input inside <snapshot-dir>/snapshots, where snapshot-named files are deleted
+    const std::string Dir = Join(Pair.Dir, "inside");
+    std::error_code Error;
+    fs::create_directories(Utf8ToPath(Join(Dir, "snapshots")), Error);
+    const std::string Inside = Join(Join(Dir, "snapshots"), "00001_diff.json");
+    CopyFileTo(Pair.Diff, Inside);
+    DiffArgs A = Base;
+    A.Db2 = Inside;
+    A.SnapshotDir = Dir;
+    Refused(A, "db2 inside <snapshot-dir>/snapshots", "inside the snapshot directory");
+    CHECK(Exists(Inside));
+  }
+  {
+    // -o into a directory that holds run.json (an oracle capture), like --snapshot-dir there
+    const std::string Oracle = Join(Pair.Dir, "capture-with-run-json");
+    std::error_code Error;
+    fs::create_directories(Utf8ToPath(Oracle), Error);
+    WriteText(Join(Oracle, "run.json"), "{}\n");
+    DiffArgs A = Base;
+    A.Out = Join(Oracle, "x.diaphora");
+    const DiffOutcome Outcome = RunDiff(A);
+    CHECK(Outcome.Status == DiffStatus::Usage && Outcome.Message.find("run.json") != std::string::npos);
+    CHECK(!Exists(A.Out));
+  }
+  {
+    // the same file under another name: a hard link, another case, an 8.3 short name
+    const std::string Link = Join(Pair.Dir, "hard-link-to-diff.sqlite");
+    std::error_code Error;
+    fs::create_hard_link(Utf8ToPath(Pair.Diff), Utf8ToPath(Link), Error);
+    if (!Error) {
+      DiffArgs A = Base;
+      A.Out = Link;
+      Refused(A, "-o <hard link to db2>", "db2");
+    } else {
+      DSig::Test::Note("hard links not supported here: " + Error.message());
+    }
+#ifdef _WIN32
+    std::string Upper = Pair.Diff;
+    const size_t Slash = Upper.find_last_of("\\/");
+    for (size_t Index = Slash == std::string::npos ? 0 : Slash + 1; Index < Upper.size(); ++Index) {
+      Upper[Index] = static_cast<char>(std::toupper(static_cast<unsigned char>(Upper[Index])));
+    }
+    DiffArgs Cased = Base;
+    Cased.Out = Upper;
+    Refused(Cased, "-o <db2 in another case>", "db2");
+    const std::string LongName = Join(Pair.Dir, "a-long-input-database-name.sqlite");
+    CopyFileTo(Pair.Diff, LongName);
+    wchar_t Short[4096];
+    const std::wstring Wide = Utf8ToPath(LongName).native();
+    const DWORD Length = GetShortPathNameW(Wide.c_str(), Short, 4096);
+    const std::wstring ShortName(Short, Length > 0 && Length < 4096 ? Length : 0);
+    if (!ShortName.empty() && ShortName != Wide) {
+      DiffArgs A = Base;
+      A.Db2 = LongName;
+      A.Out = PathToUtf8(fs::path(ShortName));
+      const DiffOutcome Outcome = RunDiff(A);
+      CHECK(Outcome.Status == DiffStatus::Usage);
+      CHECK(Exists(LongName));
+    } else {
+      DSig::Test::Note("8.3 short names are disabled on this volume; that alias form is not exercised");
+    }
+#endif
+  }
+#ifdef DSIG_CLI_PATH
+  {
+    // the CLI maps the refusal to exit 2 and leaves the inputs alone
+    const std::string Log = Join(Pair.Dir, "alias-cli.log");
+    CHECK_NUM_EQ(RunCli({"diff", Pair.Main, Pair.Diff, "-o", Join(Pair.Dir, "c.diaphora"), "--trace", Pair.Main,
+                         "--quiet", "--allow-sqlite-mismatch"},
+                        Log),
+                 2);
+    CHECK(ReadFile(Log).find("refusing to overwrite an input") != std::string::npos);
+    CHECK_NUM_EQ(RunCli({"diff", Pair.Main, Pair.Diff, "-o", Pair.Diff + "-journal", "--quiet",
+                         "--allow-sqlite-mismatch"},
+                        Log),
+                 2);
+    CHECK(!Exists(Pair.Diff + "-journal"));
+    CHECK(InputsIntact());
+  }
+#endif
+  // Detail::ReplaceFileBytes never rewrites a target in place: the index.json data-loss path
+  {
+    const std::string Target = Join(Pair.Dir, "replace-target.json");
+    Detail::ReplaceFileBytes(Target, "one\n");
+    Detail::ReplaceFileBytes(Target, "two\n");
+    CHECK_TEXT_EQ(ReadFile(Target), "two\n");
+    CHECK(!Exists(Target + ".tmp"));
+#ifdef _WIN32
+    // a reader that holds the file without delete sharing: the replace fails, the old bytes stay
+    const HANDLE Held = CreateFileW(Utf8ToPath(Target).c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+                                    FILE_ATTRIBUTE_NORMAL, nullptr);
+    CHECK(Held != INVALID_HANDLE_VALUE);
+    bool Threw = false;
+    try {
+      Detail::ReplaceFileBytes(Target, "three, much longer than before\n");
+    } catch (const IoFailure&) {
+      Threw = true;
+    }
+    if (Held != INVALID_HANDLE_VALUE) {
+      CloseHandle(Held);
+    }
+    CHECK(Threw);
+    CHECK_TEXT_EQ(ReadFile(Target), "two\n");
+    CHECK(!Exists(Target + ".tmp"));
+#endif
+  }
+}
+
+// F03: an environment failure inside SQLite ends the run with exit 6 and writes nothing; it is never
+// swallowed by a heuristic worker as if it were one of Diaphora's per-heuristic raises.
+void TestSqliteEnvironmentFailures(const FixturePair& Pair) {
+  DSig::Test::Suite("F03 SQLite environment failures");
+  for (const int Code : {SQLITE_FULL, SQLITE_IOERR, SQLITE_IOERR_SHORT_READ, SQLITE_IOERR_WRITE, SQLITE_CANTOPEN,
+                         SQLITE_NOMEM, SQLITE_CORRUPT, SQLITE_NOTADB, SQLITE_BUSY, SQLITE_LOCKED,
+                         SQLITE_READONLY, SQLITE_READONLY_ROLLBACK, SQLITE_PERM, SQLITE_INTERRUPT}) {
+    DSig::Test::Report(IsEnvironmentalSqliteError(Code), ("environmental: " + std::to_string(Code)).c_str(), __FILE__,
+                       __LINE__);
+  }
+  for (const int Code : {SQLITE_ERROR, SQLITE_MISMATCH, SQLITE_RANGE, SQLITE_CONSTRAINT, SQLITE_TOOBIG, SQLITE_MISUSE}) {
+    DSig::Test::Report(!IsEnvironmentalSqliteError(Code), ("a parity raise: " + std::to_string(Code)).c_str(),
+                       __FILE__, __LINE__);
+  }
+  // A damaged database: the root page of its functions table overwritten, so it opens and attaches
+  // but fails when the export is read. That is not Diaphora's parity raise (it gave exit 3); it is an
+  // I/O failure (exit 6), and no results file appears.
+  {
+    const std::string Damaged = Join(Pair.Dir, "damaged.sqlite");
+    CopyFileTo(Pair.Diff, Damaged);
+    int64_t Root = 0;
+    int64_t PageSize = 0;
+    {
+      sqlite3* Handle = nullptr;
+      CHECK(sqlite3_open_v2(Damaged.c_str(), &Handle, SQLITE_OPEN_READONLY, nullptr) == SQLITE_OK);
+      sqlite3_stmt* Query = nullptr;
+      if (sqlite3_prepare_v2(Handle,
+                             "select (select rootpage from sqlite_master where type = 'table' and name = 'functions'),"
+                             " (select page_size from pragma_page_size())",
+                             -1, &Query, nullptr) == SQLITE_OK &&
+          sqlite3_step(Query) == SQLITE_ROW) {
+        Root = sqlite3_column_int64(Query, 0);
+        PageSize = sqlite3_column_int64(Query, 1);
+      }
+      sqlite3_finalize(Query);
+      sqlite3_close(Handle);
+    }
+    std::string Bytes = ReadFile(Damaged);
+    CHECK(Root > 1 && PageSize >= 512 && static_cast<size_t>(Root * PageSize) <= Bytes.size());
+    if (Root > 1 && PageSize >= 512 && static_cast<size_t>(Root * PageSize) <= Bytes.size()) {
+      for (size_t Index = static_cast<size_t>((Root - 1) * PageSize); Index < static_cast<size_t>(Root * PageSize);
+           ++Index) {
+        Bytes[Index] = static_cast<char>(0xA5);
+      }
+    }
+    WriteText(Damaged, Bytes);
+    DiffArgs Args;
+    Args.Db1 = Pair.Main;
+    Args.Db2 = Damaged;
+    Args.Out = Join(Pair.Dir, "damaged.diaphora");
+    Args.Quiet = true;
+    Args.AllowSqliteMismatch = true;
+    const DiffOutcome Outcome = RunDiff(Args);
+    CHECK_NUM_EQ(static_cast<int>(Outcome.Status), static_cast<int>(DiffStatus::Io));
+    const bool Named = Outcome.Message.find("malformed") != std::string::npos ||
+                       Outcome.Message.find("not a database") != std::string::npos;
+    CHECK(Named);
+    if (!Named) {
+      DSig::Test::Note("damaged db2: " + Outcome.Message);
+    }
+    CHECK(!Exists(Args.Out));
+    // the statement level: the failure type, not DiaphoraWouldRaise
+    bool Environment = false;
+    try {
+      DiffDatabase Broken;
+      Broken.OpenSingle(Damaged);
+      Statement Query = Broken.Prepare("select * from functions");
+      while (Query.Step()) {
+      }
+    } catch (const SqliteEnvironmentFailure& Error) {
+      Environment = IsEnvironmentalSqliteError(Error.Code);
+    } catch (const DiaphoraWouldRaise&) {
+      Environment = false;
+    }
+    CHECK(Environment);
+  }
+#if defined(_WIN32) && defined(DSIG_CLI_PATH)
+  // The audit's reproduction: TMP / TEMP point at a missing directory, so SQLite cannot create the
+  // temporary b-trees four ls-old vs ls heuristics need. It exited 0 with 6 (type, description) groups
+  // silently changed; now it is exit 6 and no results file.
+  if (DSig::Test::ExportAvailable("ls-old") && DSig::Test::ExportAvailable("ls")) {
+    const std::string Main = Join(Pair.Dir, "ls-old.sqlite");
+    const std::string Diff = Join(Pair.Dir, "ls.sqlite");
+    CopyFileTo(DSig::Test::ExportPath("ls-old"), Main);
+    CopyFileTo(DSig::Test::ExportPath("ls"), Diff);
+    const std::string Out = Join(Pair.Dir, "ls-tmp.diaphora");
+    const std::string Log = Join(Pair.Dir, "ls-tmp.log");
+    int Code = -1;
+    {
+      const std::wstring Missing = Utf8ToPath(Join(Pair.Dir, "no-such-temp-dir")).native();
+      ScopedEnv Tmp(L"TMP", Missing);
+      ScopedEnv Temp(L"TEMP", Missing);
+      Code = RunCli({"diff", Main, Diff, "-o", Out, "--quiet", "--allow-sqlite-mismatch"}, Log);
+    }
+    CHECK_NUM_EQ(Code, 6);
+    CHECK(!Exists(Out));
+    CHECK(ReadFile(Log).find("environment failure") != std::string::npos);
+    if (Code != 6) {
+      DSig::Test::Note("ls-old vs ls with a missing TMP: exit " + std::to_string(Code) + "; " + ReadFile(Log));
+    }
+  } else {
+    DSig::Test::Skip("F03 missing TMP", "ls-old / ls exports not in the corpus");
+  }
+#endif
+}
+
+// F06: db2 that is not a Diaphora export: Diaphora's empty results file is still written (parity), but
+// the process exits 4 with an "error:" line, --quiet or not.
+void TestNotAnExport(const FixturePair& Pair) {
+  DSig::Test::Suite("F06 db2 not a Diaphora export");
+  const std::string Empty = Join(Pair.Dir, "zero-bytes.sqlite");
+  WriteText(Empty, "");
+  const std::string Foreign = Join(Pair.Dir, "foreign.sqlite");
+  CHECK(DSig::Test::BuildFixtureDbFromText("create table notes (a text);\ninsert into notes values ('x');\n", Foreign)
+            .empty());
+  const std::string NoVersionRow = Join(Pair.Dir, "no-version-row.sqlite");
+  CHECK(DSig::Test::BuildFixtureDbFromText(
+            ReadFile(DSig::Test::TestDataDir() + "/fixtures/foundation/diff.sql") + "delete from version;\n",
+            NoVersionRow)
+            .empty());
+  for (const std::string& Db2 : {Empty, Foreign, NoVersionRow}) {
+    DiffArgs Args;
+    Args.Db1 = Pair.Main;
+    Args.Db2 = Db2;
+    Args.Out = Join(Pair.Dir, "not-an-export.diaphora");
+    Args.Quiet = true;
+    Args.AllowSqliteMismatch = true;
+    const DiffOutcome Outcome = RunDiff(Args);
+    CHECK_NUM_EQ(static_cast<int>(Outcome.Status), static_cast<int>(DiffStatus::Unsupported));
+    CHECK(Outcome.Message.find("not a usable Diaphora export") != std::string::npos);
+    CHECK(Outcome.OutputWritten && !Outcome.DiffReturned);
+    const DSig::Test::ResultsFile File = DSig::Test::ReadResultsFile(Args.Out);
+    CHECK(File.Error.empty() && File.Results.empty() && File.Unmatched.empty() && File.Schema == DiaphoraDdl());
+#ifdef DSIG_CLI_PATH
+    for (const bool Quiet : {false, true}) {
+      const std::string Log = Join(Pair.Dir, "not-an-export.log");
+      std::vector<std::string> Command = {"diff", Pair.Main, Db2, "-o", Args.Out, "--allow-sqlite-mismatch"};
+      if (Quiet) {
+        Command.push_back("--quiet");
+      }
+      CHECK_NUM_EQ(RunCli(Command, Log), 4);
+      CHECK(ReadFile(Log).find("error: db2") != std::string::npos);
+      CHECK(Exists(Args.Out));
+    }
+#endif
+  }
+}
+
+// F25: an output whose directory is missing, or that is a directory, fails before the inputs are read.
+void TestOutputLocation(const FixturePair& Pair) {
+  DSig::Test::Suite("F25 output location checked first");
+  DiffArgs Args;
+  Args.Db1 = Pair.Main;
+  Args.Db2 = Pair.Diff;
+  Args.Quiet = true;
+  Args.AllowSqliteMismatch = true;
+  Args.TracePath = Join(Pair.Dir, "f25-trace.jsonl");  // created only if the run got past the check
+  for (const std::string& Out : {Join(Join(Pair.Dir, "no-such-dir"), "r.diaphora"), Pair.Dir}) {
+    Args.Out = Out;
+    const DiffOutcome Outcome = RunDiff(Args);
+    CHECK_NUM_EQ(static_cast<int>(Outcome.Status), static_cast<int>(DiffStatus::Io));
+    CHECK(Outcome.Message.find("does not exist") != std::string::npos ||
+          Outcome.Message.find("is a directory") != std::string::npos);
+    CHECK(!Exists(Args.TracePath));
+  }
+  CHECK(!Exists(Join(Pair.Dir, "no-such-dir")));  // never created
+}
+
+// F28 / F30 / F58: replay inputs that are not what they claim.
+void TestReplayGuards(const FixturePair& Pair) {
+  DSig::Test::Suite("F28 / F30 / F58 replay guards");
+  const std::string Capture = Join(Pair.Dir, "guards-capture");
+  {
+    DiffArgs Args;
+    Args.Db1 = Pair.Main;
+    Args.Db2 = Pair.Diff;
+    Args.Out = Join(Pair.Dir, "guards.diaphora");
+    Args.SnapshotDir = Capture;
+    Args.Quiet = true;
+    Args.AllowSqliteMismatch = true;
+    CHECK(RunDiff(Args).Status == DiffStatus::Ok);
+  }
+  const std::string BeforeFile = CaptureSnapshotFile(Capture, "before:final_pass");
+  CHECK(!BeforeFile.empty());
+  if (BeforeFile.empty()) {
+    return;
+  }
+  const std::string Text = ReadFile(BeforeFile);
+  const StateSnapshot Good = ParseSnapshot(Text);
+  CHECK(!Good.Best.empty() || !Good.Partial.empty());
+  DiffArgs Replay;
+  Replay.Db1 = Pair.Main;
+  Replay.Db2 = Pair.Diff;
+  Replay.ReplayStage = "final_pass";
+  Replay.SnapshotOut = Join(Pair.Dir, "guards-after.json");
+  Replay.Quiet = true;
+  Replay.AllowSqliteMismatch = true;
+  const auto Run = [&](const std::string& SnapshotText, const std::string& Name) {
+    const std::string Path = Join(Pair.Dir, Name);
+    WriteText(Path, SnapshotText);
+    DiffArgs A = Replay;
+    A.ReplayPath = Path;
+    return RunDiff(A);
+  };
+  CHECK(Run(Text, "good.json").Status == DiffStatus::Ok);  // the baseline replay works
+
+  // F28: an address of another pair, a function total of another pair, a --pair of another pair
+  {
+    StateSnapshot Foreign = Good;
+    SnapItem Stranger = Foreign.Best.empty() ? Foreign.Partial.front() : Foreign.Best.front();
+    Stranger.Ea1 = "987654321987";
+    Foreign.Partial.push_back(Stranger);
+    const DiffOutcome Outcome = Run(SerializeSnapshot(Foreign) + "\n", "foreign-address.json");
+    CHECK_NUM_EQ(static_cast<int>(Outcome.Status), static_cast<int>(DiffStatus::Unsupported));
+    CHECK(Outcome.Message.find("987654321987") != std::string::npos);
+    StateSnapshot Totals = Good;
+    Totals.Flags.TotalFunctions1 += 1000;
+    CHECK(Run(SerializeSnapshot(Totals) + "\n", "foreign-totals.json").Status == DiffStatus::Unsupported);
+    StateSnapshot Labelled = Good;
+    Labelled.Pair = "ls-old_vs_ls";
+    const std::string Path = Join(Pair.Dir, "labelled.json");
+    WriteText(Path, SerializeSnapshot(Labelled) + "\n");
+    DiffArgs A = Replay;
+    A.ReplayPath = Path;
+    A.PairLabel = "cryptbase-1-pdb_vs_8875-nopdb";
+    CHECK(RunDiff(A).Status == DiffStatus::Unsupported);
+    CHECK(!Exists(Replay.SnapshotOut + ".tmp"));
+  }
+  // F30: nesting deep enough to overflow the stack of a recursive parser is a clean exit 6
+  {
+    std::string Deep = Text;
+    while (!Deep.empty() && (Deep.back() == '\n' || Deep.back() == '}')) {
+      const bool Brace = Deep.back() == '}';
+      Deep.pop_back();
+      if (Brace) {
+        break;
+      }
+    }
+    Deep += ",\"extra\":" + std::string(20000, '[') + std::string(20000, ']') + "}\n";
+    const DiffOutcome Outcome = Run(Deep, "deep.json");
+    CHECK_NUM_EQ(static_cast<int>(Outcome.Status), static_cast<int>(DiffStatus::Io));
+    CHECK(Outcome.Message.find("nesting too deep") != std::string::npos);
+    bool Threw = false;
+    try {
+      (void)JsonParse(std::string(kMaxJsonDepth, '[') + std::string(kMaxJsonDepth, ']'));
+    } catch (const JsonError&) {
+      Threw = true;
+    }
+    CHECK(!Threw);  // exactly kMaxJsonDepth levels parse
+    Threw = false;
+    try {
+      (void)JsonParse(std::string(kMaxJsonDepth + 1, '[') + std::string(kMaxJsonDepth + 1, ']'));
+    } catch (const JsonError& Error) {
+      Threw = std::string(Error.what()).find("nesting too deep") != std::string::npos;
+    }
+    CHECK(Threw);
+    std::string Objects;
+    for (int Level = 0; Level <= kMaxJsonDepth; ++Level) {
+      Objects += "{\"a\":";
+    }
+    Objects += "1" + std::string(static_cast<size_t>(kMaxJsonDepth) + 1, '}');
+    Threw = false;
+    try {
+      (void)JsonParse(Objects);
+    } catch (const JsonError&) {
+      Threw = true;
+    }
+    CHECK(Threw);
+  }
+  // F58: the message names the member, and no "at offset 0" for a value error
+  {
+    JsonValue Root = JsonParse(Text, JsonParseOptions{true, true});
+    bool Edited = false;
+    for (auto& [Key, Value] : Root.Members()) {
+      if (Key != "all_matches") {
+        continue;
+      }
+      for (auto& [List, Items] : Value.Members()) {
+        if (!Items.Items().empty() && !Edited) {
+          Items.Items()[0].Items()[6] = JsonValue::String("x");
+          Edited = true;
+          const std::string Want = "all_matches." + List + "[0][6]: JSON value is not an integer";
+          const DiffOutcome Outcome = Run(JsonWrite(Root) + "\n", "bad-nodes.json");
+          CHECK_NUM_EQ(static_cast<int>(Outcome.Status), static_cast<int>(DiffStatus::Io));
+          CHECK_TEXT_EQ(Outcome.Message, "invalid snapshot JSON: " + Want);
+          bool Threw = false;
+          try {
+            (void)ParseSnapshot(JsonWrite(Root));
+          } catch (const JsonError& Error) {
+            Threw = Error.Path == "all_matches." + List + "[0][6]" && std::string(Error.what()) == Want;
+          }
+          CHECK(Threw);
+        }
+      }
+    }
+    CHECK(Edited);
+    // a syntax error keeps its offset
+    bool Offset = false;
+    try {
+      (void)ParseSnapshot("{\"schema\": ");
+    } catch (const JsonError& Error) {
+      Offset = std::string(Error.what()).find(" at offset ") != std::string::npos;
+    }
+    CHECK(Offset);
+  }
+  // F62 (b): the after snapshot is written through <path>.tmp and a rename; no .tmp stays behind
+  CHECK(Exists(Replay.SnapshotOut) && !Exists(Replay.SnapshotOut + ".tmp"));
+}
+
+// F29: --snapshot-dir clears only an earlier capture; a foreign index.json is refused, untouched.
+void TestForeignSnapshotDir(const FixturePair& Pair) {
+  DSig::Test::Suite("F29 foreign snapshot directory");
+  const std::string Dir = Join(Pair.Dir, "someone-elses-dir");
+  std::error_code Error;
+  fs::create_directories(Utf8ToPath(Dir), Error);
+  const std::string Index = Join(Dir, "index.json");
+  const std::string Foreign = "{\"name\": \"my web app\", \"version\": 3}\n";
+  WriteText(Index, Foreign);
+  DiffArgs Args;
+  Args.Db1 = Pair.Main;
+  Args.Db2 = Pair.Diff;
+  Args.Out = Join(Pair.Dir, "f29.diaphora");
+  Args.SnapshotDir = Dir;
+  Args.Quiet = true;
+  Args.AllowSqliteMismatch = true;
+  const DiffOutcome Outcome = RunDiff(Args);
+  CHECK_NUM_EQ(static_cast<int>(Outcome.Status), static_cast<int>(DiffStatus::Usage));
+  CHECK(Outcome.Message.find("not a snapshot capture index") != std::string::npos);
+  CHECK_TEXT_EQ(ReadFile(Index), Foreign);
+  CHECK(!Exists(Join(Dir, "snapshots")) && !Exists(Args.Out));
+  // an earlier capture's index (even an empty one) is replaced as before
+  WriteText(Index, "[]\n");
+  CHECK(RunDiff(Args).Status == DiffStatus::Ok);
+  CHECK(ReadFile(Index).size() > 3);
+}
+
+// F27: a trace write, flush or close that fails ends the run with IoFailure (exit 6), once.
+void TestTraceWriteFailures(const FixturePair& Pair) {
+  DSig::Test::Suite("F27 trace write failures");
+  const std::string Path = Join(Pair.Dir, "failing-trace.jsonl");
+  const auto Throws = [](const std::function<void()>& Fn) {
+    try {
+      Fn();
+    } catch (const IoFailure& Error) {
+      return Error.What.find("cannot write trace") != std::string::npos;
+    }
+    return false;
+  };
+  {
+    TraceSink Sink;
+    Sink.Open(Path, true);
+    Sink.Point("before:x", 0, 0, 0);
+    Sink.InjectWriteFailureForTest();
+    CHECK(Throws([&] { Sink.AddMatch("", "a", "b", "1", "2", "d", 0.5, "best", AddMatchResult::Appended); }));
+    CHECK(!Sink.Enabled());  // disabled: nothing more is attempted while the error unwinds
+    CHECK(!Throws([&] { Sink.Point("after:x", 0, 0, 0); }));
+    CHECK(!Throws([&] { Sink.Finish(); }));
+  }
+  {
+    TraceSink Sink;
+    Sink.Open(Path, false);
+    Sink.InjectWriteFailureForTest();
+    CHECK(Throws([&] { Sink.Point("before:x", 0, 0, 0); }));
+  }
+  {
+    TraceSink Sink;
+    Sink.Open(Path, false);
+    Sink.Point("before:x", 0, 0, 0);
+    Sink.InjectWriteFailureForTest();
+    CHECK(Throws([&] { Sink.Finish(); }));
+  }
+  {
+    // FinishHarness reports it, so RunDiff cannot exit 0 with a cut trace
+    DiffSession S;
+    S.EnableTrace(Path, false);
+    S.Point("before:x");
+    S.Tracer().InjectWriteFailureForTest();
+    CHECK(Throws([&] { S.FinishHarness(); }));
+  }
+}
+
+// F31: sqlite3_initialize before every open, with a clear error when it fails. Runs last: it shuts
+// SQLite down (no connection may be open) and restores it.
+void TestSqliteInitialize() {
+  DSig::Test::Suite("F31 sqlite3_initialize");
+  if (sqlite3_shutdown() != SQLITE_OK) {
+    DSig::Test::Skip("F31 sqlite3_initialize", "sqlite3_shutdown refused (a connection is still open)");
+    return;
+  }
+  sqlite3_mem_methods Saved{};
+  CHECK(sqlite3_config(SQLITE_CONFIG_GETMALLOC, &Saved) == SQLITE_OK);
+  sqlite3_mem_methods Failing = Saved;
+  Failing.xInit = [](void*) { return SQLITE_NOMEM; };
+  CHECK(sqlite3_config(SQLITE_CONFIG_MALLOC, &Failing) == SQLITE_OK);
+  std::string Message;
+  try {
+    DiffDatabase Db;
+    Db.OpenSingle("never-opened.sqlite");
+  } catch (const IoFailure& Error) {
+    Message = Error.What;
+  }
+  CHECK(Message.find("sqlite3_initialize failed") != std::string::npos);
+  std::string WriterMessage;
+  try {
+    WriteArgs Args;
+    Args.OutPath = ":memory:";
+    WriteDiaphoraResults(Args, FinalResults{}, Interners{});
+  } catch (const IoFailure& Error) {
+    WriterMessage = Error.What;
+  }
+  CHECK(WriterMessage.find("sqlite3_initialize failed") != std::string::npos);
+  sqlite3_shutdown();
+  CHECK(sqlite3_config(SQLITE_CONFIG_MALLOC, &Saved) == SQLITE_OK);
+  CHECK(sqlite3_initialize() == SQLITE_OK);
+  EnsureSqliteInitialized();  // idempotent once initialised
+  CHECK(!DiffDatabase::LibVersion().empty());
+}
+
+// F58: the fetch-time decode errors and ingest problems name the row.
+void TestErrorContext() {
+  DSig::Test::Suite("F58 error messages name the row");
+  FixturePair Pair = BuildFoundationFixture(
+      "foundation-f58",
+      "alter table functions rename column name to name_text;\n"
+      "alter table functions add column name integer;\n"
+      "update functions set name = name_text;\n"
+      "update functions set name = 42 where id = (select min(id) from functions);\n");
+  CHECK(Pair.Ok);
+  if (!Pair.Ok) {
+    return;
+  }
+  DiffSession S;
+  S.Open(Pair.Main, Pair.Diff);
+  bool Named = false;
+  for (const std::string& Problem : S.Main().Problems) {
+    Named = Named || (Problem.find("functions.name row with id ") != std::string::npos &&
+                      Problem.find("holds a number in a TEXT column") != std::string::npos);
+  }
+  CHECK(Named);
+  DSig::Test::RemoveScratchDir(Pair.Dir);
+}
+
+void TestReleaseHardening() {
+  FixturePair Pair = BuildFoundationFixture("foundation-hardening");
+  CHECK(Pair.Ok);
+  if (!Pair.Ok) {
+    return;
+  }
+  TestPathAliases(Pair);
+  TestSqliteEnvironmentFailures(Pair);
+  TestNotAnExport(Pair);
+  TestOutputLocation(Pair);
+  TestReplayGuards(Pair);
+  TestForeignSnapshotDir(Pair);
+  TestTraceWriteFailures(Pair);
+  TestErrorContext();
+  DSig::Test::RemoveScratchDir(Pair.Dir);
+}
+
 int main() {
   TestRegistry();
   TestInterner();
@@ -2734,5 +3389,7 @@ int main() {
   TestSameNamePlan();
   TestCorpusDiffDdl();
   TestOracleConventions();
+  TestReleaseHardening();
+  TestSqliteInitialize();  // last: it shuts SQLite down and restores it
   return DSig::Test::Finish();
 }

@@ -107,7 +107,7 @@ void StageRunHeuristicsForCategory(DiffSession& S, HeurCategory Category) {
     S.Point("before:" + Label);
     {
       ContextScope Scope(S, Label);
-      InvokeStage(S, Label, [&] { StageRunSingleHeuristic(S, Id); });
+      StageRunSingleHeuristic(S, Id);
     }
     S.Point("after:" + Label);
   }
@@ -155,8 +155,10 @@ void StageRunSingleHeuristic(DiffSession& S, int Id) {
     // worker thread (D:1967-1973, D:1992-1998, D:2018-2024). The exception ends that thread only
     // (threading.excepthook prints the traceback), threads_apply reaps it and starts the next
     // heuristic, and every match added before the failing row stays. So the heuristic is truncated
-    // at the raising row and the category goes on. Native refusals (UnsupportedInput) are not Python
-    // exceptions and propagate. D:1968 log(f"Error: {str(sys.exc_info()[1])}"): Python's exception
+    // at the raising row and the category goes on. Native refusals (UnsupportedInput) and environment
+    // failures (IoFailure, SqliteEnvironmentFailure: a full disk, a missing TMP directory) are not
+    // Python-parity raises and propagate, so the run ends with exit 4 / 6 instead of silently losing
+    // the rest of this heuristic's rows (audit F03). D:1968 log(f"Error: {str(sys.exc_info()[1])}"): Python's exception
     // text is not reproduced; the native site and detail are logged instead.
     S.Ext<TruncationLog>().Entries.push_back(Tiers::HeuristicTruncation{Id, Error.Site, Error.Detail});
     S.Log().Info("Error: " + std::string(Error.what()));
@@ -169,15 +171,14 @@ void StageFindPartialMatches(DiffSession& S) {
     // oracle_trace.py WrapStage makes "run_heuristics_for_category:Partial" the main-thread ctx for
     // the call (find_partial_matches itself is not wrapped), as RunPipeline does for Best.
     ContextScope Scope(S, "run_heuristics_for_category:Partial");
-    InvokeStage(S, "run_heuristics_for_category:Partial",
-                [&] { StageRunHeuristicsForCategory(S, HeurCategory::Partial); });  // D:2216
+    StageRunHeuristicsForCategory(S, HeurCategory::Partial);  // D:2216
   }
   if (S.Config().SlowHeuristics) {  // D:2218 (no auto-disable outside IDA, plan §1.1)
     // D:2220 log_refresh("Finding with heuristic 'Small names difference'"): progress line only.
     S.Point("before:search_small_differences");
     {
       ContextScope Scope(S, "search_small_differences");
-      InvokeStage(S, "search_small_differences", [&] { StageSearchSmallDifferences(S); });  // D:2221
+      StageSearchSmallDifferences(S);  // D:2221
     }
     S.Point("after:search_small_differences");
   }

@@ -36,11 +36,29 @@ std::string ReadFileBytes(const std::string& Utf8Path);
 void WriteFileBytes(const std::string& Utf8Path, std::string_view Bytes);
 
 // Writes Bytes to "<path>.tmp" and renames it over the path, so a reader sees either the old or the
-// new content (the oracle's WriteJsonAtomic). Falls back to removing the target first, then to a
-// plain rewrite, when the platform refuses to rename over an open file. Throws IoFailure.
+// new content (the oracle's WriteJsonAtomic). Never rewrites the target in place: when the rename keeps
+// failing (the target is held open without delete sharing), the temporary file is removed and IoFailure
+// is thrown, and the target keeps its old content (audit F01: an in-place rewrite truncated an input
+// another handle held).
 void ReplaceFileBytes(const std::string& Utf8Path, std::string_view Bytes);
+
+// Renames `From` over `To` (MoveFileExW(MOVEFILE_REPLACE_EXISTING) on Windows, rename(2) elsewhere).
+// A transient sharing violation (an indexer or a virus scanner holding the target for a moment) is
+// retried for about a second. Throws IoFailure; `From` is left in place on failure.
+void RenameReplacing(const std::string& FromUtf8, const std::string& ToUtf8);
 
 // True when Utf8Path names an existing regular file or directory (never throws).
 bool PathExists(const std::string& Utf8Path);
+
+// True when the two UTF-8 paths name the same file: for two existing files through the file system's
+// own identity (hard links, 8.3 short names, a UNC share of a local drive, another case), otherwise by
+// comparing the weakly canonical paths the way the platform's default file system compares names
+// (case-insensitively on Windows and macOS). Never throws. The same rule as Provenance.cpp
+// SameFilePath, which the CLI's port command uses.
+bool SameFilePath(const std::string& A, const std::string& B);
+
+// True when `Path` lies inside the directory `Dir` (at any depth), compared like SameFilePath on the
+// canonical spellings. `Path == Dir` is not inside. Never throws.
+bool PathIsInside(const std::string& Path, const std::string& Dir);
 
 }

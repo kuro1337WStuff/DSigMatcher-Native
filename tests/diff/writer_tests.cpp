@@ -16,6 +16,7 @@
 
 #include <sqlite3.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -77,8 +78,6 @@ template <class F>
 bool Unsupported(F&& Fn) {
   try {
     Fn();
-  } catch (const StageNotImplemented&) {
-    return false;
   } catch (const UnsupportedInput&) {
     return true;
   } catch (...) {
@@ -714,6 +713,67 @@ void TestOracleDumps(const std::string& Dir) {
 
 }  // namespace
 
+// Audit F26: the file is written as "<out>.tmp-<pid>" and renamed over <out> after the commit. A failure
+// (or a kill) at any step leaves <out> exactly as it was and no partial file anywhere; before, the config
+// table was created on <out> itself, so a failure mid-write left a half-written file there.
+std::vector<std::string> FilesIn(const std::string& Dir) {
+  std::vector<std::string> Names;
+  std::error_code Error;
+  for (const auto& Entry : std::filesystem::directory_iterator(Utf8ToPath(Dir), Error)) {
+    Names.push_back(Test::PathToUtf8(Entry.path().filename()));
+  }
+  std::sort(Names.begin(), Names.end());
+  return Names;
+}
+
+void TestWriterAtomicReplace(const std::string& Dir) {
+  Test::Suite("WriteDiaphoraResults: written under a temporary name, renamed after the commit (audit F26)");
+  const std::string Folder = Scratch(Dir, "atomic");
+  std::error_code Error;
+  std::filesystem::create_directories(Utf8ToPath(Folder), Error);
+  const std::string Out = Test::PathToUtf8(Utf8ToPath(Folder) / "r.diaphora");
+  Interners Ids;
+  FinalResults R;
+  R.Best.push_back(MakeItem(Ids, "4096", "f", "4096", "f", "100% equal", 1.0, 1, 1));
+  R.UnmatchedPrimary = std::vector<UnmatchedRow>{{Ids.Addr("8192"), Ids.Name("g")}};
+  WriteArgs A;
+  A.OutPath = Out;
+  A.MainDb = "db1.sqlite";
+  A.DiffDb = "db2.sqlite";
+  A.Date = "fixed";
+  const std::string Sentinel = "results of an earlier diff";
+  for (const char* Step : {"open", "config", "results", "unmatched", "committed"}) {
+    WriteBytes(Out, Sentinel);
+    static std::string FailAt;
+    FailAt = Step;
+    Detail::SetWriterFaultHook([](std::string_view Current) {
+      if (Current == FailAt) {
+        throw IoFailure("injected failure at " + std::string(Current));
+      }
+    });
+    bool Threw = false;
+    try {
+      WriteDiaphoraResults(A, R, Ids);
+    } catch (const IoFailure&) {
+      Threw = true;
+    }
+    Detail::SetWriterFaultHook(nullptr);
+    Test::Report(Threw, (std::string("failure injected at ") + Step).c_str(), __FILE__, __LINE__);
+    CHECK_TEXT_EQ(ReadBytes(Out), Sentinel);  // the earlier file is untouched
+    const std::vector<std::string> Left = FilesIn(Folder);
+    CHECK(Left.size() == 1 && Left[0] == "r.diaphora");  // no temporary file or journal left behind
+  }
+  // Success replaces the file; a stale journal of the replaced file is removed so SQLite never rolls
+  // it back into the new one.
+  WriteBytes(Out + "-journal", "a hot journal of the old file");
+  WriteDiaphoraResults(A, R, Ids);
+  const Test::ResultsFile File = Test::ReadResultsFile(Out);
+  CHECK(File.Error.empty() && File.Results.size() == 1 && File.Unmatched.size() == 1);
+  const std::vector<std::string> Left = FilesIn(Folder);
+  CHECK(Left.size() == 1 && Left[0] == "r.diaphora");
+  CHECK(!ResultsWriterScratchPaths(Out).empty() && ResultsWriterScratchPaths(Out)[0].rfind(Out + ".tmp-", 0) == 0);
+}
+
 int main() {
   TestFormatLine05();
   TestFormatAddr08x();
@@ -724,6 +784,7 @@ int main() {
     TestWriterRows(Dir);
     TestWriterEmptyAndReplace(Dir);
     TestWriterErrors(Dir);
+    TestWriterAtomicReplace(Dir);
     TestWriterUnicodePath(Dir);
     TestCommonFixture(Dir);
     TestOracleDumps(Dir);

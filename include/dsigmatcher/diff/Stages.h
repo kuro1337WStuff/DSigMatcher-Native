@@ -10,11 +10,11 @@
 //   * emit the points of the Diaphora methods it calls that Appendix B wraps, with S.Point(...):
 //     StageRunHeuristicsForCategory emits "before:heuristic:<id>" / "after:heuristic:<id>" around
 //     each heuristic it runs and "after:run_heuristics_for_category:<Best|Partial>" as its last act;
-//     StageFindPartialMatches emits "before:/after:search_small_differences" around that call;
-//   * wrap a nested stage call in InvokeStage (Pipeline.h) only when it calls another lane's stub.
+//     StageFindPartialMatches emits "before:/after:search_small_differences" around that call.
 // Errors: throw DiaphoraWouldRaise at the Python raise site (§3.11). Heuristic workers truncate that
 // heuristic and continue (inside StageRunHeuristicsForCategory); main-thread passes let it propagate.
-// A stub throws StageNotImplemented; RunPipeline logs SKIPPED and continues.
+// UnsupportedInput (a quirk the port refuses) and IoFailure / SqliteEnvironmentFailure (the disk, the
+// temporary directory, a damaged file) are never caught by a stage: they end the run (Errors.h).
 
 #include <cstdint>
 #include <memory>
