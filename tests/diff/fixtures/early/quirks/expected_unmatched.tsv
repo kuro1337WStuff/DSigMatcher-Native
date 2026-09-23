@@ -1,0 +1,5 @@
+type	line	address	name
+primary	00000	0040e300	nullsub_1
+primary	00001	0040e600	nullsub_9
+secondary	00000	0040a300	nullsub_1
+secondary	00001	0040a600	wrapper_a

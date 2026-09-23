@@ -1,0 +1,23 @@
+type	line	address	name	address2	name2	ratio	nodes1	nodes2	description
+best	00000	180001100	alpha	180009100	alpha	1.0000000	4	4	Perfect match, same name
+best	00001	180001200	beta	180009200	beta	1.0000000	4	4	Perfect match, same name
+best	00002	180001400	delta	180009400	delta	1.0000000	4	4	Perfect match, same name
+best	00003	180001500	epsilon	180009500	epsilon	1.0000000	4	4	Perfect match, same name
+best	00004	180001600	zeta	180009600	zeta	1.0000000	4	4	Perfect match, same name
+best	00005	180001700	eta	180009700	eta	1.0000000	4	4	Perfect match, same name
+best	00006	180001900	iota	180009900	iota	1.0000000	4	4	Perfect match, same name
+best	00007	180001a00	kappa	180009a00	kappa	1.0000000	4	4	Perfect match, same name
+best	00008	180001b00	sub_180001B00	180009b00	sub_180009B00	1.0000000	4	4	Equal assembly
+best	00009	180001c00	sub_180001C00	180009c00	sub_180009C00	1.0000000	4	4	Equal assembly
+best	00010	180001d00	sub_180001D00	180009d00	sub_180009D00	1.0000000	4	4	Equal assembly
+best	00011	180001e00	sub_180001E00	180009e00	sub_180009E00	1.0000000	4	4	Equal assembly
+best	00012	180001f00	sub_180001F00	180009f00	sub_180009F00	1.0000000	4	4	Equal assembly
+best	00013	180002000	sub_180002000	18000a000	sub_18000A000	1.0000000	4	4	Equal assembly
+best	00014	180002100	sub_180002100	18000a100	sub_18000A100	1.0000000	4	4	Equal assembly
+best	00015	180002200	sub_180002200	18000a200	sub_18000A200	1.0000000	4	4	Equal assembly
+best	00016	180002300	sub_180002300	18000a300	sub_18000A300	1.0000000	4	4	Equal assembly
+best	00017	180002400	sub_180002400	18000a400	sub_18000A400	1.0000000	4	4	Equal assembly
+partial	00000	180001300	gamma	180009300	gamma	0.9907778	4	4	Perfect match, same name
+partial	00001	180001800	theta	180009800	theta	0.9907778	4	4	Perfect match, same name
+partial	00002	180002600	alpha_x	18000a600	beta_y	0.7172857	1	1	Nodes, edges, complexity and mnemonics with small differences
+partial	00003	180002500	tiny	18000a500	tiny	0.5130000	3	3	Perfect match, same name

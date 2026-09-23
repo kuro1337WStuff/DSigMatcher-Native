@@ -1,0 +1,4 @@
+type	line	address	name
+primary	00000	180007000	renamed_small
+primary	00001	180008000	unnamed_extra
+secondary	00000	180005000	sub_180005000

@@ -1,0 +1,53 @@
+{"ev":"point","name":"after:find_equal_matches","best":0,"partial":0,"unreliable":0}
+{"ev":"point","name":"after:apply_dirty_heuristics","best":0,"partial":0,"unreliable":0}
+{"ev":"point","name":"before:find_same_name","best":0,"partial":0,"unreliable":0}
+{"ev":"row","ctx":"find_same_name","ea1":"6442455296","ea2":"6442459392","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":0,"ctx":"find_same_name","name1":"func_1","name2":"func_1","ea1":"6442455296","ea2":"6442459392","desc":"Perfect match, same name","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"6442455552","ea2":"6442459648","decision":"accepted_partial","ratio_bits":"3feecbee6045650f"}
+{"ev":"add_match","seq":1,"ctx":"find_same_name","name1":"func_2","name2":"func_2","ea1":"6442455552","ea2":"6442459648","desc":"Perfect match, same name","ratio_bits":"3fef1dd9e5641d61","chooser":"partial","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"6442455808","ea2":"6442459904","decision":"accepted_partial","ratio_bits":"3fef62881ff4920e"}
+{"ev":"add_match","seq":2,"ctx":"find_same_name","name1":"func_3","name2":"func_3","ea1":"6442455808","ea2":"6442459904","desc":"Perfect match, same name","ratio_bits":"3fefb473a5134a60","chooser":"partial","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"6442456064","ea2":"6442460160","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":3,"ctx":"find_same_name","name1":"func_4","name2":"func_4","ea1":"6442456064","ea2":"6442460160","desc":"Perfect match, same name","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"6442456320","ea2":"6442460416","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":4,"ctx":"find_same_name","name1":"func_5","name2":"func_5","ea1":"6442456320","ea2":"6442460416","desc":"Perfect match, same name","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"6442456576","ea2":"6442460672","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":5,"ctx":"find_same_name","name1":"func_6","name2":"func_6","ea1":"6442456576","ea2":"6442460672","desc":"Perfect match, same name","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"6442456832","ea2":"6442460928","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":6,"ctx":"find_same_name","name1":"func_7","name2":"func_7","ea1":"6442456832","ea2":"6442460928","desc":"Perfect match, same name","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"6442457088","ea2":"6442461184","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":7,"ctx":"find_same_name","name1":"func_8","name2":"func_8","ea1":"6442457088","ea2":"6442461184","desc":"Perfect match, same name","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"6442457344","ea2":"6442461440","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":8,"ctx":"find_same_name","name1":"func_9","name2":"func_9","ea1":"6442457344","ea2":"6442461440","desc":"Perfect match, same name","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"6442457600","ea2":"6442461696","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":9,"ctx":"find_same_name","name1":"func_10","name2":"func_10","ea1":"6442457600","ea2":"6442461696","desc":"Perfect match, same name","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"6442457856","ea2":"6442461952","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":10,"ctx":"find_same_name","name1":"func_11","name2":"func_11","ea1":"6442457856","ea2":"6442461952","desc":"Perfect match, same name","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"6442458112","ea2":"6442462208","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":11,"ctx":"find_same_name","name1":"func_12","name2":"func_12","ea1":"6442458112","ea2":"6442462208","desc":"Perfect match, same name","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"6442458368","ea2":"6442462464","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":12,"ctx":"find_same_name","name1":"func_13","name2":"func_13","ea1":"6442458368","ea2":"6442462464","desc":"Perfect match, same name","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"6442458624","ea2":"6442462720","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":13,"ctx":"find_same_name","name1":"func_14","name2":"func_14","ea1":"6442458624","ea2":"6442462720","desc":"Perfect match, same name","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"6442458880","ea2":"6442462976","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":14,"ctx":"find_same_name","name1":"func_15","name2":"func_15","ea1":"6442458880","ea2":"6442462976","desc":"Perfect match, same name","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"6442459136","ea2":"6442463232","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":15,"ctx":"find_same_name","name1":"func_16","name2":"func_16","ea1":"6442459136","ea2":"6442463232","desc":"Perfect match, same name","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"6442459392","ea2":"6442463488","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":16,"ctx":"find_same_name","name1":"func_17","name2":"func_17","ea1":"6442459392","ea2":"6442463488","desc":"Perfect match, same name","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"6442459648","ea2":"6442463744","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":17,"ctx":"find_same_name","name1":"func_18","name2":"func_18","ea1":"6442459648","ea2":"6442463744","desc":"Perfect match, same name","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"6442459904","ea2":"6442464000","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":18,"ctx":"find_same_name","name1":"func_19","name2":"func_19","ea1":"6442459904","ea2":"6442464000","desc":"Perfect match, same name","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"point","name":"after:find_same_name","best":17,"partial":2,"unreliable":0}
+{"ev":"point","name":"before:find_remaining_functions","best":17,"partial":2,"unreliable":0}
+{"ev":"row","ctx":"find_remaining_functions","ea1":"6442467328","ea2":"6442475520","decision":"accepted_partial","ratio_bits":"3fef83a175302dc5"}
+{"ev":"add_match","seq":19,"ctx":"find_remaining_functions","name1":"sub_180004000","name2":"renamed_fn","ea1":"6442467328","ea2":"6442475520","desc":"Renamed or anonymous function match in patch diffing session","ratio_bits":"3fef83a175302dc5","chooser":"partial","result":"appended"}
+{"ev":"row","ctx":"find_remaining_functions","ea1":"6442467328","ea2":"6442483712","decision":"has_better","ratio_bits":"3fe261b8165c62d7"}
+{"ev":"point","name":"after:find_remaining_functions","best":17,"partial":3,"unreliable":0}
+{"ev":"point","name":"before:final_pass","best":17,"partial":3,"unreliable":0}
+{"ev":"point","name":"before:cleanup:2945:1","best":17,"partial":3,"unreliable":0}
+{"ev":"cleanup","site":2945,"n":1,"best":17,"partial":3,"unreliable":0}
+{"ev":"point","name":"after:cleanup:2945:1","best":17,"partial":3,"unreliable":0}
+{"ev":"point","name":"after:final_pass","best":17,"partial":3,"unreliable":0}
+{"ev":"point","name":"after:find_unmatched","best":17,"partial":3,"unreliable":0}

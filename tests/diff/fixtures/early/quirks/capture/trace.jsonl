@@ -1,0 +1,14 @@
+{"ev":"point","name":"after:find_equal_matches","best":0,"partial":0,"unreliable":0}
+{"ev":"point","name":"after:apply_dirty_heuristics","best":0,"partial":0,"unreliable":0}
+{"ev":"point","name":"before:find_same_name","best":0,"partial":0,"unreliable":0}
+{"ev":"row","ctx":"find_same_name","ea1":"4236288","ea2":"4252672","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":0,"ctx":"find_same_name","name1":"nullsub","name2":"nullsub","ea1":"4236288","ea2":"4252672","desc":"Perfect match, same name","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"4236544","ea2":"4252928","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":1,"ctx":"find_same_name","name1":"j_nullsub_1","name2":"j_nullsub_1","ea1":"4236544","ea2":"4252928","desc":"Perfect match, same name","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"4236800","ea2":"4253184","decision":"nullsub","ratio_bits":null}
+{"ev":"row","ctx":"find_same_name","ea1":"4237312","ea2":"4253696","decision":"accepted_best","ratio_bits":"3ff0000000000000"}
+{"ev":"add_match","seq":2,"ctx":"find_same_name","name1":"tiny","name2":"tiny","ea1":"4237312","ea2":"4253696","desc":"Perfect match, same name","ratio_bits":"3ff0000000000000","chooser":"best","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"4237568","ea2":"4253952","decision":"accepted_partial","ratio_bits":"3fef62881ff4920e"}
+{"ev":"add_match","seq":3,"ctx":"find_same_name","name1":"dupname","name2":"dupname","ea1":"4237568","ea2":"4253952","desc":"Perfect match, same name","ratio_bits":"3fefb473a5134a60","chooser":"partial","result":"appended"}
+{"ev":"row","ctx":"find_same_name","ea1":"4237568","ea2":"4254208","decision":"has_best","ratio_bits":null}
+{"ev":"point","name":"after:find_same_name","best":3,"partial":1,"unreliable":0}
