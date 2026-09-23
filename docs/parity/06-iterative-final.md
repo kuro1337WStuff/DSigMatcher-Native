@@ -17,7 +17,7 @@
 
 - **Reference.** `<diaphora-ref>` is at `621ec26` (`git describe` = `3.4.2-4-g621ec26`). `git diff --stat 3.4.2 HEAD` touches only `README.md` and `diaphora_ida.py`, so **`diaphora.py`, `diaphora_config.py`, `diaphora_heuristics.py` and `db_support/schema.py` are byte-identical to tag 3.4.2.** The `diaphora_ida.py` change is a CSS-only hunk at line 3864 and later (four added `color:` lines in `CHtmlDiff`), so the `diaphora_ida.py` lines cited here (2412-2484, 3797-3800) are also identical to the tag. All line numbers below refer to these files.
 - **Runtime used for experiments.** `<conda>/python.exe` = Python 3.13.12, `sqlite3.sqlite_version` = 3.51.1, `cdifflib` not installed. `unified_diff` always comes from stdlib `difflib`, even when `cdifflib` is installed (see `diaphora.py:51`).
-- **The reference was not modified.** All experiments ran against a copy of Diaphora at `<scratch>/dcopy` (made with `tar --exclude=.git --exclude=__pycache__`) on copies of the databases. `<scratch>` is `<scratch>/exp/`. Everything there is ephemeral and not committed.
+- **The reference was not modified.** All experiments ran against a copy of Diaphora at `<scratch>/dcopy` (made with `tar --exclude=.git --exclude=__pycache__`) on copies of the databases. `<scratch>` is a session scratch directory. Everything there is ephemeral and not committed.
 - **Real test data.** While this spec was being written, another agent produced real IDA/Diaphora exports under `<corpus>/oracle/exports/`. They were copied to `<scratch>/../real/` before use and never opened in place:
   - `ls-old` / `ls`: GNU `ls` ELF, `pc64`, 304 / 318 functions;
   - `userenv-9168-pdb` / `userenv-9278-nopdb` / `userenv-9278-pdb`: PE64, 643 / 628 / 663 functions;
