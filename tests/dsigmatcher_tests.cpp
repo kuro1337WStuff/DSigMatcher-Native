@@ -9,6 +9,7 @@
 #include "dsigmatcher/ExportDatabase.h"
 #include "dsigmatcher/Heuristics.h"
 #include "dsigmatcher/MatchStore.h"
+#include "dsigmatcher/Md5.h"
 #include "dsigmatcher/Naming.h"
 #include "dsigmatcher/Provenance.h"
 #include "dsigmatcher/Sha256.h"
@@ -245,6 +246,79 @@ void TestSha256() {
   Whole.Update(Repeated.data(), Repeated.size());
   CHECK_EQ(Repeated.size(), static_cast<size_t>(10000));
   CHECK_EQ(Chunked.FinishHex(), Whole.FinishHex());
+}
+
+void TestMd5() {
+  Suite("Md5 RFC 1321 vectors");
+
+  CHECK_EQ(Md5::OfString(""), std::string("d41d8cd98f00b204e9800998ecf8427e"));
+  CHECK_EQ(Md5::OfString("a"), std::string("0cc175b9c0f1b6a831c399e269772661"));
+  CHECK_EQ(Md5::OfString("abc"), std::string("900150983cd24fb0d6963f7d28e17f72"));
+  CHECK_EQ(Md5::OfString("message digest"),
+           std::string("f96b697d7cb7938d525a2f31aaf161d0"));
+  CHECK_EQ(Md5::OfString("abcdefghijklmnopqrstuvwxyz"),
+           std::string("c3fcd3d76192e4007dfb496cca67e13b"));
+  CHECK_EQ(Md5::OfString("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"),
+           std::string("d174ab98d277d9f5a5611c2c9f419d9f"));
+  CHECK_EQ(Md5::OfString("12345678901234567890123456789012345678901234567890123456789012345678"
+                         "901234567890"),
+           std::string("57edf4a22be3c955ac49da2e2107b67a"));
+
+  Md5 Million;
+  const std::string MillionA(1000000, 'a');
+  Million.Update(MillionA);
+  CHECK_EQ(Million.FinishHex(), std::string("7707d6ae4e027c70eea2a935c2296f21"));
+
+  Md5 Chunked;
+  for (int Index = 0; Index < 1000; ++Index) {
+    Chunked.Update("abcdefghij");
+  }
+
+  std::string Repeated;
+  Repeated.reserve(10000);
+  for (int Index = 0; Index < 1000; ++Index) {
+    Repeated.append("abcdefghij");
+  }
+  Md5 Whole;
+  Whole.Update(Repeated);
+  CHECK_EQ(Repeated.size(), static_cast<size_t>(10000));
+  CHECK_EQ(Chunked.FinishHex(), Whole.FinishHex());
+
+  Md5 Padding56;
+  Padding56.Update(std::string(56, 'y'));
+  Md5 Padding64;
+  Padding64.Update(std::string(64, 'y'));
+  CHECK(Padding56.FinishHex() != Padding64.FinishHex());
+
+  const size_t BoundaryLengths[] = {54, 55, 56, 57, 63, 64, 65, 119, 120, 127, 128};
+  const size_t ChunkSizes[] = {1, 3, 7, 13, 32, 55, 56, 64, 65};
+  size_t BoundaryChecks = 0;
+
+  for (const size_t Total : BoundaryLengths) {
+    std::string Payload(Total, 'z');
+    for (size_t Index = 0; Index < Total; ++Index) {
+      Payload[Index] = static_cast<char>('a' + (Index % 26));
+    }
+
+    Md5 SingleShot;
+    SingleShot.Update(Payload);
+    const std::string Expected = SingleShot.FinishHex();
+
+    for (const size_t Chunk : ChunkSizes) {
+      Md5 Streamed;
+      size_t Offset = 0;
+      while (Offset < Total) {
+        const size_t Take = Total - Offset < Chunk ? Total - Offset : Chunk;
+        Streamed.Update(Payload.data() + Offset, Take);
+        Offset += Take;
+      }
+      CHECK_EQ(Streamed.FinishHex(), Expected);
+      ++BoundaryChecks;
+    }
+  }
+
+  std::printf("  padding boundary : %zu chunked-vs-single comparisons across 11 lengths\n",
+              BoundaryChecks);
 }
 
 void TestStringPool() {
@@ -611,6 +685,7 @@ void TestProvenanceChain() {
 
 int main() {
   TestSha256();
+  TestMd5();
   TestStringPool();
   TestNaming();
   TestMatchStore();
