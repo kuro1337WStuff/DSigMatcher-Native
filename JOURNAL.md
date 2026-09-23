@@ -1216,6 +1216,102 @@ Also not enabled: dependency caching for the `FetchContent` Zydis/Zycore fetch, 
 sanitiser job. Both are worth adding; neither is worth adding before the three-platform build is known
 to be green.
 
+### Control-flow graph extractor integrated
+
+`ControlFlowGraph.h` / `.cpp` (894 lines) plus `cfg_tests.cpp` (1457 lines), built by a subagent and
+verified here rather than trusted: wired into CMake, full tree rebuilt clean at `/W4 /permissive-`, and
+**152,784 checks, 0 failed** — matching the reported figure exactly. Five suites now pass,
+**154,294 assertions** project-wide.
+
+It discovers basic blocks from a byte range via Zydis, builds disjoint sorted blocks with CSR successor
+and predecessor arrays, and computes SCC membership (not just a count), loop count, and cyclomatic
+complexity. Tarjan is iterative with an explicit frame stack, so a 32,768-node graph cannot blow the
+call stack. Robustness limits are explicit and reported rather than silently truncating: 512 KiB range,
+32,768 blocks, 262,144 instructions.
+
+Two integration items the report surfaced that need decisions before this feeds the exporter:
+
+**1. Cyclomatic complexity diverges from Diaphora, and Diaphora's version is the one that must be
+stored.** The CFG module computes `E − N + 2P` (P = weakly connected components, clamped to ≥ 1), which
+is the textbook generalisation. Diaphora computes `cc = edges − nodes + 2` where `edges` is incremented
+**twice per CFG edge** — once in the successor loop and once in the predecessor loop — so its stored
+value is approximately `2E − N + 2`. These differ substantially: a 4-node, 4-edge connected function
+gives 2 under the module's formula and 6 under Diaphora's.
+
+Since `cyclomatic_complexity` feeds `primes_value` (`str(primes[cc])`) and is a predicate in several
+heuristics, the exporter must write **Diaphora's** value. The module's textbook figure is still worth
+keeping for internal use, but it must not be what lands in the database. `ConnectedComponentCount` is
+exposed, so both are computable from the same graph. Not yet resolved in code.
+
+**2. The win32u corpus cannot validate loops, SCCs or complexity at all.** It is a pure syscall-stub
+DLL: `.text` is 48,726 bytes of stub table, and across all 1,506 distinct named exports the extractor
+found **zero loops and zero indirect jumps**, with a maximum node count of 3. Every export is the same
+7-instruction shape (`mov r10,rcx / mov eax,# / test [7FFE0308],1 / jne / syscall / ret / ud2`) or a
+one-block thunk.
+
+So the real-binary testing that *was* possible is genuinely useful — 1,506 graphs built, 0 unmapped,
+0 decode errors, plus a deliberate stride scan starting at non-entry offsets that exercised misaligned
+entries, overlapping instructions and dropped edges on real bytes — but **exact loop, SCC and CC values
+are validated only by hand-built and generated synthetic cases.** A DLL with real function bodies is
+needed to close that gap. This is the strongest argument yet for the larger corpus that was offered
+earlier; win32u was chosen for having two versions with public PDBs, and it turns out to be a poor
+choice for graph validation specifically.
+
+Not yet done: the `KghAccumulator` wiring. The module exposes exactly what `AddBlock(succs, preds)`,
+`AddLoopComponents` and `AddStronglyConnectedCount` need, plus `CallCount` for `KghFeatureCall`, but
+nothing links them yet and no `kgh_hash` has been computed from a real binary.
+
+### C++ standard version: measured, not assumed
+
+Question raised: would C++23 or later be more efficient than the current setting? Two premises needed
+correcting first — the project is on **C++20**, not C++17, and there is no C++21; the cadence is
+17 / 20 / 23 / 26.
+
+Feature probe on MSVC 19.51 across `/std:c++20`, `/std:c++23` and `/std:c++latest`:
+
+- **`/std:c++23` does not exist on this compiler.** `cl` reports `D9002: ignoring unknown option`. MSVC
+  offers only `c++20` and `c++latest`; CMake's `CXX_STANDARD 23` would silently map to `c++latest`.
+- **`/std:c++latest` reports `__cplusplus = 202400`**, a C++26 *draft* value, not C++23's `202302L`.
+- Under `c++latest`: `std::expected`, `std::flat_map`, `std::mdspan`, `std::generator`,
+  `std::execution`, `consteval`, `byteswap`, `to_underlying` all present. **`deducing this` absent** —
+  a C++23 feature still missing from the draft mode. Static reflection absent.
+- **`std::flat_multimap` does not exist**, even in the draft.
+
+That last point is the decisive one. The hot path is `JoinByKey`, which uses
+`unordered_multimap<string_view, uint32_t>` because keys legitimately repeat — many functions share a
+hash. `std::flat_map` is the one C++23 container with a plausible cache-locality win here, but there is
+no flat *multi*map, so there is no drop-in replacement for the exact container that matters.
+
+Performance was then measured rather than reasoned about: `tools/join_bench.cpp` compiled identically at
+`/std:c++20` and `/std:c++latest`, same `/O2`, run back to back.
+
+| Key length | C++20 int-join | C++latest int-join | C++20 fused | C++latest fused |
+|---|---|---|---|---|
+| 36 B | 5.36 ms | 5.25 ms | 8.47 ms | 15.46 ms |
+| 256 B | 26.30 ms | 27.06 ms | 36.48 ms | 36.94 ms |
+| 1024 B | 88.78 ms | 87.44 ms | 102.85 ms | 102.92 ms |
+| 4096 B | 323.52 ms | 326.68 ms | 358.55 ms | 358.85 ms |
+
+Differences are 1-3% and go in **both directions**. The 36 B fused row (8.47 vs 15.46 ms) is far outside
+that band and is run-to-run noise on the smallest, cheapest case, not a standard-version effect.
+Conclusion: **no measurable benefit.** This is expected — the standard version does not change codegen
+for identical source.
+
+**Decision: stay on C++20.** Beyond the absence of a speed gain:
+
+- Every performance win measured this session was algorithmic, not language-level: dedup-before-sort
+  (3.2x), join fusion (3.2x), not spawning threads at `ThreadCount == 1` (33% off the serial baseline),
+  and a realistic corpus revealing a 6x underestimate. None of these needed a newer standard.
+- MSVC has no stable C++23 mode, so "use C++23" actually means "build against a moving C++26 draft".
+- The project now has three-compiler CI. Draft features land at different times in GCC, Clang and MSVC;
+  adopting them invites either conditional code paths or a red badge for reasons unrelated to
+  correctness.
+- C++20 already supplies everything in use: `std::span` (the CFG's edge accessors), `std::string_view`
+  (every join key), `std::filesystem`, `consteval`.
+
+Revisit if a specific C++23 feature becomes worth a fallback path — `std::expected` for error handling
+is the most plausible candidate — and ideally once MSVC ships a real `/std:c++23`.
+
 ### Not yet done
 
 - 38 remaining heuristics: 4 `Best`, 26 `Partial`, 8 `Unreliable`
