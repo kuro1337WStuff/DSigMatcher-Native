@@ -8,17 +8,25 @@ checks with their exit codes (tool discovery is pointed at empty or fake directo
 real IDA configuration is never read). Then whole driver + worker runs against stand-in idalib and
 Diaphora modules written at run time (lane F1): a directory with Diaphora's file names that is not
 Diaphora is "Diaphora not usable" (exit 12), and publishing never deletes the previous output's
-sidecars before the atomic replace has succeeded. Prints "<n> checks, <f> failed" and exits non-zero
-on failure.
+sidecars before the atomic replace has succeeded. The v1.0.0 audit regressions: no written file may
+alias the input or the PDB (F02), git is never taken from the current directory (F16), a run that
+was killed leaves no work directory behind for long (F43), a run whose launcher died publishes
+nothing (F44), a --timeout too large for the platform is refused (F42), a Hex-Rays refusal names the
+variable that works through dsigmatcher (F46), an input without functions is "unsupported input"
+(F57 d), and the caller's PYTHON* variables never reach the worker (F66). Prints "<n> checks, <f>
+failed" and exits non-zero on failure.
 
     python -B tools/export/selftest_dsig_export.py
 """
 
+import json
 import os
 import shutil
 import struct
+import subprocess
 import sys
 import tempfile
+import time
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -121,18 +129,33 @@ def TestSmallPieces():
              os.path.join("d", "a."): os.path.join("d", "a.export.json")}
     for Output, Expected in Cases.items():
         Check(dsig_export.DefaultSidecar(Output) == Expected, "sidecar of %s" % Output)
-    os.environ["DIAPHORA_USE_DECOMPILER"] = "0"
-    os.environ["diaphora_lowercase"] = "1"
-    os.environ["IDA_IS_INTERACTIVE"] = "1"
+    Planted = {"DIAPHORA_USE_DECOMPILER": "0", "diaphora_lowercase": "1", "IDA_IS_INTERACTIVE": "1",
+               "PYTHONPATH": "planted", "PYTHONHOME": "planted", "PYTHONSTARTUP": "planted.py",
+               "PYTHONINSPECT": "1", "PYTHONUTF8": "0"}
+    Saved = {Key: os.environ.get(Key) for Key in Planted}
+    os.environ.update(Planted)
     try:
         Env, Removed = dsig_export.CleanEnv()
         Check(not any(Key.upper().startswith("DIAPHORA_") for Key in Env), "DIAPHORA_* removed")
         Check("IDA_IS_INTERACTIVE" not in Env, "IDA_IS_INTERACTIVE removed")
         Check(Env.get("PYTHONDONTWRITEBYTECODE") == "1", "no bytecode")
-        Check(len(Removed) >= 1, "removed variables are reported")
+        # F66: every PYTHON* variable but the four the worker needs is dropped and reported by name
+        Extra = sorted(Key for Key in Env if Key.upper().startswith("PYTHON")
+                       and Key.upper() not in dsig_export.WORKER_PYTHON_ENV)
+        Check(not Extra, "no caller PYTHON* variable reaches the worker: %s" % Extra)
+        Check(Env.get("PYTHONUTF8") == "1", "PYTHONUTF8 is the worker's own value")
+        for Key in ("PYTHONPATH", "PYTHONHOME", "PYTHONSTARTUP", "PYTHONINSPECT", "IDA_IS_INTERACTIVE",
+                    "DIAPHORA_USE_DECOMPILER"):
+            Check(any(Name.upper() == Key for Name in Removed), "%s is listed as removed" % Key)
+        Check("planted" not in json.dumps(Removed), "only names are reported, never values")
+        # F16: nothing the worker starts by a bare name is looked up in the current directory
+        Check(Env.get("NoDefaultCurrentDirectoryInExePath") == "1", "NoDefaultCurrentDirectoryInExePath=1")
     finally:
-        for Key in ("DIAPHORA_USE_DECOMPILER", "diaphora_lowercase", "IDA_IS_INTERACTIVE"):
-            os.environ.pop(Key, None)
+        for Key, Value in Saved.items():
+            if Value is None:
+                os.environ.pop(Key, None)
+            else:
+                os.environ[Key] = Value
 
 
 def TestDriverChecks(Dir):
@@ -199,7 +222,101 @@ def TestDriverChecks(Dir):
     Check(not os.path.exists(Out), "nothing was written")
     Identity = dsig_export.DiaphoraIdentity(FakeDiaphora)
     Check(Identity["version_value"] == "9.9", "VERSION_VALUE read as text")
+
+    # F42: a timeout the platform cannot wait for is a usage error, not a wrapped or crashing wait
+    Check(RunMain(["binary", Pe, "-o", Out, "--timeout", str(dsig_export.MAX_TIMEOUT_SECONDS + 1)])
+          == dsig_export.EXIT_USAGE, "--timeout above the cap")
+    Check(RunMain(["binary", Pe, "-o", Out, "--timeout", "4294848"]) == dsig_export.EXIT_USAGE,
+          "--timeout 4294848 (the audit's value)")
+
+    TestAliasRefusals(Dir, Pe, FakeIda, FakeDiaphora)
     os.environ.pop("IDAUSR", None)
+
+
+def TestAliasRefusals(Dir, Pe, FakeIda, FakeDiaphora):
+    """F02: no file the run writes, replaces or moves aside may be the input or the PDB. Each case must
+    exit 2 before anything is touched, whatever tools are configured."""
+    print("[written paths never alias the input or the PDB]")
+    Tools = ["--ida-dir", FakeIda, "--diaphora-dir", FakeDiaphora]
+    Aliases = os.path.join(Dir, "aliases")
+    os.makedirs(Aliases)
+    Out = os.path.join(Aliases, "out.sqlite")
+
+    def Copy(Name, Source=Pe):
+        Path = os.path.join(Aliases, Name)
+        shutil.copyfile(Source, Path)
+        return Path
+
+    def Refused(Argv, Protected, What):
+        Before = {Path: ReadBytes(Path) for Path in Protected}
+        Code = RunMain(Argv + Tools)
+        Check(Code == dsig_export.EXIT_USAGE, "%s: exit %s, want %d" % (What, Code, dsig_export.EXIT_USAGE))
+        for Path, Data in Before.items():
+            Check(os.path.isfile(Path) and ReadBytes(Path) == Data, "%s: %s is unchanged" % (What, os.path.basename(Path)))
+
+    Pdb = os.path.join(Aliases, "cryptbase.pdb")
+    SyntheticPdb(Pdb)
+    Refused(["binary", Pe, "-o", Pdb, "--pdb", Pdb], [Pdb], "-o <pdb> --pdb <pdb>")
+    Refused(["binary", Pe, "-o", os.path.join(Aliases, "other.pdb"), "--no-pdb"], [Pe], "-o <anything>.pdb")
+    for Suffix in ("-wal", "-shm", "-journal", "-crash"):
+        Input = Copy("out.sqlite" + Suffix)
+        Refused(["binary", Input, "-o", Out, "--no-pdb"], [Input], "an input named <out>%s" % Suffix)
+        AsPdb = Copy("out.sqlite%s.pdb" % Suffix, Pdb)
+        os.replace(AsPdb, os.path.join(Aliases, "out.sqlite" + Suffix))
+        Refused(["binary", Pe, "-o", Out, "--pdb", os.path.join(Aliases, "out.sqlite" + Suffix)],
+                [os.path.join(Aliases, "out.sqlite" + Suffix)], "--pdb <out>%s" % Suffix)
+        os.remove(os.path.join(Aliases, "out.sqlite" + Suffix))
+    Input = Copy("out.export.json")
+    Refused(["binary", Input, "-o", Out, "--no-pdb"], [Input], "an input at the sidecar path")
+    Input = Copy("out.sqlite.dsig-tmp-4242")
+    Refused(["binary", Input, "-o", Out, "--no-pdb"], [Input], "an input named like the staging copy")
+    Input = Copy("out.sqlite-wal.dsig-old-4242")
+    Refused(["binary", Input, "-o", Out, "--no-pdb"], [Input], "an input named like a moved-aside sidecar")
+    Input = Copy("out.export.json.tmp-4242")
+    Refused(["binary", Input, "-o", Out, "--no-pdb"], [Input], "an input named like the sidecar's temporary file")
+    if sys.platform == "win32":
+        Input = Copy("OUT.SQLITE-WAL")
+        Refused(["binary", Input, "-o", Out, "--no-pdb"], [Input], "a case variant (Windows)")
+        Upper = os.path.join(Aliases, "CRYPTBASE.PDB")
+        Refused(["binary", Pe, "-o", os.path.join(Aliases, "cryptbase.sqlite"), "--pdb", Upper,
+                 "--sidecar", Pdb], [Pdb], "a sidecar that is the PDB under another case")
+    Check(not os.path.exists(Out), "nothing was written by any refused run")
+
+
+def TestGitLookup(Dir, FakeDiaphora):
+    """F16: git is never resolved from the current directory, which is often the sample's own folder."""
+    print("[git is never taken from the current directory]")
+    Plant = os.path.join(Dir, "sample folder")
+    os.makedirs(Plant)
+    Marker = os.path.join(Dir, "planted git ran")
+    if sys.platform == "win32":
+        # The audit's repro: a copy of cmd.exe named git.exe; its banner used to become git_describe.
+        shutil.copyfile(os.path.join(os.environ.get("SystemRoot", "C:\\Windows"), "System32", "cmd.exe"),
+                        os.path.join(Plant, "git.exe"))
+    else:
+        with open(os.path.join(Plant, "git"), "w") as Handle:
+            Handle.write("#!/bin/sh\necho PLANTED\ntouch '%s'\n" % Marker)
+        os.chmod(os.path.join(Plant, "git"), 0o755)
+    Saved = {Key: os.environ.get(Key) for Key in ("PATH", "NoDefaultCurrentDirectoryInExePath")}
+    Cwd = os.getcwd()
+    try:
+        os.environ.pop("NoDefaultCurrentDirectoryInExePath", None)
+        os.environ["PATH"] = os.pathsep.join([".", "", "sample folder"] + [Saved["PATH"] or ""])
+        os.chdir(Plant)
+        Found = dsig_export.FindProgramOnPath("git")
+        Check(Found is None or os.path.normcase(os.path.dirname(Found)) != os.path.normcase(Plant),
+              "git resolves outside the current directory: %s" % Found)
+        Describe = dsig_export.DiaphoraIdentity(FakeDiaphora)["git_describe"]
+        Check(Describe is None or ("Microsoft" not in Describe and "PLANTED" not in Describe),
+              "git_describe is not the planted program's output: %r" % Describe)
+        Check(not os.path.exists(Marker), "the planted git did not run")
+    finally:
+        os.chdir(Cwd)
+        for Key, Value in Saved.items():
+            if Value is None:
+                os.environ.pop(Key, None)
+            else:
+                os.environ[Key] = Value
 
 
 # Stand-ins for the idalib Python modules the worker imports (RunWorker, FunctionNameStats,
@@ -213,8 +330,10 @@ FAKE_IDALIB = {
     "idaapi.py": "class _Cvar:\n    batch = False\ncvar = _Cvar()\n"
                  "def get_kernel_version():\n    return '9.9'\n",
     "ida_auto.py": "def auto_wait():\n    return True\ndef auto_is_ok():\n    return True\n",
-    "ida_hexrays.py": "def init_hexrays_plugin():\n    return True\ndef get_hexrays_version():\n    return '9.9.0.1'\n",
-    "ida_funcs.py": "FUNC_LIB = 4\nFUNC_THUNK = 128\ndef get_func(Ea):\n    return None\n",
+    "ida_hexrays.py": "import os\ndef init_hexrays_plugin():\n    return os.environ.get('FAKE_HEXRAYS', '1') == '1'\n"
+                      "def get_hexrays_version():\n    return '9.9.0.1'\n",
+    "ida_funcs.py": "import os\nFUNC_LIB = 4\nFUNC_THUNK = 128\ndef get_func(Ea):\n    return None\n"
+                    "def get_func_qty():\n    return int(os.environ.get('FAKE_FUNC_QTY', '2'))\n",
     "ida_name.py": "def get_name(Ea):\n    return 'sub_%X' % Ea\n",
     "idautils.py": "def Functions():\n    return iter([0x1000, 0x2000])\n",
     "ida_netnode.py": "BADNODE = -1\nclass netnode:\n    def __init__(self, *Args):\n        pass\n"
@@ -293,13 +412,23 @@ def TestFakeIdaRuns(Dir):
     print("[driver + worker with stand-in idalib and Diaphora]")
     for Key in ("DSIG_IDADIR", "IDADIR", "DSIG_DIAPHORA_DIR", "DSIG_EXPORT_ALLOW_NO_DECOMPILER"):
         os.environ.pop(Key, None)
-    Saved = {Key: os.environ.get(Key) for Key in ("IDAUSR", "PYTHONPATH")}
+    Saved = {Key: os.environ.get(Key) for Key in ("IDAUSR", "PYTHONPATH", "FAKE_HEXRAYS", "FAKE_FUNC_QTY",
+                                                  "DSIG_EXPORT_ALLOW_NO_DECOMPILER")}
     EmptyUser = os.path.join(Dir, "fake idausr")
     os.makedirs(EmptyUser)
     os.environ["IDAUSR"] = EmptyUser
     Idalib = os.path.join(Dir, "fake idalib")
     WriteFiles(Idalib, FAKE_IDALIB)
-    os.environ["PYTHONPATH"] = Idalib  # inherited by the worker through CleanEnv()
+    # CleanEnv drops the caller's PYTHONPATH (F66), so the stand-ins are put on the worker's path here,
+    # after the cleaning, exactly as a test double and never through the environment.
+    RealCleanEnv = dsig_export.CleanEnv
+
+    def CleanEnvWithStandIns():
+        Env, Removed = RealCleanEnv()
+        Env["PYTHONPATH"] = Idalib
+        return Env, Removed
+
+    dsig_export.CleanEnv = CleanEnvWithStandIns
     FakeIda = os.path.join(Dir, "fake ida")
     os.makedirs(FakeIda)
     with open(os.path.join(FakeIda, dsig_export.IdaLibraryName()), "wb") as Handle:
@@ -364,12 +493,153 @@ def TestFakeIdaRuns(Dir):
                   "after a failed replace %s is unchanged" % os.path.basename(Path))
         Leftovers = [Name for Name in os.listdir(Dir) if ".dsig-tmp-" in Name or ".dsig-old-" in Name]
         Check(not Leftovers, "no staging or moved-aside files are left after the failure: %s" % Leftovers)
+
+        Good = ["binary", Pe, "-o", Out, "--diaphora-dir", Working] + Tools
+        TestCallerPythonPath(Dir, Good, Out)
+        TestNoFunctionsAndHexRays(Good, Out)
+        TestSweep(Dir, Good)
+        TestLauncherGone(Good, Out)
     finally:
+        dsig_export.CleanEnv = RealCleanEnv
         for Key, Value in Saved.items():
             if Value is None:
                 os.environ.pop(Key, None)
             else:
                 os.environ[Key] = Value
+
+
+def TestCallerPythonPath(Dir, Good, Out):
+    """F66: a sitecustomize on the caller's PYTHONPATH that would kill the worker is never loaded, and the
+    sidecar records that PYTHONPATH was removed."""
+    print("[the caller's PYTHONPATH does not reach the worker]")
+    Poison = os.path.join(Dir, "poison path")
+    WriteFiles(Poison, {"sitecustomize.py": "import os\nos._exit(42)\n"})
+    Saved = os.environ.get("PYTHONPATH")
+    os.environ["PYTHONPATH"] = Poison
+    try:
+        Code = RunMain(Good)
+    finally:
+        if Saved is None:
+            os.environ.pop("PYTHONPATH", None)
+        else:
+            os.environ["PYTHONPATH"] = Saved
+    Check(Code == dsig_export.EXIT_OK, "the run ignores a PYTHONPATH sitecustomize: exit %s" % Code)
+    try:
+        with open(dsig_export.DefaultSidecar(Out), "r", encoding="utf-8") as Handle:
+            Removed = json.load(Handle)["isolation"]["removed_environment"]
+    except (OSError, ValueError, KeyError) as Exc:
+        Removed = "unreadable: %s" % Exc
+    Check(isinstance(Removed, list) and "PYTHONPATH" in Removed,
+          "the sidecar lists PYTHONPATH as removed: %s" % Removed)
+
+
+def TestNoFunctionsAndHexRays(Good, Out):
+    print("[no functions (F57 d) and Hex-Rays advice (F46)]")
+    Before = ReadBytes(Out)
+    os.environ["FAKE_FUNC_QTY"] = "0"
+    try:
+        Code = RunMain(Good)
+    finally:
+        os.environ.pop("FAKE_FUNC_QTY", None)
+    Check(Code == dsig_export.EXIT_OPEN, "IDA found no functions: exit %s, want %d (CLI exit 4)"
+          % (Code, dsig_export.EXIT_OPEN))
+    Check(ReadBytes(Out) == Before, "the previous output is kept")
+
+    Messages = []
+    RealLogError = dsig_export.LogError
+    dsig_export.LogError = lambda Message: (Messages.append(Message), RealLogError(Message))
+    os.environ["FAKE_HEXRAYS"] = "0"
+    try:
+        Code = RunMain(Good)
+        Check(Code == dsig_export.EXIT_HEXRAYS, "no Hex-Rays: exit %s, want %d" % (Code, dsig_export.EXIT_HEXRAYS))
+        Check(any("DSIG_EXPORT_ALLOW_NO_DECOMPILER=1" in Message for Message in Messages),
+              "the refusal names the variable that works through dsigmatcher: %s" % Messages)
+        os.environ["DSIG_EXPORT_ALLOW_NO_DECOMPILER"] = "1"
+        Code = RunMain(Good)
+        Check(Code == dsig_export.EXIT_OK, "DSIG_EXPORT_ALLOW_NO_DECOMPILER=1 exports anyway: exit %s" % Code)
+    finally:
+        dsig_export.LogError = RealLogError
+        os.environ.pop("FAKE_HEXRAYS", None)
+        os.environ.pop("DSIG_EXPORT_ALLOW_NO_DECOMPILER", None)
+
+
+def TestSweep(Dir, Good):
+    """F43: a run removes the work directories of runs that were killed, and only those."""
+    print("[work directories left by killed runs are swept]")
+    Dead = 0x7FFFFFF0  # no such process on any platform (above every pid_max; invalid on Windows)
+
+    def MakeWork(Name, Owner, AgeSeconds=0):
+        Path = os.path.join(Dir, Name)
+        os.makedirs(os.path.join(Path, "work"))
+        with open(os.path.join(Path, "work", "copy.i64"), "wb") as Handle:
+            Handle.write(b"IDA2 copy of the user's database")
+        if Owner is not None:
+            with open(os.path.join(Path, dsig_export.OWNER_FILE), "w", encoding="utf-8") as Handle:
+                json.dump(Owner, Handle)
+        if AgeSeconds:
+            Then = time.time() - AgeSeconds
+            os.utime(Path, (Then, Then))
+        return Path
+
+    Tool = dsig_export.TOOL_NAME
+    Killed = MakeWork("dsig-export-dead0001", {"tool": Tool, "pid": Dead, "start": None})
+    KilledWithWorker = MakeWork("dsig-export-dead0002", {"tool": Tool, "pid": Dead, "worker_pid": Dead + 1})
+    Live = MakeWork("dsig-export-live0001", {"tool": Tool, "pid": os.getpid(),
+                                             "start": dsig_export.ProcessStart(os.getpid())})
+    LiveWorker = MakeWork("dsig-export-live0002", {"tool": Tool, "pid": Dead, "worker_pid": os.getpid()})
+    Kept = MakeWork("dsig-export-kept0001", {"tool": Tool, "pid": Dead, "kept": True})
+    FreshUnowned = MakeWork("dsig-export-noown001", None)
+    OldUnowned = MakeWork("dsig-export-oldnown1", None, AgeSeconds=3 * 24 * 3600)
+    NotOurs = MakeWork("dsig-export-selftest-abcdefgh", None, AgeSeconds=3 * 24 * 3600)
+    Foreign = MakeWork("dsig-export-frgn0001", {"tool": "something else", "pid": Dead})
+    Code = RunMain(Good)
+    Check(Code == dsig_export.EXIT_OK, "the sweeping run succeeds: exit %s" % Code)
+    for Path in (Killed, KilledWithWorker, OldUnowned):
+        Check(not os.path.exists(Path), "removed: %s" % os.path.basename(Path))
+    for Path in (Live, LiveWorker, Kept, FreshUnowned, NotOurs, Foreign):
+        Check(os.path.isdir(Path), "kept: %s" % os.path.basename(Path))
+    # A process that really ran and was killed: its pid is dead afterwards.
+    Child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+    Start = dsig_export.ProcessStart(Child.pid)
+    Check(dsig_export.ProcessAlive(Child.pid, Start), "a running process is alive")
+    Child.kill()
+    Child.wait()
+    Check(not dsig_export.ProcessAlive(Child.pid, Start), "a killed process is not alive")
+    # --keep-temp marks its directory kept, so the next run does not sweep it.
+    Code = RunMain(Good + ["--keep-temp"])
+    Check(Code == dsig_export.EXIT_OK, "a --keep-temp run succeeds: exit %s" % Code)
+    KeptDirs = [Name for Name in os.listdir(Dir) if dsig_export.WORK_NAME_RE.match(Name)
+                and Name not in ("dsig-export-live0001", "dsig-export-live0002", "dsig-export-kept0001",
+                                 "dsig-export-noown001", "dsig-export-frgn0001")]
+    Check(len(KeptDirs) == 1, "one kept work directory: %s" % KeptDirs)
+    if KeptDirs:
+        with open(os.path.join(Dir, KeptDirs[0], dsig_export.OWNER_FILE), "r", encoding="utf-8") as Handle:
+            Check(json.load(Handle).get("kept") is True, "its owner file says kept")
+        Code = RunMain(Good)
+        Check(os.path.isdir(os.path.join(Dir, KeptDirs[0])), "a later run leaves the kept directory alone")
+        shutil.rmtree(os.path.join(Dir, KeptDirs[0]), ignore_errors=True)
+    for Path in (Live, LiveWorker, Kept, FreshUnowned, NotOurs, Foreign):
+        shutil.rmtree(Path, ignore_errors=True)
+
+
+def TestLauncherGone(Good, Out):
+    """F44: when the launcher dies (POSIX re-parents the script, so getppid changes), nothing is published."""
+    print("[a run whose launcher went away publishes nothing]")
+    Before = ReadBytes(Out)
+    RealGetppid = os.getppid
+    Calls = [0]
+
+    def Reparented():
+        Calls[0] += 1
+        return RealGetppid() if Calls[0] == 1 else RealGetppid() + 1  # the first call is the watch's baseline
+
+    os.getppid = Reparented
+    try:
+        Code = RunMain(Good)
+    finally:
+        os.getppid = RealGetppid
+    Check(Code == dsig_export.EXIT_INTERRUPTED, "exit %s, want %d" % (Code, dsig_export.EXIT_INTERRUPTED))
+    Check(ReadBytes(Out) == Before, "the output was not replaced")
 
 
 def TestImportDiaphora(Dir):
@@ -398,6 +668,7 @@ def Main():
         TestIdentityReaders(Dir)
         TestSmallPieces()
         TestDriverChecks(Dir)
+        TestGitLookup(Dir, os.path.join(Dir, "diaphora"))
         TestImportDiaphora(Dir)
         TestFakeIdaRuns(os.path.join(Dir, "runs"))
     finally:
