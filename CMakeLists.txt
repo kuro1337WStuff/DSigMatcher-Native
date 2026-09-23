@@ -49,6 +49,7 @@ function(dsig_apply_warnings Target)
 endfunction()
 
 add_library(dsigmatcher_core STATIC
+  src/ControlFlowGraph.cpp
   src/DisassemblerZydis.cpp
   src/ExportDatabase.cpp
   src/Heuristics.cpp
@@ -103,3 +104,8 @@ add_executable(dsigmatcher_resolve_tests tests/resolve_tests.cpp)
 target_link_libraries(dsigmatcher_resolve_tests PRIVATE dsigmatcher_core)
 dsig_apply_warnings(dsigmatcher_resolve_tests)
 add_test(NAME resolve COMMAND dsigmatcher_resolve_tests)
+
+add_executable(dsigmatcher_cfg_tests tests/cfg_tests.cpp)
+target_link_libraries(dsigmatcher_cfg_tests PRIVATE dsigmatcher_core)
+dsig_apply_warnings(dsigmatcher_cfg_tests)
+add_test(NAME controlflowgraph COMMAND dsigmatcher_cfg_tests)
