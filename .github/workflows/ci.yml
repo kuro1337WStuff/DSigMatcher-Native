@@ -76,12 +76,23 @@ jobs:
       - name: Build
         run: cmake --build build
 
+      - name: Stage SQLite DLL beside the executables (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Copy-Item "$env:SQLITE_PREFIX/bin/sqlite3.dll" -Destination build/ -Force
+          $Staged = Get-Item build/sqlite3.dll
+          Write-Output ("staged {0} ({1} bytes) from {2}" -f $Staged.Name, $Staged.Length, $env:SQLITE_PREFIX)
+          $System = "C:\Windows\System32\sqlite3.dll"
+          if (Test-Path $System) {
+            Write-Output ("system sqlite3.dll also present: {0} bytes - the staged copy wins because the exe directory precedes System32 in the search order" -f (Get-Item $System).Length)
+          }
+
       - name: Test
         shell: bash
         run: |
           if [ -n "$SQLITE_PREFIX" ]; then
             export PATH="$SQLITE_PREFIX/bin:$PATH"
-            echo "prefixed PATH with $SQLITE_PREFIX/bin so the vcpkg sqlite3.dll wins over any other on PATH"
           fi
           ctest --test-dir build --output-on-failure
 
