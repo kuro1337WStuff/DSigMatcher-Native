@@ -1312,6 +1312,59 @@ for identical source.
 Revisit if a specific C++23 feature becomes worth a fallback path — `std::expected` for error handling
 is the most plausible candidate — and ideally once MSVC ships a real `/std:c++23`.
 
+### First CI run: three failures, and what was done about each
+
+The first three-platform run failed everywhere. That is the feature working, not a setback — every one
+of these was invisible from a single MSVC machine.
+
+**Linux/GCC — build error, real, in my code.**
+
+```
+src/Synth.cpp:53:8: error: declaration of 'DSig::{anonymous}::Kind DSig::{anonymous}::Spec::Kind'
+changes meaning of 'Kind' [-Wchanges-meaning]
+```
+
+A struct member named `Kind` whose type is also `Kind`. Ill-formed by the standard: a member
+declarator may not change the meaning of a name used within its own declarator. MSVC accepts it, GCC
+rejects it. Fixed by renaming the member to `ItemKind`, leaving the enum type name alone. This is
+precisely the class of defect that only a second compiler finds, and it was in code written and
+"verified" on MSVC alone.
+
+**Windows/MSVC — `unit` segfaulted.** Passed locally, crashed on the runner. No diagnostic was
+recoverable: the test prints suite headers to stdout, which is **block-buffered when redirected**, so
+the crash discarded the entire buffer and ctest captured nothing. Added `fflush(stdout)` to the `Suite`
+helper so the next crash names the suite it died in. Observability first, diagnosis second.
+
+**macOS/Clang and Windows/MSVC — `resolve` determinism assertions failed** at nine distinct sites in
+`resolve_tests.cpp`, including cases that compare an explicit thread count against a serial oracle.
+Locally these pass at 1, 2, 3, 4, 8, 16, 24 and 32 threads, five consecutive runs, plus ASan.
+
+Working hypothesis, not yet confirmed: the partitioned path is gated on
+`Total >= PartitionGrain * WorkerCount` with `PartitionGrain = 256`. On a 4-core runner that threshold
+is 1,024 items; on this 32-thread machine it is 8,192. **The same test input takes the partitioned path
+on CI and the serial path locally**, so CI exercises code that local runs route around. Consistent with
+both the resolve failures and possibly the segfault.
+
+**Action taken: disabled, not fixed.** `PartitionedResolveEnabled()` returns `false`, so `Resolve`
+always takes the serial path. The parallel implementation is left intact and unreferenced-but-compiled
+so re-enabling is a one-line flip.
+
+This costs very little, and the reason is worth stating because it reframes the earlier result: the
+large win in that work was **algorithmic, not threading**. Deduplicating before sorting — duplicates
+share `(Index1, Index2)`, so each group's winner is computable without a global sort — took Resolve from
+13.24 ms to 4.41 ms **at a single thread**. Threading then took it from 4.41 to 2.71 ms, on a cascade
+whose total was ~26 ms. So disabling parallel Resolve gives back roughly 1.7 ms of a 26 ms pipeline
+while retaining the 3.2x algorithmic improvement.
+
+Trade accepted deliberately: shipping a version that builds and passes on three toolchains is worth
+more than 1.7 ms on one machine. Re-enabling requires a reproducer at low worker counts, and until then
+the `resolve` suite's thread-count cases pass trivially because both sides are serial — **they no longer
+test the parallel path at all.** That is a real hole in coverage and is recorded as such rather than
+allowed to look like passing verification.
+
+Local state after the three changes: build clean at `/W4 /permissive-`, 5/5 suites, 316 unit checks and
+825 resolve checks, 0 failures.
+
 ### Not yet done
 
 - 38 remaining heuristics: 4 `Best`, 26 `Partial`, 8 `Unreliable`
