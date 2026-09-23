@@ -14,6 +14,8 @@
 #include <utility>
 #include <vector>
 
+#include "dsigmatcher/cli/Commands.h"
+
 namespace DSig::Cli::ExportBridge {
 
 // Exit codes of tools/export/dsig_export.py (see its module docstring and tools/export/README.md).
@@ -35,9 +37,15 @@ inline constexpr int kToolInterrupted = 130;
 // The longest --timeout the bridge accepts (30 days). dsig_export.py enforces the same cap: Python's
 // subprocess wait cannot take much more than 2^32 ms on Windows, and the backstop (timeout + 120 s)
 // must not wrap (audit F42).
-inline constexpr int kMaxTimeoutSeconds = 30 * 24 * 3600;
+inline constexpr int kMaxTimeoutSeconds = kMaxExportTimeoutSeconds;
 // The backstop the bridge adds to --timeout before it kills the script's whole process tree.
 inline constexpr int kBackstopGraceSeconds = 120;
+
+// SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX: no loader ("Bad Image"),
+// crash or missing-file dialog in this process or in any process it starts (the mode is inherited;
+// RunProcess never passes CREATE_DEFAULT_ERROR_MODE).
+// DSig::Cli::DisableErrorDialogs (Commands.h) adds it to this process's mode.
+inline constexpr unsigned kNoErrorDialogs = 0x0001u | 0x0002u | 0x8000u;
 
 struct ToolExit {
   int ExitCode;      // DSig::Cli::kExit*

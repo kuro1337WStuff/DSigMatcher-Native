@@ -905,14 +905,18 @@ ProcessResult RunProcess(const std::vector<std::string>& Arguments,
   if (GetConsoleWindow() == nullptr) {
     Flags |= CREATE_NO_WINDOW;  // no console of our own: do not pop one up for the child
   }
+  // Never CREATE_DEFAULT_ERROR_MODE: the child must inherit the error mode set below.
+  Flags &= ~static_cast<DWORD>(CREATE_DEFAULT_ERROR_MODE);
   PROCESS_INFORMATION Process{};
   const std::wstring Directory = WorkingDirectory.empty() ? std::wstring() : WorkingDirectory.native();
   // The child inherits this process's error mode, and so does everything it starts. Without
   // SEM_FAILCRITICALERRORS (the default under cmd.exe, PowerShell and Explorer) a failed DLL load in the
   // worker, such as a broken or foreign idalib, raises a modal "Bad Image" hard error and the headless
-  // run blocks until someone clicks it. With it the load just fails and the script reports the error.
+  // run blocks until someone clicks it. With it the load just fails and the script reports the error;
+  // SEM_NOGPFAULTERRORBOX does the same for a crash (no Windows Error Reporting dialog). dsigmatcher's
+  // entry point sets the same mode for the whole process; this also covers callers that do not.
   const UINT PreviousErrorMode = GetErrorMode();
-  SetErrorMode(PreviousErrorMode | SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
+  SetErrorMode(PreviousErrorMode | kNoErrorDialogs);
   const BOOL Created =
       CreateProcessW(Application.c_str(), CommandLine.data(), nullptr, nullptr, TRUE, Flags, Environment.data(),
                      Directory.empty() ? nullptr : Directory.c_str(), &Startup.StartupInfo, &Process);
@@ -1245,68 +1249,87 @@ CommandOutcome RunExport(std::string_view Command, std::string_view Mode, const 
                          const std::string& OutputText, const ExportToolOptions& Tools, const std::string& PdbText,
                          bool NoPdb) {
   const std::string Name(Command);
+  // The --json fields, on failure as far as they are known.
+  Diff::JsonValue Data = Diff::JsonValue::Object();
+  Data.Set("mode", Diff::JsonValue::String(std::string(Mode)));
+  Data.Set("input", Diff::JsonValue::String(InputText));
+  Data.Set("output", Diff::JsonValue::String(OutputText));
+  Data.Set("sidecar", Diff::JsonValue::Null());
+  Data.Set("pdb", PdbText.empty() ? Diff::JsonValue::Null() : Diff::JsonValue::String(PdbText));
+  Data.Set("allow_no_decompiler", Diff::JsonValue::Bool(Tools.AllowNoDecompiler));
+  Data.Set("input_sha256", Diff::JsonValue::Null());
+  Data.Set("tool_exit_code", Diff::JsonValue::Null());
+  const auto Failed = [&Data](int ExitCode, std::string Message) {
+    CommandOutcome Outcome = Fail(ExitCode, std::move(Message));
+    Outcome.Data = Data;
+    return Outcome;
+  };
   if (InputText.empty()) {
-    return Fail(kExitUsage, Name + ": no input given");
+    return Failed(kExitUsage, Name + ": no input given");
   }
   if (OutputText.empty()) {
-    return Fail(kExitUsage, Name + ": -o <out.sqlite> is required");
+    return Failed(kExitUsage, Name + ": -o <out.sqlite> is required");
   }
   if (Tools.TimeoutSeconds < 0 || Tools.TimeoutSeconds > kMaxTimeoutSeconds) {
-    return Fail(kExitUsage, Name + ": --timeout must be between 0 and " + std::to_string(kMaxTimeoutSeconds) +
-                                " seconds (30 days), got " + std::to_string(Tools.TimeoutSeconds));
+    return Failed(kExitUsage, Name + ": --timeout must be between 0 and " + std::to_string(kMaxTimeoutSeconds) +
+                                  " seconds (30 days), got " + std::to_string(Tools.TimeoutSeconds));
   }
 
   // ---- the input
   const std::filesystem::path Input = Absolute(PathFromUtf8(InputText));
   if (IsDirectory(Input)) {
-    return Fail(kExitIo, Name + ": the input is a directory: " + PathToUtf8(Input));
+    return Failed(kExitIo, Name + ": the input is a directory: " + PathToUtf8(Input));
   }
   if (!IsFile(Input)) {
-    return Fail(kExitIo, Name + ": input not found: " + PathToUtf8(Input));
+    return Failed(kExitIo, Name + ": input not found: " + PathToUtf8(Input));
   }
   const std::string Extension = ToLowerAscii(PathToUtf8(Input.extension()));
   const bool IsDatabase = Extension == ".i64" || Extension == ".idb";
   if (Mode == "idb" && !IsDatabase) {
-    return Fail(kExitUsage, Name + " expects an IDA database (.i64 or .idb), got " + PathToUtf8(Input) +
-                                "; use 'dsigmatcher ingest' for a raw binary");
+    return Failed(kExitUsage, Name + " expects an IDA database (.i64 or .idb), got " + PathToUtf8(Input) +
+                                  "; use 'dsigmatcher ingest' for a raw binary");
   }
   if (Mode == "binary" && IsDatabase) {
-    return Fail(kExitUsage, Name + " expects a raw binary, got the IDA database " + PathToUtf8(Input) +
-                                "; use 'dsigmatcher extract' to export it");
+    return Failed(kExitUsage, Name + " expects a raw binary, got the IDA database " + PathToUtf8(Input) +
+                                  "; use 'dsigmatcher extract' to export it");
   }
 
   // ---- the output
   const std::filesystem::path Output = Absolute(PathFromUtf8(OutputText));
   if (HasIdaExtension(Output)) {
-    return Fail(kExitUsage, Name + ": the output must not have an IDA extension (.idb .i64 .til .id0 .id1 .nam): " +
-                                PathToUtf8(Output));
+    return Failed(kExitUsage, Name + ": the output must not have an IDA extension (.idb .i64 .til .id0 .id1 .nam): " +
+                                  PathToUtf8(Output));
   }
   if (HasPdbExtension(Output)) {
-    return Fail(kExitUsage, Name + ": the output must not have the .pdb extension: " + PathToUtf8(Output));
+    return Failed(kExitUsage, Name + ": the output must not have the .pdb extension: " + PathToUtf8(Output));
   }
   if (SameFile(Output, Input)) {
-    return Fail(kExitUsage, Name + ": the output is the input: " + PathToUtf8(Output));
+    return Failed(kExitUsage, Name + ": the output is the input: " + PathToUtf8(Output));
   }
   if (IsDirectory(Output)) {
-    return Fail(kExitUsage, Name + ": the output is a directory: " + PathToUtf8(Output));
+    return Failed(kExitUsage, Name + ": the output is a directory: " + PathToUtf8(Output));
   }
   if (!IsDirectory(Output.parent_path())) {
-    return Fail(kExitIo, Name + ": the output directory does not exist: " + PathToUtf8(Output.parent_path()));
+    return Failed(kExitIo, Name + ": the output directory does not exist: " + PathToUtf8(Output.parent_path()));
   }
   const std::filesystem::path Sidecar = SidecarPathFor(Output);
+  Data.Set("input", Diff::JsonValue::String(PathToUtf8(Input)));
+  Data.Set("output", Diff::JsonValue::String(PathToUtf8(Output)));
+  Data.Set("sidecar", Diff::JsonValue::String(PathToUtf8(Sidecar)));
   if (SameFile(Sidecar, Output)) {
-    return Fail(kExitUsage, Name + ": the sidecar " + PathToUtf8(Sidecar) + " is the output");
+    return Failed(kExitUsage, Name + ": the sidecar " + PathToUtf8(Sidecar) + " is the output");
   }
 
   // ---- the PDB (ingest only)
   if (!PdbText.empty() && NoPdb) {
-    return Fail(kExitUsage, Name + ": --pdb and --no-pdb are exclusive");
+    return Failed(kExitUsage, Name + ": --pdb and --no-pdb are exclusive");
   }
   std::filesystem::path Pdb;
   if (!PdbText.empty()) {
     Pdb = Absolute(PathFromUtf8(PdbText));
+    Data.Set("pdb", Diff::JsonValue::String(PathToUtf8(Pdb)));
     if (!IsFile(Pdb) || IsDirectory(Pdb)) {
-      return Fail(kExitIo, Name + ": PDB not found: " + PathToUtf8(Pdb));
+      return Failed(kExitIo, Name + ": PDB not found: " + PathToUtf8(Pdb));
     }
   }
   // Nothing the script writes, replaces or moves aside may be the input or the PDB (audit F02); checked
@@ -1316,13 +1339,13 @@ CommandOutcome RunExport(std::string_view Command, std::string_view Mode, const 
     Protected.push_back({"the PDB", Pdb});
   }
   if (const std::optional<std::string> Alias = WrittenPathAlias(Output, Sidecar, Protected)) {
-    return Fail(kExitUsage, Name + ": " + *Alias);
+    return Failed(kExitUsage, Name + ": " + *Alias);
   }
   std::filesystem::path TempDir;
   if (!Tools.TempDir.empty()) {
     TempDir = Absolute(PathFromUtf8(Tools.TempDir));
     if (!IsDirectory(TempDir)) {
-      return Fail(kExitIo, Name + ": --temp-dir does not exist: " + PathToUtf8(TempDir));
+      return Failed(kExitIo, Name + ": --temp-dir does not exist: " + PathToUtf8(TempDir));
     }
   }
 
@@ -1338,13 +1361,14 @@ CommandOutcome RunExport(std::string_view Command, std::string_view Mode, const 
     }
   }
   if (!Missing.empty()) {
-    return Fail(kExitUnsupported, Name + ": " + Missing);
+    return Failed(kExitUnsupported, Name + ": " + Missing);
   }
 
   const std::optional<std::string> InputSha = FileSha256(Input);
   if (!InputSha) {
-    return Fail(kExitIo, Name + ": cannot read the input: " + PathToUtf8(Input));
+    return Failed(kExitIo, Name + ": cannot read the input: " + PathToUtf8(Input));
   }
+  Data.Set("input_sha256", Diff::JsonValue::String(*InputSha));
 
   // -E: the interpreter ignores PYTHONPATH, PYTHONHOME, PYTHONSTARTUP and the like, so a module planted
   // through the caller's environment cannot shadow the driver's (audit F66; dsig_export.py CleanEnv drops
@@ -1366,6 +1390,9 @@ CommandOutcome RunExport(std::string_view Command, std::string_view Mode, const 
   if (Tools.TimeoutSeconds > 0) {
     Arguments.insert(Arguments.end(), {"--timeout", std::to_string(Tools.TimeoutSeconds)});
   }
+  if (Tools.AllowNoDecompiler) {
+    Arguments.push_back("--allow-no-decompiler");
+  }
   if (Mode == "binary") {
     if (!Pdb.empty()) {
       Arguments.insert(Arguments.end(), {"--pdb", PathToUtf8(Pdb)});
@@ -1386,28 +1413,32 @@ CommandOutcome RunExport(std::string_view Command, std::string_view Mode, const 
   // 64-bit, so the grace period cannot overflow (audit F42).
   const int64_t Backstop =
       Tools.TimeoutSeconds > 0 ? static_cast<int64_t>(Tools.TimeoutSeconds) + kBackstopGraceSeconds : 0;
-  const ProcessResult Run = RunProcess(Arguments, Overrides, Backstop, stderr, Script.Path.parent_path());
+  // --quiet: the script's progress is not streamed; its last error line still reaches the message.
+  const ProcessResult Run =
+      RunProcess(Arguments, Overrides, Backstop, Tools.Quiet ? nullptr : stderr, Script.Path.parent_path());
   if (!Run.Started) {
-    return Fail(kExitUnsupported, Name + ": cannot start Python '" + PathToUtf8(Python.Path) + "' (from " +
-                                      Python.Source + "): " + Run.Error);
+    return Failed(kExitUnsupported, Name + ": cannot start Python '" + PathToUtf8(Python.Path) + "' (from " +
+                                        Python.Source + "): " + Run.Error);
   }
 
+  Data.Set("tool_exit_code", Run.TimedOut ? Diff::JsonValue::Null() : Diff::JsonValue::Int(Run.ExitCode));
+  Data.Set("timed_out", Diff::JsonValue::Bool(Run.TimedOut));
   // The original must be untouched whatever happened; checked here too, not only by the script.
   const std::optional<std::string> InputShaAfter = FileSha256(Input);
   if (!InputShaAfter || *InputShaAfter != *InputSha) {
-    return Fail(kExitIo, Name + ": THE INPUT CHANGED during the export: " + PathToUtf8(Input) + " (sha256 " +
-                             *InputSha + " -> " + InputShaAfter.value_or("unreadable") + ")");
+    return Failed(kExitIo, Name + ": THE INPUT CHANGED during the export: " + PathToUtf8(Input) + " (sha256 " +
+                               *InputSha + " -> " + InputShaAfter.value_or("unreadable") + ")");
   }
   if (Run.TimedOut) {
-    return Fail(kExitIo, Name + ": timeout: the export tool did not stop within " + std::to_string(Backstop) +
-                             " s and was killed");
+    return Failed(kExitIo, Name + ": timeout: the export tool did not stop within " + std::to_string(Backstop) +
+                               " s and was killed");
   }
   if (Run.ExitCode != 0) {
 #ifdef _WIN32
     if (Run.ExitCode == 9009) {
-      return Fail(kExitUnsupported, Name + ": Python not found: '" + PathToUtf8(Python.Path) +
-                                        "' is the Microsoft Store placeholder (exit 9009); install Python or pass "
-                                        "--python <python executable>");
+      return Failed(kExitUnsupported, Name + ": Python not found: '" + PathToUtf8(Python.Path) +
+                                          "' is the Microsoft Store placeholder (exit 9009); install Python or pass "
+                                          "--python <python executable>");
     }
 #endif
     const ToolExit Mapped = MapToolExit(Run.ExitCode);
@@ -1416,28 +1447,29 @@ CommandOutcome RunExport(std::string_view Command, std::string_view Mode, const 
     const std::string Detail = ToolErrorLine(Run.Tail);
     if (!Detail.empty()) {
       Message += ": " + Detail;
+      Data.Set("tool_error", Diff::JsonValue::String(Detail));
     }
     if (Run.ExitCode == kToolHexRays) {
-      // The script's own --allow-no-decompiler is not a dsigmatcher option; its variable reaches the script.
-      Message += " [to export anyway, set DSIG_EXPORT_ALLOW_NO_DECOMPILER=1; such an export must not be diffed "
-                 "against one made with Hex-Rays]";
+      // Audit F46: the advice names what works through dsigmatcher.
+      Message += " [to export anyway, pass --allow-no-decompiler (or set DSIG_EXPORT_ALLOW_NO_DECOMPILER=1); such an "
+                 "export must not be diffed against one made with Hex-Rays]";
     }
-    return Fail(Mapped.ExitCode, Message);
+    return Failed(Mapped.ExitCode, Message);
   }
 
   // ---- success: check what the script says it did
   if (!IsFile(Output)) {
-    return Fail(kExitIo, Name + ": the export tool reported success but wrote no " + PathToUtf8(Output));
+    return Failed(kExitIo, Name + ": the export tool reported success but wrote no " + PathToUtf8(Output));
   }
   const std::optional<std::string> SidecarText = ReadTextFile(Sidecar);
   if (!SidecarText) {
-    return Fail(kExitIo, Name + ": the export tool wrote no sidecar " + PathToUtf8(Sidecar));
+    return Failed(kExitIo, Name + ": the export tool wrote no sidecar " + PathToUtf8(Sidecar));
   }
   Diff::JsonValue Record;
   try {
     Record = Diff::JsonParse(*SidecarText);
   } catch (const Diff::JsonError& Exc) {
-    return Fail(kExitIo, Name + ": the sidecar " + PathToUtf8(Sidecar) + " is not valid JSON: " + Exc.what());
+    return Failed(kExitIo, Name + ": the sidecar " + PathToUtf8(Sidecar) + " is not valid JSON: " + Exc.what());
   }
   const Diff::JsonValue* Schema = Member(&Record, "schema");
   const Diff::JsonValue* InputRecord = Member(&Record, "input");
@@ -1456,14 +1488,30 @@ CommandOutcome RunExport(std::string_view Command, std::string_view Mode, const 
                OutputSha.value_or("(unreadable)");
   }
   if (!Mismatch.empty()) {
-    return Fail(kExitIo, Name + ": the sidecar " + PathToUtf8(Sidecar) + " does not match the run: " + Mismatch);
+    return Failed(kExitIo, Name + ": the sidecar " + PathToUtf8(Sidecar) + " does not match the run: " + Mismatch);
   }
 
   const Diff::JsonValue* Counts = Member(&Record, "counts");
   const Diff::JsonValue* IdaRecord = Member(&Record, "ida");
   const Diff::JsonValue* DiaphoraRecord = Member(&Record, "diaphora");
   const Diff::JsonValue* PdbRecord = Member(&Record, "pdb");
+  const auto Copy = [](const Diff::JsonValue* Value) { return Value != nullptr ? *Value : Diff::JsonValue::Null(); };
+  Data.Set("output_sha256", Diff::JsonValue::String(*OutputSha));
+  for (const char* Key :
+       {"functions", "functions_named", "functions_sub", "functions_with_pseudocode", "ida_functions"}) {
+    Data.Set(Key, Copy(Member(Counts, Key)));
+  }
+  if (Mode == "binary") {
+    Data.Set("pdb_applied", Copy(Member(PdbRecord, "applied")));
+    Data.Set("pdb_symbols_loaded", Copy(Member(PdbRecord, "symbols_loaded")));
+  }
+  Data.Set("ida_kernel_version", Copy(Member(IdaRecord, "kernel_version")));
+  Data.Set("idalib_version", Copy(Member(IdaRecord, "idalib_version")));
+  Data.Set("hexrays_version", Copy(Member(IdaRecord, "hexrays_version")));
+  Data.Set("diaphora_version", Copy(Member(DiaphoraRecord, "version_value")));
+  Data.Set("diaphora_git_describe", Copy(Member(DiaphoraRecord, "git_describe")));
   CommandOutcome Outcome;
+  Outcome.Data = std::move(Data);
   Outcome.Report.push_back(Name + ": wrote " + PathToUtf8(Output));
   Outcome.Report.push_back("  functions    : " + ScalarText(Member(Counts, "functions")) + " exported (" +
                            ScalarText(Member(Counts, "functions_named")) + " named, " +
@@ -1494,11 +1542,17 @@ CommandOutcome RunExportGuarded(std::string_view Command, std::string_view Mode,
   try {
     return RunExport(Command, Mode, Input, Output, Tools, Pdb, NoPdb);
   } catch (const std::exception& Exc) {
-    return Fail(kExitIo, std::string(Command) + ": internal error: " + Exc.what());
+    return Fail(kExitInternal, std::string(Command) + ": internal error: " + Exc.what());
   }
 }
 
 }  // namespace
+
+void DisableErrorDialogs() {
+#ifdef _WIN32
+  SetErrorMode(GetErrorMode() | ExportBridge::kNoErrorDialogs);
+#endif
+}
 
 CommandOutcome RunExtract(const ExtractArgs& Args) {
   return RunExportGuarded("extract", "idb", Args.Input, Args.Output, Args.Tools, std::string(), false);

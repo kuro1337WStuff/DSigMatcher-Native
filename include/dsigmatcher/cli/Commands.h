@@ -9,7 +9,9 @@
 //   dsigmatcher update <labelled.sqlite> <new-binary> -o <new-labelled.sqlite>  (src/cli/Update.cpp)
 //
 // extract / ingest launch tools/export/dsig_export.py (IDA idalib + the unmodified Diaphora exporter).
-// Tool discovery: the flags below, else DSIG_PYTHON / DSIG_IDADIR / DSIG_DIAPHORA_DIR.
+// Tool discovery: the flags below, else DSIG_PYTHON / DSIG_IDADIR / DSIG_DIAPHORA_DIR / DSIG_EXPORT_SCRIPT;
+// without either, dsig_export.py is looked for beside the executable, then in
+// <prefix>/share/dsigmatcher/tools/export (<prefix>: the executable's directory or its parent).
 // Every command returns a process exit code from the table below (the same for every command).
 
 #include <cstdint>
@@ -29,15 +31,22 @@ inline constexpr int kExitSqliteMismatch = 5;  // --strict-sqlite and SQLite is 
 inline constexpr int kExitIo = 6;              // a file cannot be read or written; environment failure
 inline constexpr int kExitInternal = 70;       // internal error (EX_SOFTWARE): a bug, or out of memory
 
+// The longest --timeout extract / ingest / update accept (30 days). The CLI checks the 64-bit value
+// against it before narrowing to int, and dsig_export.py enforces the same cap (audit F42).
+inline constexpr int kMaxExportTimeoutSeconds = 30 * 24 * 3600;
+
 struct ExportToolOptions {
   std::string Python;       // --python      (else DSIG_PYTHON)
   std::string IdaDir;       // --ida-dir     (else DSIG_IDADIR)
   std::string DiaphoraDir;  // --diaphora-dir (else DSIG_DIAPHORA_DIR)
   std::string TempDir;      // --temp-dir    (else the system temp directory)
   bool KeepTemp = false;    // --keep-temp
-  int TimeoutSeconds = 0;   // --timeout (0: none)
+  int TimeoutSeconds = 0;   // --timeout (0: none; at most kMaxExportTimeoutSeconds)
   std::string ExportScript; // --export-script (else DSIG_EXPORT_SCRIPT, else found relative to the
                             // executable). Added by lane L10 (additive).
+  bool AllowNoDecompiler = false;  // --allow-no-decompiler: forwarded to dsig_export.py (audit F46)
+  bool Quiet = false;       // --quiet: the script's progress is not streamed to stderr (its last error
+                            // line still reaches the outcome's message)
 };
 
 // `extract`: export an existing IDA database, keeping the user's labels. The input .i64/.idb is always
@@ -114,6 +123,12 @@ using IngestRunner = std::function<CommandOutcome(const IngestArgs&)>;
 
 std::string UpdateExportPath(const std::string& Output);
 CommandOutcome RunUpdate(const UpdateArgs& Args, const IngestRunner& Ingest = RunIngest);
+
+// Windows: adds SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX to this
+// process's error mode, so neither dsigmatcher nor anything it starts (Python, IDA; the mode is
+// inherited) can block a headless run behind a loader ("Bad Image"), crash or missing-file dialog.
+// Elsewhere it does nothing. dsigmatcher's entry point calls it before anything else.
+void DisableErrorDialogs();
 
 // Runs a command. An exception that escapes it is a bug (or out of memory): stdout is flushed,
 // "error: internal error: <what>" goes to stderr and the exit code is kExitInternal (70), never an

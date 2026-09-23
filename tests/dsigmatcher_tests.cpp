@@ -22,6 +22,16 @@
 #include "dsigmatcher/Provenance.h"
 #include "dsigmatcher/Sha256.h"
 
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
 namespace {
 
 using namespace DSig;
@@ -666,6 +676,11 @@ void TestUnicodePort() {
 }
 
 int main() {
+#ifdef _WIN32
+  // Before anything else: no loader, crash or missing-file dialog can block this suite (ctest and
+  // cmd.exe leave them on).
+  SetErrorMode(GetErrorMode() | SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
+#endif
   TestSha256();
   TestMd5();
   TestBigUIntBasics();

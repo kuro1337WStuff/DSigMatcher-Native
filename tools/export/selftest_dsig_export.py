@@ -168,7 +168,11 @@ def TestSmallPieces():
         Kernel32.SetErrorMode(0)
         try:
             Mode = dsig_export.QuietHardErrors()
-            Wanted = dsig_export.SEM_FAILCRITICALERRORS | dsig_export.SEM_NOOPENFILEERRORBOX
+            Wanted = (dsig_export.SEM_FAILCRITICALERRORS | dsig_export.SEM_NOGPFAULTERRORBOX
+                      | dsig_export.SEM_NOOPENFILEERRORBOX)
+            Check(dsig_export.NO_ERROR_DIALOGS == Wanted, "loader, crash and open-file dialogs are all off")
+            Check(dsig_export.WORKER_CREATION_FLAGS & 0x04000000 == 0,
+                  "the worker is never started with CREATE_DEFAULT_ERROR_MODE")
             Check(Mode is not None and Mode & Wanted == Wanted, "critical-error dialogs are off (mode %r)" % Mode)
             Check(Kernel32.GetErrorMode() & Wanted == Wanted, "the process error mode was changed")
         finally:
@@ -571,6 +575,10 @@ def TestNoFunctionsAndHexRays(Good, Out):
         Check(Code == dsig_export.EXIT_HEXRAYS, "no Hex-Rays: exit %s, want %d" % (Code, dsig_export.EXIT_HEXRAYS))
         Check(any("DSIG_EXPORT_ALLOW_NO_DECOMPILER=1" in Message for Message in Messages),
               "the refusal names the variable that works through dsigmatcher: %s" % Messages)
+        Check(any("--allow-no-decompiler to dsigmatcher" in Message for Message in Messages),
+              "the refusal names dsigmatcher's --allow-no-decompiler (F46): %s" % Messages)
+        Code = RunMain(Good + ["--allow-no-decompiler"])
+        Check(Code == dsig_export.EXIT_OK, "--allow-no-decompiler exports anyway: exit %s" % Code)
         os.environ["DSIG_EXPORT_ALLOW_NO_DECOMPILER"] = "1"
         Code = RunMain(Good)
         Check(Code == dsig_export.EXIT_OK, "DSIG_EXPORT_ALLOW_NO_DECOMPILER=1 exports anyway: exit %s" % Code)
