@@ -68,7 +68,12 @@ public:
   TraceSink& operator=(const TraceSink&) = delete;
 
   void Open(const std::string& Path, bool Rows);  // UTF-8 path; truncates; throws IoFailure
-  void Close();
+  void Close();   // never throws (the destructor and error paths use it)
+  // Flushes and closes, and throws IoFailure when the flush or the close fails (audit F27). Every
+  // write and every point's flush is checked too: a failure throws IoFailure and disables the sink.
+  void Finish();
+  // Test hook: marks the stream failed, so the next write, flush or Finish throws IoFailure.
+  void InjectWriteFailureForTest();
   bool Enabled() const;
   bool RowsEnabled() const;
   uint64_t Events() const;  // lines written (every event type)
@@ -113,10 +118,8 @@ void LogShowSummary(DiffSession& S);
 // The end of diff() (D:3684-3695): the chooser item counts of S.Final(), then percent (D:3689), then
 // the "Final results: ..." (D:3690-3692) and "Matched ..." (D:3694-3695) lines. The percent comes
 // first, as in Python, so when total_functions1 is 0 it throws DiaphoraWouldRaise("D:3689
-// ZeroDivisionError") before any line is logged. Stub-only fallback (removed at L9 with the other
-// RunPipeline fallbacks): when stages were skipped (DiffSession::SkippedStages) and total_functions1 is
-// 0, it logs both lines with "Matched: not computed ..." instead of raising. Added by lane R0 so the
-// ordering is testable; RunPipeline calls it.
+// ZeroDivisionError") before any line is logged. Added by lane R0 so the ordering is testable;
+// RunPipeline calls it.
 void LogFinalResults(DiffSession& S);
 
 // Python "%1.2f" % value (correctly rounded, half-even on the exact double).

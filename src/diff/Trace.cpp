@@ -65,14 +65,27 @@ std::string_view RowDecisionName(RowDecision Decision) {
 
 struct TraceSink::Impl {
   std::ofstream File;
+  std::string Path;
   bool Open = false;
   bool Rows = false;
   uint64_t Lines = 0;        // every event written
   uint64_t AddMatchSeq = 0;  // oracle Instrument.AddMatchSeq
 
+  // A failed write, flush or close (a full disk, audit F27) ends the trace: the sink stops writing, so
+  // nothing more is attempted while the IoFailure unwinds, and the run ends with exit 6 instead of
+  // exiting 0 with a trace cut off mid-line.
+  void Check(const char* What) {
+    if (!File) {
+      Open = false;
+      File.close();
+      throw IoFailure("cannot write trace '" + Path + "' (" + What + " failed; is the disk full?)");
+    }
+  }
+
   void Line(std::string& Text) {
     Text += '\n';
     File.write(Text.data(), static_cast<std::streamsize>(Text.size()));
+    Check("write");
     ++Lines;
   }
 };
@@ -83,10 +96,12 @@ TraceSink::~TraceSink() { Close(); }
 
 void TraceSink::Open(const std::string& Path, bool Rows) {
   Close();
+  Impl_->File.clear();
   Impl_->File.open(Detail::PathFromUtf8(Path), std::ios::binary | std::ios::trunc);
   if (!Impl_->File) {
     throw IoFailure("cannot write trace '" + Path + "'");
   }
+  Impl_->Path = Path;
   Impl_->Open = true;
   Impl_->Rows = Rows;
   Impl_->Lines = 0;
@@ -97,6 +112,25 @@ void TraceSink::Close() {
   if (Impl_ && Impl_->Open) {
     Impl_->File.close();
     Impl_->Open = false;
+  }
+}
+
+void TraceSink::Finish() {
+  if (!Impl_->Open) {
+    return;
+  }
+  Impl_->File.flush();
+  Impl_->Check("flush");
+  Impl_->File.close();
+  Impl_->Open = false;
+  if (Impl_->File.fail()) {
+    throw IoFailure("cannot write trace '" + Impl_->Path + "' (close failed; is the disk full?)");
+  }
+}
+
+void TraceSink::InjectWriteFailureForTest() {
+  if (Impl_->Open) {
+    Impl_->File.setstate(std::ios::badbit);
   }
 }
 
@@ -161,6 +195,7 @@ void TraceSink::Point(std::string_view Name, size_t Best, size_t Partial, size_t
   AppendSizes(Line, Best, Partial, Unreliable);
   Impl_->Line(Line);
   Impl_->File.flush();  // oracle Instrument.Point: TraceHandle.flush() at every point
+  Impl_->Check("flush");
 }
 
 void TraceSink::Row(std::string_view Ctx, std::string_view Ea1, std::string_view Ea2, RowDecision Decision,
@@ -272,13 +307,6 @@ void LogFinalResults(DiffSession& S) {
                                 ", Multimatches " + std::to_string(Multi);  // D:3690-3692
   const int64_t Total1 = S.State().Total1();
   if (Total1 == 0) {
-    if (!S.SkippedStages().empty()) {
-      // Stub-only fallback: find_equal_matches or the passes that divide by total_functions1 first
-      // (D:1631, D:2562) were skipped, so Python would have raised earlier. Removed at L9.
-      S.Log().Info(FinalLine);
-      S.Log().Info("Matched: not computed (total_functions1 is 0 because stages were skipped)");
-      return;
-    }
     // D:3689 raises ZeroDivisionError before the D:3690 log call: no "Final results" line.
     throw DiaphoraWouldRaise("D:3689 ZeroDivisionError", "total_functions1 == 0");
   }

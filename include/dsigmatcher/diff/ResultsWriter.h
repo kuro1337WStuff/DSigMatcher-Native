@@ -31,15 +31,23 @@ struct FinalResults {
 };
 
 struct WriteArgs {
-  std::string OutPath;   // deleted first if it exists (D:2379-2381)
+  std::string OutPath;   // replaced if it exists (D:2379-2381); see WriteDiaphoraResults
   std::string MainDb;    // config.main_db: db1 exactly as passed on the command line
   std::string DiffDb;    // config.diff_db: db2 exactly as passed
   std::string Date;      // config.date; empty -> AscTimeNow()
 };
 
 // D:2374-2429. Throws IoFailure when the file cannot be written, DiaphoraWouldRaise where Python's
-// formatting raises (for example "%08x" % int(ea) on a non-decimal ea).
+// formatting raises (for example "%08x" % int(ea) on a non-decimal ea). Every row is formatted before
+// any file is touched. The database is written as "<OutPath>.tmp-<pid>" in the same directory and
+// renamed over OutPath after the commit (a stale -journal / -wal / -shm of OutPath is removed first), so
+// the bytes are save_results' but OutPath never holds a partial file: on any failure the temporary
+// files are removed and an existing OutPath keeps its old content. ":memory:" is written directly.
 void WriteDiaphoraResults(const WriteArgs& A, const FinalResults& R, const Interners& Ids);
+
+// The scratch files WriteDiaphoraResults creates beside `Out` in this process (the temporary database
+// and its sidecars), for the input-alias check of RunDiff.
+std::vector<std::string> ResultsWriterScratchPaths(const std::string& Out);
 
 std::string FormatLine05(uint64_t N);             // "%05lu" % n        (123456 -> "123456")
 std::string FormatAddr08x(std::string_view Ea);   // "%08x" % int(ea)   (4294967296 -> "100000000")

@@ -2,6 +2,9 @@
 
 #include "FileIo.h"
 
+#include <cctype>
+#include <climits>
+#include <cstdint>
 #include <cstring>
 #include <fstream>
 #include <sstream>
@@ -106,32 +109,132 @@ void WriteFileBytes(const std::string& Utf8Path, std::string_view Bytes) {
   }
 }
 
+void RenameReplacing(const std::string& FromUtf8, const std::string& ToUtf8) {
+  const fs::path From = PathFromUtf8(FromUtf8);
+  const fs::path To = PathFromUtf8(ToUtf8);
+  std::error_code Error;
+  for (int Attempt = 0; Attempt < 20; ++Attempt) {
+    Error.clear();
+    fs::rename(From, To, Error);  // MoveFileExW(MOVEFILE_REPLACE_EXISTING) on Windows, rename(2) on POSIX
+    if (!Error) {
+      return;
+    }
+#ifdef _WIN32
+    // ERROR_ACCESS_DENIED / ERROR_SHARING_VIOLATION while another process holds the target briefly.
+    if (Error.value() != ERROR_ACCESS_DENIED && Error.value() != ERROR_SHARING_VIOLATION &&
+        Error.value() != ERROR_LOCK_VIOLATION) {
+      break;
+    }
+    Sleep(50);
+#else
+    break;
+#endif
+  }
+  throw IoFailure("cannot replace '" + ToUtf8 + "' with '" + FromUtf8 + "': " + Error.message());
+}
+
 void ReplaceFileBytes(const std::string& Utf8Path, std::string_view Bytes) {
   const std::string Temporary = Utf8Path + ".tmp";
   WriteFileBytes(Temporary, Bytes);
-  const fs::path From = PathFromUtf8(Temporary);
-  const fs::path To = PathFromUtf8(Utf8Path);
-  std::error_code Error;
-  fs::rename(From, To, Error);  // MoveFileExW(MOVEFILE_REPLACE_EXISTING) on Windows, rename(2) on POSIX
-  if (!Error) {
-    return;
+  try {
+    RenameReplacing(Temporary, Utf8Path);
+  } catch (const IoFailure&) {
+    std::error_code Ignored;
+    fs::remove(PathFromUtf8(Temporary), Ignored);
+    throw;
   }
-  // Some runtimes refuse to rename over an existing file: remove it first.
-  std::error_code Ignored;
-  fs::remove(To, Ignored);
-  fs::rename(From, To, Error);
-  if (!Error) {
-    return;
-  }
-  // A reader holds the target open without delete sharing: rewrite it in place.
-  fs::remove(From, Ignored);
-  WriteFileBytes(Utf8Path, Bytes);
 }
 
 bool PathExists(const std::string& Utf8Path) {
   try {
     std::error_code Error;
     return fs::exists(PathFromUtf8(Utf8Path), Error);
+  } catch (const std::exception&) {
+    return false;
+  }
+}
+
+namespace {
+
+fs::path CanonicalOrAbsolute(const fs::path& Path) {
+  std::error_code Error;
+  fs::path Canonical = fs::weakly_canonical(Path, Error);
+  if (!Error && !Canonical.empty()) {
+    return Canonical;
+  }
+  Error.clear();
+  const fs::path Absolute = fs::absolute(Path, Error);
+  return (Error ? Path : Absolute).lexically_normal();
+}
+
+bool SameSpelling(const fs::path& A, const fs::path& B) {
+#if defined(_WIN32)
+  const std::wstring& X = A.native();
+  const std::wstring& Y = B.native();
+  if (X.size() > static_cast<size_t>(INT32_MAX) || Y.size() > static_cast<size_t>(INT32_MAX)) {
+    return X == Y;
+  }
+  return CompareStringOrdinal(X.data(), static_cast<int>(X.size()), Y.data(), static_cast<int>(Y.size()), TRUE) ==
+         CSTR_EQUAL;
+#elif defined(__APPLE__)
+  const std::string& X = A.native();
+  const std::string& Y = B.native();
+  if (X.size() != Y.size()) {
+    return false;
+  }
+  for (size_t Index = 0; Index < X.size(); ++Index) {
+    if (std::tolower(static_cast<unsigned char>(X[Index])) != std::tolower(static_cast<unsigned char>(Y[Index]))) {
+      return false;
+    }
+  }
+  return true;
+#else
+  return A.native() == B.native();
+#endif
+}
+
+}  // namespace
+
+bool SameFilePath(const std::string& A, const std::string& B) {
+  if (A.empty() || B.empty()) {
+    return false;
+  }
+  try {
+    const fs::path PathA = PathFromUtf8(A);
+    const fs::path PathB = PathFromUtf8(B);
+    std::error_code Error;
+    const bool ExistsA = fs::exists(PathA, Error);
+    Error.clear();
+    const bool ExistsB = fs::exists(PathB, Error);
+    if (ExistsA && ExistsB) {
+      Error.clear();
+      if (fs::equivalent(PathA, PathB, Error) && !Error) {
+        return true;
+      }
+    }
+    return SameSpelling(CanonicalOrAbsolute(PathA), CanonicalOrAbsolute(PathB));
+  } catch (const std::exception&) {
+    return A == B;
+  }
+}
+
+bool PathIsInside(const std::string& Path, const std::string& Dir) {
+  if (Path.empty() || Dir.empty()) {
+    return false;
+  }
+  try {
+    const fs::path Root = CanonicalOrAbsolute(PathFromUtf8(Dir));
+    fs::path Current = CanonicalOrAbsolute(PathFromUtf8(Path));
+    while (true) {
+      fs::path Parent = Current.parent_path();
+      if (Parent.empty() || Parent == Current) {
+        return false;
+      }
+      if (SameSpelling(Parent, Root)) {
+        return true;
+      }
+      Current = std::move(Parent);
+    }
   } catch (const std::exception&) {
     return false;
   }

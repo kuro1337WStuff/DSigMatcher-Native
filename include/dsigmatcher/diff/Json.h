@@ -21,11 +21,33 @@
 
 namespace DSig::Diff {
 
+// The deepest nesting of arrays and objects any parser in DSig::Diff accepts (JsonParse here, and
+// PyValue.cpp's json.loads port). A recursive descent parser needs one stack frame set per level; 512
+// stays far below the measured crash depth (about 3000 levels in a release build, audit F30), so a
+// hostile snapshot or export sidecar gets a clean JsonError instead of a stack overflow.
+inline constexpr int kMaxJsonDepth = 512;
+
 class JsonError : public std::runtime_error {
 public:
-  JsonError(const std::string& Message, size_t Offset)
-      : std::runtime_error(Message + " at offset " + std::to_string(Offset)), Position(Offset) {}
+  static constexpr size_t kNoOffset = static_cast<size_t>(-1);
+
+  // `Offset` is the byte offset of a syntax error, or kNoOffset for an error about a parsed value (a
+  // wrong kind, a missing member). `Where` is the member path of that value, such as
+  // "all_matches.best[0][6]", when the caller knows it (audit F58).
+  JsonError(const std::string& Message, size_t Offset, std::string Where = std::string())
+      : std::runtime_error(Format(Message, Offset, Where)), Position(Offset), Detail(Message), Path(std::move(Where)) {}
   size_t Position = 0;
+  std::string Detail;  // the message alone, without path and offset
+  std::string Path;    // the member path, or "" when unknown
+
+private:
+  static std::string Format(const std::string& Message, size_t Offset, const std::string& Where) {
+    std::string Text = Where.empty() ? Message : Where + ": " + Message;
+    if (Offset != kNoOffset) {
+      Text += " at offset " + std::to_string(Offset);
+    }
+    return Text;
+  }
 };
 
 class JsonValue {

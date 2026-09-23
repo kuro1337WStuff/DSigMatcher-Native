@@ -152,6 +152,11 @@ private:
           throw;  // the step failed during this fetchmany: the batch is lost
         }
         Deferred_ = std::current_exception();  // the conversion of row 1001 belongs to the next batch
+      } catch (const IoFailure&) {
+        // An environment failure (SqliteEnvironmentFailure: disk, TMP, memory, a damaged file) is not a
+        // Python fetchmany behaviour to reproduce: it ends the run now and is never deferred or dropped.
+        Batch_.clear();
+        throw;
       } catch (...) {
         Deferred_ = std::current_exception();
       }

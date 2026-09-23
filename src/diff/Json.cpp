@@ -62,7 +62,9 @@ JsonValue JsonValue::Object() {
 
 namespace {
 
-[[noreturn]] void KindError(const char* Wanted) { throw JsonError(std::string("JSON value is not ") + Wanted, 0); }
+[[noreturn]] void KindError(const char* Wanted) {
+  throw JsonError(std::string("JSON value is not ") + Wanted, JsonError::kNoOffset);
+}
 
 }
 
@@ -99,7 +101,7 @@ int64_t JsonValue::AsInt64() const {
   int64_t Value = 0;
   const auto Result = std::from_chars(Text_.data(), Text_.data() + Text_.size(), Value);
   if (Result.ec != std::errc() || Result.ptr != Text_.data() + Text_.size()) {
-    throw JsonError("integer out of int64 range: " + Text_, 0);
+    throw JsonError("integer out of int64 range: " + Text_, JsonError::kNoOffset);
   }
   return Value;
 }
@@ -111,7 +113,7 @@ uint64_t JsonValue::AsUInt64() const {
   uint64_t Value = 0;
   const auto Result = std::from_chars(Text_.data(), Text_.data() + Text_.size(), Value);
   if (Result.ec != std::errc() || Result.ptr != Text_.data() + Text_.size()) {
-    throw JsonError("integer out of uint64 range: " + Text_, 0);
+    throw JsonError("integer out of uint64 range: " + Text_, JsonError::kNoOffset);
   }
   return Value;
 }
@@ -147,7 +149,7 @@ double JsonValue::AsDouble() const {
     return Negative ? -0.0 : 0.0;
   }
   if (Result.ec != std::errc() || Result.ptr != Text_.data() + Text_.size()) {
-    throw JsonError("bad number: " + Text_, 0);
+    throw JsonError("bad number: " + Text_, JsonError::kNoOffset);
   }
   return Value;
 }
@@ -202,7 +204,7 @@ const JsonValue* JsonValue::Find(std::string_view Key) const {
 const JsonValue& JsonValue::At(std::string_view Key) const {
   const JsonValue* Value = Find(Key);
   if (Value == nullptr) {
-    throw JsonError("missing member \"" + std::string(Key) + "\"", 0);
+    throw JsonError("missing member \"" + std::string(Key) + "\"", JsonError::kNoOffset);
   }
   return *Value;
 }
@@ -310,9 +312,6 @@ private:
   }
 
   JsonValue ParseValue(int Depth) {
-    if (Depth > 10000) {
-      Fail("nesting too deep");
-    }
     if (Pos_ >= Text_.size()) {
       Fail("Expecting value");
     }
@@ -486,6 +485,9 @@ private:
   }
 
   JsonValue ParseArray(int Depth) {
+    if (Depth >= kMaxJsonDepth) {
+      Fail("nesting too deep (more than " + std::to_string(kMaxJsonDepth) + " levels)");
+    }
     ++Pos_;
     JsonValue Result = JsonValue::Array();
     SkipWhitespace();
@@ -513,6 +515,9 @@ private:
   }
 
   JsonValue ParseObject(int Depth) {
+    if (Depth >= kMaxJsonDepth) {
+      Fail("nesting too deep (more than " + std::to_string(kMaxJsonDepth) + " levels)");
+    }
     ++Pos_;
     JsonValue Result = JsonValue::Object();
     SkipWhitespace();

@@ -67,8 +67,8 @@ bool DiffAndCompare(const std::string& Label, const std::string& Db1, const std:
   const bool Ok = Report.DdlEqual && (Exact ? Report.L2Equal : Report.L1Equal);
   Test::Note(Label + ": mode " + std::string(1, Outcome.Mode) + ", native rows " +
              std::to_string(Native.Results.size()) + "/" + std::to_string(Native.Unmatched.size()) + ", oracle rows " +
-             std::to_string(Expected.Results.size()) + "/" + std::to_string(Expected.Unmatched.size()) + ", " +
-             std::to_string(Outcome.Skipped.size()) + " stages skipped: " + (Exact ? "L2 " : "L1 ") +
+             std::to_string(Expected.Results.size()) + "/" + std::to_string(Expected.Unmatched.size()) + ": " +
+             (Exact ? "L2 " : "L1 ") +
              (Ok ? "EQUAL" : "DIFFERENT"));
   for (const std::string& Line : Report.Differences) {
     Test::Note("  " + Line);

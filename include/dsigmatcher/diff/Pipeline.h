@@ -49,11 +49,13 @@ public:
 
   // ---- inputs ----------------------------------------------------------------------------
   // Opens db1 read-only, attaches db2 as `diff` and ingests both (leniently: see ExportData::Problems).
-  // Throws IoFailure when a file cannot be opened.
+  // Throws IoFailure when a file cannot be opened (SqliteEnvironmentFailure for a corrupt one).
   void Open(const std::string& Db1, const std::string& Db2);
   bool IsOpen() const;
-  // Throws UnsupportedInput when ingest recorded a problem (missing functions table or columns).
-  // RunPipeline calls it right after the diff.version check.
+  // Throws UnsupportedInput when ingest recorded any problem (ExportData::Problems): a table the default
+  // diff reads is missing, the functions table or one of its columns is missing, a column holds a value
+  // of the wrong storage class, or two functions share an address. RunPipeline calls it right after the
+  // diff.version check.
   void RequireIngest() const;
 
   // ---- components ------------------------------------------------------------------------
@@ -90,9 +92,13 @@ public:
   // ("a|b", fnmatch '*' '?') go to <Dir>/snapshots/NNNNN_<point>.json; <Dir>/index.json lists EVERY
   // point as [seq, point, file] (file relative to <Dir>, null when filtered out) and is rewritten at
   // each point. `CacheGlobs` selects the points whose snapshot also carries ratios_cache. Earlier
-  // snapshot files in <Dir>/snapshots are removed. Throws IoFailure when Dir cannot be created or is
-  // (inside) an oracle capture (it holds run.json). Paths are UTF-8.
+  // snapshot files in <Dir>/snapshots and the earlier index.json are removed. Throws UsageRefused when
+  // Dir is (inside) an oracle capture (it holds run.json) or holds an index.json that is not a capture
+  // index (audit F29), IoFailure when Dir cannot be created or a stale file cannot be removed. Paths
+  // are UTF-8.
   void EnableSnapshots(const std::string& Dir, std::string PointGlobs = "*", std::string CacheGlobs = "");
+  // Throws UsageRefused when the trace's directory is (inside) an oracle capture, IoFailure when the
+  // file cannot be created.
   void EnableTrace(const std::string& Path, bool Rows);
   // Emits a named point: a trace "point" event and, when enabled and matching, a snapshot file.
   void Point(std::string_view Name);
@@ -113,12 +119,14 @@ public:
   StateSnapshot Snapshot(std::string_view PointName, bool WithCache = false) const;
   // Restores flags, totals, all_matches, matched_* and (when present) ratios_cache from a snapshot.
   void Restore(const StateSnapshot& Before);
-  // Writes <snapshot dir>/index.json and flushes the trace. Safe to call more than once.
+  // Throws UnsupportedInput unless every address `Before` holds is a function of its side (items of
+  // all_matches and choosers: ea1 main, ea2 diff; unmatched primary: diff, secondary: main) and its
+  // non-zero total_functions1/2 equal the loaded function counts (audit F28). RunDiff calls it before a
+  // replay, so a snapshot of another pair is refused instead of replayed against the wrong databases.
+  void CheckSnapshotMatchesInputs(const StateSnapshot& Before) const;
+  // Writes <snapshot dir>/index.json, then flushes and closes the trace, checked: throws IoFailure when
+  // either fails (audit F27). Safe to call more than once.
   void FinishHarness();
-
-  // ---- stub bookkeeping ------------------------------------------------------------------
-  void NoteSkipped(std::string_view Stage, std::string_view Reason);
-  const std::vector<std::string>& SkippedStages() const;
 
   // ---- per-lane session state ------------------------------------------------------------
   // A default-constructed T owned by the session, created on first use (for example the patch-diff
@@ -153,15 +161,12 @@ private:
   DiffSession& S_;
 };
 
-// L0 stub protocol: runs F; a StageNotImplemented thrown by a stub is logged as
-// "SKIPPED <Name>: <reason>" and swallowed. Returns false when the stage was skipped.
-bool InvokeStage(DiffSession& S, std::string_view Name, const std::function<void()>& F);
-
 // ---- driver ------------------------------------------------------------------------------------
 
 // Literal port of diff() (D:3568-3701) on an open session. Returns diff()'s value: false when the
 // diff.version check fails (D:3577-3591; save_results still writes empty tables). Throws
-// DiaphoraWouldRaise / UnsupportedInput. Fills S.Final() and logs the final lines (D:3684-3695).
+// DiaphoraWouldRaise / UnsupportedInput / IoFailure (SqliteEnvironmentFailure). Fills S.Final() and
+// logs the final lines (D:3684-3695).
 bool RunPipeline(DiffSession& S);
 
 // Runs exactly one replayable stage (Appendix B, marked R) from `Before` and returns the after
@@ -173,14 +178,17 @@ StateSnapshot RunReplay(DiffSession& S, const StateSnapshot& Before, std::string
                         std::optional<int> Iteration = std::nullopt,
                         std::optional<int> HeuristicId = std::nullopt);
 
-// Exit codes (§2.1).
+// Exit codes (§2.1, as amended for v1.0.0).
 enum class DiffStatus : int {
-  Ok = 0,              // includes Diaphora's empty-result case
-  Usage = 2,
-  WouldRaise = 3,      // DIAPHORA_WOULD_RAISE: no output written, as in Python
-  Unsupported = 4,     // unsupported configuration or input quirk (also "not implemented" commands)
+  Ok = 0,
+  Usage = 2,           // usage error, or a command line refused before any file was touched
+                       // (an output aliasing an input, a write target inside an oracle capture)
+  WouldRaise = 3,      // DIAPHORA_WOULD_RAISE: nothing written (an existing output is left as it was)
+  Unsupported = 4,     // unsupported configuration or input quirk; also db2 not a usable Diaphora export,
+                       // where Diaphora's empty results file IS written (audit F06)
   SqliteMismatch = 5,  // --strict-sqlite and sqlite3_libversion() != 3.51.1 (plan §7.1 D2)
-  Io = 6,
+  Io = 6,              // I/O or environment failure (disk full, missing TMP, a damaged database file)
+  Internal = 70,       // an internal error (EX_SOFTWARE): a bug, never an input problem
 };
 
 struct DiffArgs {
@@ -216,14 +224,17 @@ struct DiffOutcome {
   size_t Partial = 0;
   size_t Unreliable = 0;
   size_t Multimatch = 0;
-  std::vector<std::string> Skipped;  // stages skipped because a stub is not implemented
+  std::vector<std::string> Skipped;  // always empty: no stage is a stub any more (audit F63); kept only
+                                     // until the CLI (src/main.cpp) stops printing it
   std::string SqliteVersion;
 };
 
-// Open, RunPipeline (or RunReplay when ReplayPath is set), write. Never throws.
+// Checks every path first (aliases, oracle captures, the output's directory: nothing is opened or
+// written when one is refused), then Open, RunPipeline (or RunReplay when ReplayPath is set), write.
+// Never throws.
 DiffOutcome RunDiff(const DiffArgs& Args);
 
-// Diaphora's default output name (D:3727-3731): basename(splitext(db1)[0]) + "_vs_" + ... + ".diaphora".
+// Diaphora's default output name (D:3753-3755): basename(splitext(db1)[0]) + "_vs_" + ... + ".diaphora".
 std::string DefaultOutputName(std::string_view Db1, std::string_view Db2);
 // basename(splitext(path)[0]) with the host's os.path rules (ntpath on Windows, posixpath elsewhere).
 std::string PathStem(std::string_view Path);

@@ -40,6 +40,20 @@ std::string ErrorText(sqlite3* Db) {
   return Db != nullptr ? std::string(sqlite3_errmsg(Db)) : std::string("out of memory");
 }
 
+// The error of a failed prepare / bind / step on `Db`: SqliteEnvironmentFailure (exit 6) when the
+// environment caused it (IsEnvironmentalSqliteError), else DiaphoraWouldRaise at `Site`.
+[[noreturn]] void ThrowSqlError(sqlite3* Db, const char* Site) {
+  const int Code = Db != nullptr ? sqlite3_extended_errcode(Db) : SQLITE_NOMEM;
+  if (IsEnvironmentalSqliteError(Code)) {
+    throw SqliteEnvironmentFailure(std::string("SQLite failed (") + sqlite3_errstr(Code) + ", code " +
+                                       std::to_string(Code) + ") at " + Site + ": " + ErrorText(Db) +
+                                       "; this is an environment failure (disk, temporary directory, memory, "
+                                       "lock or a damaged database file), not a Diaphora result",
+                                   Code);
+  }
+  throw DiaphoraWouldRaise(Site, ErrorText(Db));
+}
+
 bool OnlyWhitespace(const char* Tail) {
   if (Tail == nullptr) {
     return true;
@@ -52,6 +66,35 @@ bool OnlyWhitespace(const char* Tail) {
   return true;
 }
 
+}
+
+bool IsEnvironmentalSqliteError(int ExtendedCode) {
+  switch (ExtendedCode & 0xff) {
+    case SQLITE_FULL:
+    case SQLITE_IOERR:
+    case SQLITE_CANTOPEN:
+    case SQLITE_NOMEM:
+    case SQLITE_CORRUPT:
+    case SQLITE_NOTADB:
+    case SQLITE_BUSY:
+    case SQLITE_LOCKED:
+    case SQLITE_READONLY:
+    case SQLITE_PERM:
+    case SQLITE_AUTH:
+    case SQLITE_PROTOCOL:
+    case SQLITE_INTERRUPT:
+      return true;
+    default:
+      return false;
+  }
+}
+
+void EnsureSqliteInitialized() {
+  const int Code = sqlite3_initialize();
+  if (Code != SQLITE_OK) {
+    throw IoFailure("sqlite3_initialize failed (" + std::string(sqlite3_errstr(Code)) + ", code " +
+                    std::to_string(Code) + ")");
+  }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -89,8 +132,9 @@ bool Statement::Step() {
   if (Code == SQLITE_DONE) {
     return false;
   }
-  // Python's sqlite3 raises OperationalError at cur.execute / fetch for the same failure.
-  throw DiaphoraWouldRaise("sqlite3_step", ErrorText(Db_));
+  // Python's sqlite3 raises OperationalError at cur.execute / fetch for the same failure; an
+  // environmental failure is not a parity raise (ThrowSqlError).
+  ThrowSqlError(Db_, "sqlite3_step");
 }
 
 void Statement::Reset() { sqlite3_reset(Stmt_); }
@@ -305,6 +349,7 @@ std::string InputFileName(const std::string& Path, const char* What) {
 
 void DiffDatabase::OpenSingle(const std::string& MainPath) {
   Close();
+  EnsureSqliteInitialized();
   // Read-only (lane R0 (f)): SQLITE_OPEN_READONLY is what mode=ro set, and ATTACH reuses these open
   // flags (attach.c: flags = db->openFlags), so the attached diff database is read-only too.
   // InputFileName decides between the immutable URI and the plain file name (lane F1).
@@ -323,9 +368,10 @@ void DiffDatabase::OpenSingle(const std::string& MainPath) {
   char* Error = nullptr;
   if (sqlite3_exec(Db_, "select count(*) from main.sqlite_master", nullptr, nullptr, &Error) != SQLITE_OK) {
     const std::string Message = Error != nullptr ? Error : ErrorText(Db_);
+    const int ReadCode = sqlite3_extended_errcode(Db_);
     sqlite3_free(Error);
     Close();
-    throw IoFailure("cannot read '" + MainPath + "': " + Message);
+    throw SqliteEnvironmentFailure("cannot read '" + MainPath + "': " + Message, ReadCode);
   }
 }
 
@@ -351,9 +397,10 @@ void DiffDatabase::Open(const std::string& MainPath, const std::string& DiffPath
   char* Error = nullptr;
   if (sqlite3_exec(Db_, "select count(*) from diff.sqlite_master", nullptr, nullptr, &Error) != SQLITE_OK) {
     const std::string Message = Error != nullptr ? Error : ErrorText(Db_);
+    const int ReadCode = sqlite3_extended_errcode(Db_);
     sqlite3_free(Error);
     Close();
-    throw IoFailure("cannot read '" + DiffPath + "': " + Message);
+    throw SqliteEnvironmentFailure("cannot read '" + DiffPath + "': " + Message, ReadCode);
   }
 }
 
@@ -366,7 +413,7 @@ Statement DiffDatabase::Prepare(std::string_view Sql, std::span<const BindValue>
   sqlite3_stmt* Stmt = nullptr;
   const char* Tail = nullptr;
   if (sqlite3_prepare_v2(Db_, Sql.data(), static_cast<int>(Sql.size()), &Stmt, &Tail) != SQLITE_OK) {
-    throw DiaphoraWouldRaise("sqlite3_prepare", ErrorText(Db_));
+    ThrowSqlError(Db_, "sqlite3_prepare");
   }
   Statement Result(Db_, Stmt);
   if (Stmt == nullptr) {
@@ -410,7 +457,7 @@ Statement DiffDatabase::Prepare(std::string_view Sql, std::span<const BindValue>
         break;
     }
     if (Code != SQLITE_OK) {
-      throw DiaphoraWouldRaise("sqlite3_bind", ErrorText(Db_));
+      ThrowSqlError(Db_, "sqlite3_bind");
     }
   }
   return Result;
@@ -421,7 +468,7 @@ std::vector<PlanRow> DiffDatabase::ExplainQueryPlan(std::string_view Sql) const 
   Text += Sql;
   sqlite3_stmt* Stmt = nullptr;
   if (sqlite3_prepare_v2(Db_, Text.c_str(), static_cast<int>(Text.size()), &Stmt, nullptr) != SQLITE_OK) {
-    throw DiaphoraWouldRaise("sqlite3_prepare", ErrorText(Db_));
+    ThrowSqlError(Db_, "sqlite3_prepare");
   }
   Statement Plan(Db_, Stmt);
   std::vector<PlanRow> Rows;
@@ -633,12 +680,16 @@ bool SqlRowSource::Next(HeuristicRow& Out) {
   const FunctionTable& Diff = I.S.Diff().Functions;
   if ((Row.Row1 != kNoRow && Main.SelectFieldsUtf8Bad[Row.Row1] != 0) ||
       (Row.Row2 != kNoRow && Diff.SelectFieldsUtf8Bad[Row.Row2] != 0)) {
-    throw DiaphoraWouldRaise("fetch", "Could not decode to UTF-8 a SELECT_FIELDS column (invalid UTF-8)");
+    throw DiaphoraWouldRaise("fetch", "Could not decode to UTF-8 a SELECT_FIELDS column (invalid UTF-8) of the row "
+                                      "ea " + std::string(I.Stmt.Text(I.ColEa)) + ", ea2 " +
+                                      std::string(I.Stmt.Text(I.ColEa2)));
   }
   for (const int Column : I.DirectUtf8) {
     if (I.Stmt.Type(Column) == SqlType::Text && !IsValidUtf8(I.Stmt.Text(Column))) {
       throw DiaphoraWouldRaise("fetch", "Could not decode to UTF-8 column '" +
-                                            std::string(I.Stmt.ColumnName(Column)) + "'");
+                                            std::string(I.Stmt.ColumnName(Column)) + "' of the row ea " +
+                                            std::string(I.Stmt.Text(I.ColEa)) + ", ea2 " +
+                                            std::string(I.Stmt.Text(I.ColEa2)));
     }
   }
 
@@ -695,7 +746,8 @@ std::vector<FunctionRowRef> FetchFunctionRows(DiffSession& S, std::string_view S
       }
     }
     if (Ref.Row != kNoRow && Table.AnyColumnUtf8Bad[Ref.Row] != 0) {
-      throw DiaphoraWouldRaise("fetch", "Could not decode to UTF-8 a functions column (invalid UTF-8)");
+      throw DiaphoraWouldRaise("fetch", "Could not decode to UTF-8 a functions column (invalid UTF-8) of the "
+                                        "function at address " + std::string(Stmt.Text(ColAddress)));
     }
     Rows.push_back(Ref);
   }

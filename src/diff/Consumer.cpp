@@ -229,7 +229,9 @@ void AddMatchesFromQuery(DiffSession& S, RowSource& Rows, Chooser Category) {
   } catch (const DiaphoraWouldRaise&) {
     // D:2080-2081 `except: log(f"Error: ...")`: the error ends this heuristic; the adds made so far
     // are kept (02 §12). The log line carries Python's exception text, which is not reproduced.
-    // Native refusals (UnsupportedInput) are not Python exceptions and are not swallowed.
+    // Native refusals (UnsupportedInput) and environment failures (IoFailure, SqliteEnvironmentFailure:
+    // a full disk, a missing TMP directory, a damaged file) are not swallowed: they end the run with
+    // exit 4 / 6 instead of silently dropping the rest of this heuristic's rows (audit F03).
   }
 }
 

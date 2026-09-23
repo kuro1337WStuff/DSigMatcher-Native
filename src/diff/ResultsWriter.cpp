@@ -25,7 +25,14 @@
 #include "FileIo.h"
 #include "ResultsWriterDetail.h"
 #include "dsigmatcher/diff/Config.h"
+#include "dsigmatcher/diff/Database.h"
 #include "dsigmatcher/diff/Errors.h"
+
+#ifdef _WIN32
+#include <process.h>
+#else
+#include <unistd.h>
+#endif
 
 // Floating-point std::to_chars (P0067R5) where the standard library has it (MSVC STL, libstdc++ 11+);
 // the exact big-integer formatter otherwise (for example libc++ builds that do not define the macro).
@@ -268,6 +275,7 @@ public:
     if (Name.rfind("file:", 0) == 0) {
       Name = "./" + Name;
     }
+    EnsureSqliteInitialized();  // audit F31: a SQLITE_OMIT_AUTOINIT build crashes on open otherwise
     if (sqlite3_open_v2(Name.c_str(), &Db_, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr) != SQLITE_OK) {
       const std::string Message = Db_ != nullptr ? sqlite3_errmsg(Db_) : "out of memory";
       if (Db_ != nullptr) {
@@ -351,6 +359,56 @@ private:
 
 }  // namespace
 
+namespace {
+
+Detail::WriterFaultHook g_WriterFaultHook = nullptr;
+
+void WriterStep(std::string_view Step) {
+  if (g_WriterFaultHook != nullptr) {
+    g_WriterFaultHook(Step);
+  }
+}
+
+// "<out>.tmp-<pid>": the name the results file is written under before the rename (audit F26).
+std::string TemporaryResultsPath(const std::string& Out) {
+#ifdef _WIN32
+  const long long Pid = _getpid();
+#else
+  const long long Pid = static_cast<long long>(getpid());
+#endif
+  return Out + ".tmp-" + std::to_string(Pid);
+}
+
+void RemoveIfPresent(const std::string& Utf8Path) {
+  const std::filesystem::path Path = Detail::PathFromUtf8(Utf8Path);
+  std::error_code Error;
+  if (!std::filesystem::exists(Path, Error)) {
+    return;
+  }
+  std::filesystem::remove(Path, Error);
+  if (Error) {
+    throw IoFailure("cannot remove '" + Utf8Path + "': " + Error.message());
+  }
+}
+
+void RemoveDatabaseSidecars(const std::string& Utf8Path) {
+  for (const char* Suffix : {"-journal", "-wal", "-shm"}) {
+    RemoveIfPresent(Utf8Path + Suffix);
+  }
+}
+
+void RemoveDatabaseFiles(const std::string& Utf8Path) {
+  RemoveIfPresent(Utf8Path);
+  RemoveDatabaseSidecars(Utf8Path);
+}
+
+}  // namespace
+
+std::vector<std::string> ResultsWriterScratchPaths(const std::string& Out) {
+  const std::string Temporary = TemporaryResultsPath(Out);
+  return {Temporary, Temporary + "-journal", Temporary + "-wal", Temporary + "-shm"};
+}
+
 // ---------------------------------------------------------------------------------------------
 // save_results (D:2374-2429)
 
@@ -373,77 +431,99 @@ void WriteDiaphoraResults(const WriteArgs& A, const FinalResults& R, const Inter
   FormatUnmatched(Ids, "secondary", R.UnmatchedSecondary, Unmatched);
 
   // D:2379-2381: `if os.path.exists(filename): os.remove(filename)`. os.remove refuses a directory.
+  // The file is written under a temporary name in the same directory and renamed over <out> only after
+  // the commit (audit F26): the bytes are the ones save_results writes, but a failure or a kill while
+  // writing never leaves a half-written file at <out>, and an existing <out> is left untouched until the
+  // new one is complete (the state Diaphora leaves when it raises before D:2379, 01 §11.2, V9).
   const bool InMemory = A.OutPath == ":memory:";
+  std::string Target = A.OutPath;
   if (!InMemory) {
     const std::filesystem::path Out = Detail::PathFromUtf8(A.OutPath);
     std::error_code Error;
     const auto Status = std::filesystem::status(Out, Error);
-    if (!Error && std::filesystem::exists(Status)) {
-      if (std::filesystem::is_directory(Status)) {
-        throw IoFailure("cannot remove '" + A.OutPath + "': it is a directory");
-      }
-      std::filesystem::remove(Out, Error);
-      if (Error) {
-        throw IoFailure("cannot remove '" + A.OutPath + "': " + Error.message());
-      }
+    if (!Error && std::filesystem::is_directory(Status)) {
+      throw IoFailure("cannot remove '" + A.OutPath + "': it is a directory");
     }
+    Target = TemporaryResultsPath(A.OutPath);
+    RemoveDatabaseFiles(Target);  // a leftover of a killed run that had the same process id
   }
-
-  // D:2383 results_db = sqlite3_connect(filename): default journal mode (delete), no pragmas.
-  Connection Db(A.OutPath);
-  // D:2387-2388, autocommit (Python's sqlite3 opens no transaction before DDL).
-  Db.Exec("create table config (main_db text, diff_db text, version text, date text)");
-  // D:2390-2393: the INSERT opens the implicit transaction (legacy isolation_level ""); the three
-  // DDL statements below run inside it and everything commits when the `with results_db:` block ends
-  // (D:2405). 01 §11.2: the transaction boundary only matters for crash behaviour.
-  Db.Exec("begin");
-  {
-    Stmt Insert(Db, "insert into config values (?, ?, ?, ?)");
-    const std::string Date = A.Date.empty() ? AscTimeNow() : A.Date;
-    // (self.db_name, self.last_diff_db, VERSION_VALUE, time.asctime()) (D:2392): db1 and db2 exactly
-    // as passed on the command line, VERSION_VALUE = "3.4" (D:100).
-    Insert.Bind(1, std::string_view(A.MainDb));
-    Insert.Bind(2, std::string_view(A.DiffDb));
-    Insert.Bind(3, kVersionValue);
-    Insert.Bind(4, std::string_view(Date));
-    Insert.Run();
-  }
-  // D:2395-2403, statement texts verbatim: sqlite_master.sql keeps them (the results DDL has a newline
-  // and 19 spaces of indentation).
-  Db.Exec("create table results (type, line, address, name, address2, name2,\n"
-          "                   ratio, nodes1, nodes2, description)");
-  Db.Exec("create unique index uq_results on results(address, address2)");
-  Db.Exec("create table unmatched (type, line, address, name)");
-  {
-    // D:2406: `insert or ignore` + uq_results(address, address2) keeps the first row per formatted
-    // address pair in write order; the dropped row's line number stays consumed (01 E4, 02 probe 9 A).
-    Stmt Insert(Db, "insert or ignore into results values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-    for (const ResultsRowText& Row : Results) {
-      Insert.Bind(1, std::string_view(Row.Type));
-      Insert.Bind(2, std::string_view(Row.Line));
-      Insert.Bind(3, std::string_view(Row.Address));
-      Insert.Bind(4, Row.Name);
-      Insert.Bind(5, std::string_view(Row.Address2));
-      Insert.Bind(6, Row.Name2);
-      Insert.Bind(7, std::string_view(Row.Ratio));
-      Insert.Bind(8, std::string_view(Row.Nodes1));
-      Insert.Bind(9, std::string_view(Row.Nodes2));
-      Insert.Bind(10, Row.Description);
+  try {
+    WriterStep("open");
+    // D:2383 results_db = sqlite3_connect(filename): default journal mode (delete), no pragmas.
+    Connection Db(Target);
+    // D:2387-2388, autocommit (Python's sqlite3 opens no transaction before DDL).
+    Db.Exec("create table config (main_db text, diff_db text, version text, date text)");
+    // D:2390-2393: the INSERT opens the implicit transaction (legacy isolation_level ""); the three
+    // DDL statements below run inside it and everything commits when the `with results_db:` block ends
+    // (D:2405). 01 §11.2: the transaction boundary only matters for crash behaviour.
+    Db.Exec("begin");
+    {
+      Stmt Insert(Db, "insert into config values (?, ?, ?, ?)");
+      const std::string Date = A.Date.empty() ? AscTimeNow() : A.Date;
+      // (self.db_name, self.last_diff_db, VERSION_VALUE, time.asctime()) (D:2392): db1 and db2 exactly
+      // as passed on the command line, VERSION_VALUE = "3.4" (D:100).
+      Insert.Bind(1, std::string_view(A.MainDb));
+      Insert.Bind(2, std::string_view(A.DiffDb));
+      Insert.Bind(3, kVersionValue);
+      Insert.Bind(4, std::string_view(Date));
       Insert.Run();
     }
-  }
-  {
-    Stmt Insert(Db, "insert into unmatched values (?, ?, ?, ?)");  // D:2407, no uniqueness
-    for (const UnmatchedRowText& Row : Unmatched) {
-      Insert.Bind(1, std::string_view(Row.Type));
-      Insert.Bind(2, std::string_view(Row.Line));
-      Insert.Bind(3, std::string_view(Row.Address));
-      Insert.Bind(4, Row.Name);
-      Insert.Run();
+    WriterStep("config");
+    // D:2395-2403, statement texts verbatim: sqlite_master.sql keeps them (the results DDL has a newline
+    // and 19 spaces of indentation).
+    Db.Exec("create table results (type, line, address, name, address2, name2,\n"
+            "                   ratio, nodes1, nodes2, description)");
+    Db.Exec("create unique index uq_results on results(address, address2)");
+    Db.Exec("create table unmatched (type, line, address, name)");
+    {
+      // D:2406: `insert or ignore` + uq_results(address, address2) keeps the first row per formatted
+      // address pair in write order; the dropped row's line number stays consumed (01 E4, 02 probe 9 A).
+      Stmt Insert(Db, "insert or ignore into results values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+      for (const ResultsRowText& Row : Results) {
+        Insert.Bind(1, std::string_view(Row.Type));
+        Insert.Bind(2, std::string_view(Row.Line));
+        Insert.Bind(3, std::string_view(Row.Address));
+        Insert.Bind(4, Row.Name);
+        Insert.Bind(5, std::string_view(Row.Address2));
+        Insert.Bind(6, Row.Name2);
+        Insert.Bind(7, std::string_view(Row.Ratio));
+        Insert.Bind(8, std::string_view(Row.Nodes1));
+        Insert.Bind(9, std::string_view(Row.Nodes2));
+        Insert.Bind(10, Row.Description);
+        Insert.Run();
+      }
     }
+    WriterStep("results");
+    {
+      Stmt Insert(Db, "insert into unmatched values (?, ?, ?, ?)");  // D:2407, no uniqueness
+      for (const UnmatchedRowText& Row : Unmatched) {
+        Insert.Bind(1, std::string_view(Row.Type));
+        Insert.Bind(2, std::string_view(Row.Line));
+        Insert.Bind(3, std::string_view(Row.Address));
+        Insert.Bind(4, Row.Name);
+        Insert.Run();
+      }
+    }
+    WriterStep("unmatched");
+    Db.Exec("commit");
+    Db.Close();
+    WriterStep("committed");
+    if (!InMemory) {
+      // A -journal / -wal / -shm left beside <out> by an earlier writer belongs to the file being
+      // replaced; SQLite would take a hot journal for the new file's and roll it back into it.
+      RemoveDatabaseSidecars(A.OutPath);
+      Detail::RenameReplacing(Target, A.OutPath);
+    }
+  } catch (...) {
+    if (!InMemory) {
+      try {
+        RemoveDatabaseFiles(Target);  // never leave the partial temporary file behind
+      } catch (const std::exception&) {
+        // the original error is the one reported
+      }
+    }
+    throw;
   }
-  Db.Exec("commit");
-  Db.Close();
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -534,6 +614,8 @@ std::string AscTimeNow() {
 // Detail (ResultsWriterDetail.h)
 
 namespace Detail {
+
+void SetWriterFaultHook(WriterFaultHook Hook) { g_WriterFaultHook = Hook; }
 
 std::string FormatRatio7Exact(double Value) {
   if (std::isnan(Value)) {

@@ -413,6 +413,16 @@ void IngestExport(const DiffDatabase& Db, Side Which, Interners& Ids, ExportData
     Map[static_cast<size_t>(Column)] = FindDesc(Stmt.ColumnName(Column));
   }
 
+  // The row a problem names: functions.id (the key the exporter wrote), or the 0-based result row when
+  // the id is not an integer (audit F58).
+  const int ColId = Stmt.FindColumn("id");
+  const auto RowLabel = [&](uint32_t Ordinal) {
+    if (ColId >= 0 && Stmt.Type(ColId) == SqlType::Integer) {
+      return "row with id " + std::to_string(Stmt.Int(ColId));
+    }
+    return "result row " + std::to_string(Ordinal);
+  };
+
   FunctionTable& T = Out.Functions;
   uint32_t Row = 0;
   while (Stmt.Step()) {
@@ -460,8 +470,8 @@ void IngestExport(const DiffDatabase& Db, Side Which, Interners& Ids, ExportData
           case SqlType::Integer:
           case SqlType::Real: {
             // TEXT affinity converts numbers to text on store, so this needs a foreign schema.
-            Out.Problems.push_back(Schema + ".functions." + std::string(Desc->Name) + " row " +
-                                   std::to_string(Row) + " holds a number in a TEXT column");
+            Out.Problems.push_back(Schema + ".functions." + std::string(Desc->Name) + " " + RowLabel(Row) +
+                                   " holds a number in a TEXT column");
             Target.Append(Stmt.Text(Column), false);
             break;
           }

@@ -42,7 +42,7 @@ std::string RatioBitsHex(double Value) {
 
 uint64_t ParseRatioBits(std::string_view Hex) {
   if (Hex.size() != 16) {
-    throw JsonError("ratio_bits must have 16 hex digits: " + std::string(Hex), 0);
+    throw JsonError("ratio_bits must have 16 hex digits: " + std::string(Hex), JsonError::kNoOffset);
   }
   uint64_t Bits = 0;
   for (const char Ch : Hex) {
@@ -54,7 +54,7 @@ uint64_t ParseRatioBits(std::string_view Hex) {
     } else if (Ch >= 'A' && Ch <= 'F') {
       Bits |= static_cast<uint64_t>(Ch - 'A' + 10);
     } else {
-      throw JsonError("ratio_bits is not hex: " + std::string(Hex), 0);
+      throw JsonError("ratio_bits is not hex: " + std::string(Hex), JsonError::kNoOffset);
     }
   }
   return Bits;
@@ -151,6 +151,23 @@ bool PointMatchesAnyGlob(std::string_view Point, std::string_view Globs) {
 
 namespace {
 
+// Runs `Read` and gives a JsonError that has no member path yet the path `Where` (audit F58), so a bad
+// value reports "all_matches.best[0][6]: JSON value is not an integer" instead of a bare message. The
+// innermost caller that knows a path wins; outer callers let the error pass unchanged.
+template <class F>
+auto InField(const std::string& Where, F&& Read) -> decltype(Read()) {
+  try {
+    return Read();
+  } catch (const JsonError& Error) {
+    if (!Error.Path.empty()) {
+      throw;
+    }
+    throw JsonError(Error.Detail, Error.Position, Where);
+  }
+}
+
+std::string Indexed(const std::string& Base, size_t Index) { return Base + "[" + std::to_string(Index) + "]"; }
+
 JsonValue OptionalString(const std::optional<std::string>& Value) {
   return Value ? JsonValue::String(*Value) : JsonValue::Null();
 }
@@ -183,23 +200,23 @@ std::string ReadEa(const JsonValue& Value) {
   if (Value.IsNumber() && Value.IsIntegerText()) {
     return Value.NumberText();
   }
-  throw JsonError("item address is neither a string nor an integer", 0);
+  throw JsonError("item address is neither a string nor an integer", JsonError::kNoOffset);
 }
 
-SnapItem ItemFromJson(const JsonValue& Value) {
-  const auto& Row = Value.Items();
+SnapItem ItemFromJson(const JsonValue& Value, const std::string& Where) {
+  const auto& Row = InField(Where, [&]() -> const std::vector<JsonValue>& { return Value.Items(); });
   if (Row.size() != 8) {
-    throw JsonError("an item must have 8 fields", 0);
+    throw JsonError("an item must have 8 fields", JsonError::kNoOffset, Where);
   }
   SnapItem Item;
-  Item.Ea1 = ReadEa(Row[0]);
-  Item.Name1 = ReadOptionalString(Row[1]);
-  Item.Ea2 = ReadEa(Row[2]);
-  Item.Name2 = ReadOptionalString(Row[3]);
-  Item.Desc = Row[4].AsString();
-  Item.RatioBits = ParseRatioBits(Row[5].AsString());
-  Item.Nodes1 = Row[6].AsInt64();
-  Item.Nodes2 = Row[7].AsInt64();
+  Item.Ea1 = InField(Indexed(Where, 0), [&] { return ReadEa(Row[0]); });
+  Item.Name1 = InField(Indexed(Where, 1), [&] { return ReadOptionalString(Row[1]); });
+  Item.Ea2 = InField(Indexed(Where, 2), [&] { return ReadEa(Row[2]); });
+  Item.Name2 = InField(Indexed(Where, 3), [&] { return ReadOptionalString(Row[3]); });
+  Item.Desc = InField(Indexed(Where, 4), [&] { return Row[4].AsString(); });
+  Item.RatioBits = InField(Indexed(Where, 5), [&] { return ParseRatioBits(Row[5].AsString()); });
+  Item.Nodes1 = InField(Indexed(Where, 6), [&] { return Row[6].AsInt64(); });
+  Item.Nodes2 = InField(Indexed(Where, 7), [&] { return Row[7].AsInt64(); });
   return Item;
 }
 
@@ -211,10 +228,11 @@ JsonValue ItemsToJson(const std::vector<SnapItem>& Items) {
   return List;
 }
 
-std::vector<SnapItem> ItemsFromJson(const JsonValue& Value) {
+std::vector<SnapItem> ItemsFromJson(const JsonValue& Value, const std::string& Where) {
   std::vector<SnapItem> Items;
-  for (const JsonValue& Row : Value.Items()) {
-    Items.push_back(ItemFromJson(Row));
+  const auto& Rows = InField(Where, [&]() -> const std::vector<JsonValue>& { return Value.Items(); });
+  for (size_t Index = 0; Index < Rows.size(); ++Index) {
+    Items.push_back(ItemFromJson(Rows[Index], Indexed(Where, Index)));
   }
   return Items;
 }
@@ -231,17 +249,19 @@ JsonValue MatchedToJson(const std::vector<SnapMatched>& Entries) {
   return List;
 }
 
-std::vector<SnapMatched> MatchedFromJson(const JsonValue& Value) {
+std::vector<SnapMatched> MatchedFromJson(const JsonValue& Value, const std::string& Where) {
   std::vector<SnapMatched> Entries;
-  for (const JsonValue& Row : Value.Items()) {
-    const auto& Fields = Row.Items();
+  const auto& Rows = InField(Where, [&]() -> const std::vector<JsonValue>& { return Value.Items(); });
+  for (size_t Index = 0; Index < Rows.size(); ++Index) {
+    const std::string At = Indexed(Where, Index);
+    const auto& Fields = InField(At, [&]() -> const std::vector<JsonValue>& { return Rows[Index].Items(); });
     if (Fields.size() != 3) {
-      throw JsonError("a matched entry must have 3 fields", 0);
+      throw JsonError("a matched entry must have 3 fields", JsonError::kNoOffset, At);
     }
     SnapMatched Entry;
-    Entry.Key = ReadOptionalString(Fields[0]);
-    Entry.Other = ReadOptionalString(Fields[1]);
-    Entry.RatioBits = ParseRatioBits(Fields[2].AsString());
+    Entry.Key = InField(Indexed(At, 0), [&] { return ReadOptionalString(Fields[0]); });
+    Entry.Other = InField(Indexed(At, 1), [&] { return ReadOptionalString(Fields[1]); });
+    Entry.RatioBits = InField(Indexed(At, 2), [&] { return ParseRatioBits(Fields[2].AsString()); });
     Entries.push_back(std::move(Entry));
   }
   return Entries;
@@ -261,19 +281,21 @@ JsonValue UnmatchedToJson(const std::optional<std::vector<SnapUnmatched>>& Rows)
   return List;
 }
 
-std::optional<std::vector<SnapUnmatched>> UnmatchedFromJson(const JsonValue* Value) {
+std::optional<std::vector<SnapUnmatched>> UnmatchedFromJson(const JsonValue* Value, const std::string& Where) {
   if (Value == nullptr || Value->IsNull()) {
     return std::nullopt;
   }
   std::vector<SnapUnmatched> Rows;
-  for (const JsonValue& Pair : Value->Items()) {
-    const auto& Fields = Pair.Items();
+  const auto& Pairs = InField(Where, [&]() -> const std::vector<JsonValue>& { return Value->Items(); });
+  for (size_t Index = 0; Index < Pairs.size(); ++Index) {
+    const std::string At = Indexed(Where, Index);
+    const auto& Fields = InField(At, [&]() -> const std::vector<JsonValue>& { return Pairs[Index].Items(); });
     if (Fields.size() != 2) {
-      throw JsonError("an unmatched row must have 2 fields", 0);
+      throw JsonError("an unmatched row must have 2 fields", JsonError::kNoOffset, At);
     }
     SnapUnmatched Row;
-    Row.Ea = ReadEa(Fields[0]);
-    Row.Name = ReadOptionalString(Fields[1]);
+    Row.Ea = InField(Indexed(At, 0), [&] { return ReadEa(Fields[0]); });
+    Row.Name = InField(Indexed(At, 1), [&] { return ReadOptionalString(Fields[1]); });
     Rows.push_back(std::move(Row));
   }
   return Rows;
@@ -281,12 +303,13 @@ std::optional<std::vector<SnapUnmatched>> UnmatchedFromJson(const JsonValue* Val
 
 bool ReadBoolFlag(const JsonValue& Flags, std::string_view Name) {
   const JsonValue* Value = Flags.Find(Name);
-  return Value != nullptr && !Value->IsNull() && Value->AsBool();
+  return InField("flags." + std::string(Name), [&] { return Value != nullptr && !Value->IsNull() && Value->AsBool(); });
 }
 
 int64_t ReadIntFlag(const JsonValue& Flags, std::string_view Name) {
   const JsonValue* Value = Flags.Find(Name);
-  return Value != nullptr && !Value->IsNull() ? Value->AsInt64() : 0;
+  return InField("flags." + std::string(Name),
+                 [&] { return Value != nullptr && !Value->IsNull() ? Value->AsInt64() : int64_t{0}; });
 }
 
 }
@@ -349,26 +372,32 @@ StateSnapshot ParseSnapshot(std::string_view Json) {
   Options.PythonCompat = true;  // written by Python's json module as well
   const JsonValue Root = JsonParse(Json, Options);
   StateSnapshot Snapshot;
+  if (!Root.IsObject()) {
+    throw JsonError("a snapshot must be a JSON object", JsonError::kNoOffset, "(root)");
+  }
   if (const JsonValue* Schema = Root.Find("schema")) {
-    Snapshot.Schema = Schema->AsString();
+    Snapshot.Schema = InField("schema", [&] { return Schema->AsString(); });
   }
   if (Snapshot.Schema != kSnapshotSchema) {
-    throw JsonError("unsupported snapshot schema \"" + Snapshot.Schema + "\"", 0);
+    throw JsonError("unsupported snapshot schema \"" + Snapshot.Schema + "\"", JsonError::kNoOffset, "schema");
   }
   if (const JsonValue* Producer = Root.Find("producer"); Producer != nullptr && !Producer->IsNull()) {
-    Snapshot.Producer = Producer->AsString();
+    Snapshot.Producer = InField("producer", [&] { return Producer->AsString(); });
   }
   if (const JsonValue* Pair = Root.Find("pair"); Pair != nullptr && !Pair->IsNull()) {
-    Snapshot.Pair = Pair->AsString();
+    Snapshot.Pair = InField("pair", [&] { return Pair->AsString(); });
   }
   if (const JsonValue* Seq = Root.Find("seq"); Seq != nullptr && !Seq->IsNull()) {
-    Snapshot.Seq = Seq->AsInt64();
+    Snapshot.Seq = InField("seq", [&] { return Seq->AsInt64(); });
   }
-  Snapshot.Point = Root.At("point").AsString();
+  Snapshot.Point = InField("point", [&] { return Root.At("point").AsString(); });
   if (const JsonValue* Iteration = Root.Find("iteration"); Iteration != nullptr && !Iteration->IsNull()) {
-    Snapshot.Iteration = Iteration->AsInt64();
+    Snapshot.Iteration = InField("iteration", [&] { return Iteration->AsInt64(); });
   }
   if (const JsonValue* Flags = Root.Find("flags"); Flags != nullptr && !Flags->IsNull()) {
+    if (!Flags->IsObject()) {
+      throw JsonError("JSON value is not an object", JsonError::kNoOffset, "flags");
+    }
     Snapshot.Flags.IsSameProcessor = ReadBoolFlag(*Flags, "is_same_processor");
     Snapshot.Flags.IsPatchDiff = ReadBoolFlag(*Flags, "is_patch_diff");
     Snapshot.Flags.IsSymbolsStripped = ReadBoolFlag(*Flags, "is_symbols_stripped");
@@ -376,35 +405,51 @@ StateSnapshot ParseSnapshot(std::string_view Json) {
     Snapshot.Flags.TotalFunctions1 = ReadIntFlag(*Flags, "total_functions1");
     Snapshot.Flags.TotalFunctions2 = ReadIntFlag(*Flags, "total_functions2");
   }
-  const JsonValue& All = Root.At("all_matches");
-  Snapshot.Best = ItemsFromJson(All.At("best"));
-  Snapshot.Partial = ItemsFromJson(All.At("partial"));
-  Snapshot.Unreliable = ItemsFromJson(All.At("unreliable"));
-  Snapshot.MatchedPrimary = MatchedFromJson(Root.At("matched_primary"));
-  Snapshot.MatchedSecondary = MatchedFromJson(Root.At("matched_secondary"));
+  const JsonValue& All = InField("all_matches", [&]() -> const JsonValue& { return Root.At("all_matches"); });
+  Snapshot.Best = ItemsFromJson(InField("all_matches.best", [&]() -> const JsonValue& { return All.At("best"); }),
+                                "all_matches.best");
+  Snapshot.Partial = ItemsFromJson(
+      InField("all_matches.partial", [&]() -> const JsonValue& { return All.At("partial"); }), "all_matches.partial");
+  Snapshot.Unreliable = ItemsFromJson(
+      InField("all_matches.unreliable", [&]() -> const JsonValue& { return All.At("unreliable"); }),
+      "all_matches.unreliable");
+  Snapshot.MatchedPrimary = MatchedFromJson(
+      InField("matched_primary", [&]() -> const JsonValue& { return Root.At("matched_primary"); }), "matched_primary");
+  Snapshot.MatchedSecondary =
+      MatchedFromJson(InField("matched_secondary", [&]() -> const JsonValue& { return Root.At("matched_secondary"); }),
+                      "matched_secondary");
   if (const JsonValue* Cache = Root.Find("ratios_cache"); Cache != nullptr && !Cache->IsNull()) {
     std::vector<SnapCacheEntry> Entries;
-    for (const JsonValue& Row : Cache->Items()) {
-      const auto& Fields = Row.Items();
+    const auto& Rows = InField("ratios_cache", [&]() -> const std::vector<JsonValue>& { return Cache->Items(); });
+    for (size_t Index = 0; Index < Rows.size(); ++Index) {
+      const std::string At = Indexed("ratios_cache", Index);
+      const auto& Fields = InField(At, [&]() -> const std::vector<JsonValue>& { return Rows[Index].Items(); });
       if (Fields.size() != 2) {
-        throw JsonError("a ratios_cache entry must have 2 fields", 0);
+        throw JsonError("a ratios_cache entry must have 2 fields", JsonError::kNoOffset, At);
       }
-      Entries.push_back(SnapCacheEntry{Fields[0].AsString(), ParseRatioBits(Fields[1].AsString())});
+      Entries.push_back(SnapCacheEntry{InField(Indexed(At, 0), [&] { return Fields[0].AsString(); }),
+                                       InField(Indexed(At, 1), [&] { return ParseRatioBits(Fields[1].AsString()); })});
     }
     Snapshot.RatiosCache = std::move(Entries);
   }
   if (const JsonValue* Choosers = Root.Find("choosers"); Choosers != nullptr && !Choosers->IsNull()) {
     SnapChoosers Dump;
-    Dump.Best = ItemsFromJson(Choosers->At("best"));
-    Dump.Partial = ItemsFromJson(Choosers->At("partial"));
-    Dump.Unreliable = ItemsFromJson(Choosers->At("unreliable"));
-    Dump.Multimatch = ItemsFromJson(Choosers->At("multimatch"));
+    const auto Member = [&](const char* Name) -> const JsonValue& {
+      return InField(std::string("choosers.") + Name, [&]() -> const JsonValue& { return Choosers->At(Name); });
+    };
+    Dump.Best = ItemsFromJson(Member("best"), "choosers.best");
+    Dump.Partial = ItemsFromJson(Member("partial"), "choosers.partial");
+    Dump.Unreliable = ItemsFromJson(Member("unreliable"), "choosers.unreliable");
+    Dump.Multimatch = ItemsFromJson(Member("multimatch"), "choosers.multimatch");
     Snapshot.Choosers = std::move(Dump);
   }
   if (const JsonValue* Unmatched = Root.Find("unmatched"); Unmatched != nullptr && !Unmatched->IsNull()) {
+    if (!Unmatched->IsObject()) {
+      throw JsonError("JSON value is not an object", JsonError::kNoOffset, "unmatched");
+    }
     SnapUnmatchedDump Dump;
-    Dump.Primary = UnmatchedFromJson(Unmatched->Find("primary"));
-    Dump.Secondary = UnmatchedFromJson(Unmatched->Find("secondary"));
+    Dump.Primary = UnmatchedFromJson(Unmatched->Find("primary"), "unmatched.primary");
+    Dump.Secondary = UnmatchedFromJson(Unmatched->Find("secondary"), "unmatched.secondary");
     Snapshot.Unmatched = std::move(Dump);
   }
   return Snapshot;
@@ -422,8 +467,9 @@ StateSnapshot ReadSnapshot(const std::string& Path) {
 }
 
 void WriteSnapshot(const std::string& Path, const StateSnapshot& Snapshot, bool Pretty) {
-  // The oracle's WriteJsonAtomic (tools/parity/snapshot.py): the JSON text, then one newline.
-  Detail::WriteFileBytes(Path, SerializeSnapshot(Snapshot, Pretty) + "\n");
+  // The oracle's WriteJsonAtomic (tools/parity/snapshot.py): the JSON text, then one newline, written to
+  // "<path>.tmp" and renamed over the path, so a reader never sees a partial snapshot.
+  Detail::ReplaceFileBytes(Path, SerializeSnapshot(Snapshot, Pretty) + "\n");
 }
 
 }

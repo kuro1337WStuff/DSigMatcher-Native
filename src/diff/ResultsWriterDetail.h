@@ -24,4 +24,10 @@ bool FormatRatio7UsesToChars();
 // non-ASCII text (Python maps Unicode digits and spaces first; that mapping is not ported).
 bool PyIntParse(std::string_view Text, bool& Negative, std::string& Digits);
 
+// Test hook (diff_writer only): WriteDiaphoraResults calls it at each step ("open", "config",
+// "results", "unmatched", "committed"); a hook that throws simulates a failure or a kill at that step.
+// nullptr (the default) disables it. Not thread-safe: tests set it around one call.
+using WriterFaultHook = void (*)(std::string_view Step);
+void SetWriterFaultHook(WriterFaultHook Hook);
+
 }
