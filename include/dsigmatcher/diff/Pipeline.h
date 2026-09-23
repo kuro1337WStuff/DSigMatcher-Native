@@ -86,9 +86,12 @@ public:
   // ---- harness: points, snapshots, context -------------------------------------------------
   void SetPairLabel(std::string Pair);
   const std::string& PairLabel() const;
-  // Snapshots of every point matching `PointGlobs` ("a|b", fnmatch '*' '?') go to
-  // <Dir>/NNNNN_<point>.json; <Dir>/index.json lists [seq, point, file]. `CacheGlobs` selects the
-  // points whose snapshot also carries ratios_cache. Throws IoFailure when Dir cannot be created.
+  // The capture layout of tools/parity/oracle_trace.py: snapshots of every point matching `PointGlobs`
+  // ("a|b", fnmatch '*' '?') go to <Dir>/snapshots/NNNNN_<point>.json; <Dir>/index.json lists EVERY
+  // point as [seq, point, file] (file relative to <Dir>, null when filtered out) and is rewritten at
+  // each point. `CacheGlobs` selects the points whose snapshot also carries ratios_cache. Earlier
+  // snapshot files in <Dir>/snapshots are removed. Throws IoFailure when Dir cannot be created or is
+  // (inside) an oracle capture (it holds run.json). Paths are UTF-8.
   void EnableSnapshots(const std::string& Dir, std::string PointGlobs = "*", std::string CacheGlobs = "");
   void EnableTrace(const std::string& Path, bool Rows);
   // Emits a named point: a trace "point" event and, when enabled and matching, a snapshot file.
@@ -96,9 +99,13 @@ public:
   // A cleanup_matches() call at `Site`: "before:cleanup:<site>:<n>", State().Cleanup(Site), the
   // cleanup trace event, "after:cleanup:<site>:<n>"; n counts calls per site from 1.
   void Cleanup(CleanupSite Site);
-  std::optional<int> Iteration() const;           // outer loop iteration; nullopt before the loop
+  // Outer-loop iteration of the snapshots: k from the loop's first cleanup (D:3655) through its last
+  // (D:3671); nullopt before the loop, in modes S and P, and from before:final_pass on (the oracle's
+  // rule, tools/parity/README.md "iteration").
+  std::optional<int> Iteration() const;
   void SetIteration(std::optional<int> Iteration);
   std::string_view Context() const;               // innermost context label, "diff" at top level
+                                                  // (written as null in the trace, like the oracle)
   void PushContext(std::string Label);
   void PopContext();
   // The whole current state as a snapshot for `Point` (choosers at after:final_pass, unmatched at
@@ -195,7 +202,7 @@ struct DiffArgs {
   RelatedCuSource CuSource = RelatedCuSource::Native;  // --related-cu-source
   bool StrictSqlite = false;              // --strict-sqlite: exit 5 unless SQLite is 3.51.1
   bool AllowSqliteMismatch = false;       // --allow-sqlite-mismatch: no warning
-  bool Quiet = false;                     // no summary lines on stderr
+  bool Quiet = false;                     // no summary lines on stderr (the SQLite warning still prints)
 };
 
 struct DiffOutcome {

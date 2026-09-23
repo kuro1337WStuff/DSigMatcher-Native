@@ -10,7 +10,9 @@
 #include <tuple>
 #include <unordered_map>
 
+#include "FileIo.h"
 #include "dsigmatcher/diff/Errors.h"
+#include "dsigmatcher/diff/StageSql.h"
 #include "dsigmatcher/diff/Stages.h"
 
 #ifndef DSIG_VERSION
@@ -46,7 +48,8 @@ struct DiffSession::Impl {
   std::string PointGlobs = "*";
   std::string CacheGlobs;
   int64_t PointSeq = 0;
-  std::vector<std::tuple<int64_t, std::string, std::string>> Index;
+  // index.json rows [seq, point, file]; file is "snapshots/<name>" or null (filtered out)
+  std::vector<std::tuple<int64_t, std::string, std::optional<std::string>>> Index;
   std::map<int, int64_t> CleanupCounters;
   std::optional<int> Iteration;
   std::vector<std::string> Contexts;
@@ -125,31 +128,112 @@ void DiffSession::SetCuSource(RelatedCuSource Source) { Impl_->Cu = Source; }
 void DiffSession::SetPairLabel(std::string Pair) { Impl_->Pair = std::move(Pair); }
 const std::string& DiffSession::PairLabel() const { return Impl_->Pair; }
 
-void DiffSession::EnableSnapshots(const std::string& Dir, std::string PointGlobs, std::string CacheGlobs) {
+namespace {
+
+// tools/parity/oracle_trace.py writes run.json into every capture directory; the native engine never
+// does. Writing native output there (or into a directory inside one, such as its snapshots/) would
+// overwrite or mix into an oracle capture, so such a directory is refused.
+void RefuseOracleCapture(const fs::path& Dir, const std::string& Shown) {
   std::error_code Error;
-  fs::create_directories(fs::path(Dir), Error);
-  if (Error && !fs::is_directory(fs::path(Dir))) {
+  const fs::path Absolute = fs::absolute(Dir.empty() ? fs::path(".") : Dir, Error);
+  const fs::path& Checked = Error ? Dir : Absolute;
+  for (const fs::path& Candidate : {Checked, Checked.parent_path()}) {
+    if (!Candidate.empty() && fs::exists(Candidate / "run.json", Error)) {
+      throw IoFailure("refusing to write into '" + Shown +
+                      "': it is (or is inside) an oracle capture, which holds run.json (tools/parity/oracle_trace.py)");
+    }
+  }
+}
+
+// snapshot.py SnapshotFileName: "%05d_%s.json" (five or more digits, '_', the sanitised point).
+bool IsSnapshotFileName(const std::string& Name) {
+  size_t Digits = 0;
+  while (Digits < Name.size() && Name[Digits] >= '0' && Name[Digits] <= '9') {
+    ++Digits;
+  }
+  return Digits >= 5 && Digits < Name.size() && Name[Digits] == '_' && Name.size() > 5 &&
+         Name.compare(Name.size() - 5, 5, ".json") == 0;
+}
+
+}
+
+void DiffSession::EnableSnapshots(const std::string& Dir, std::string PointGlobs, std::string CacheGlobs) {
+  // The capture layout of tools/parity/oracle_trace.py (README "Output"), so compare_traces.py and
+  // snapshot.py read native and oracle captures alike: <Dir>/index.json lists every point in order as
+  // [seq, point, file]; the files are <Dir>/snapshots/NNNNN_<sanitised point>.json and `file` is that
+  // path relative to <Dir> ("snapshots/..."), or null for a point --snapshot-points filtered out.
+  const fs::path Root = Detail::PathFromUtf8(Dir);
+  RefuseOracleCapture(Root, Dir);
+  const fs::path Files = Root / "snapshots";
+  std::error_code Error;
+  fs::create_directories(Files, Error);
+  if (!fs::is_directory(Files, Error)) {
     throw IoFailure("cannot create snapshot directory '" + Dir + "': " + Error.message());
   }
+  // The oracle's PrepareOutDir removes an earlier capture's snapshots and index. Only files named like
+  // a snapshot are removed here, so stale ones never sit next to this run's.
+  for (const fs::directory_entry& Entry : fs::directory_iterator(Files, Error)) {
+    if (Entry.is_regular_file(Error) && IsSnapshotFileName(Detail::PathToUtf8(Entry.path().filename()))) {
+      fs::remove(Entry.path(), Error);
+    }
+  }
+  fs::remove(Root / "index.json", Error);
   Impl_->Snapshots = true;
   Impl_->SnapshotDir = Dir;
   Impl_->PointGlobs = std::move(PointGlobs);
   Impl_->CacheGlobs = std::move(CacheGlobs);
+  Impl_->Index.clear();
 }
 
-void DiffSession::EnableTrace(const std::string& Path, bool Rows) { Impl_->Trace.Open(Path, Rows); }
+void DiffSession::EnableTrace(const std::string& Path, bool Rows) {
+  const fs::path Parent = Detail::PathFromUtf8(Path).parent_path();
+  RefuseOracleCapture(Parent, Path);
+  if (!Parent.empty()) {
+    std::error_code Error;
+    fs::create_directories(Parent, Error);  // like the oracle's capture directory; Open reports failures
+  }
+  Impl_->Trace.Open(Path, Rows);
+}
+
+namespace {
+
+void WriteIndexFile(const std::string& Dir,
+                    const std::vector<std::tuple<int64_t, std::string, std::optional<std::string>>>& Index) {
+  // snapshot.py WriteJsonAtomic(index.json, [[seq, point, file], ...]): compact JSON, one newline,
+  // replaced atomically (oracle_trace.py rewrites it at every point, so it is usable mid-run).
+  JsonValue Rows = JsonValue::Array();
+  for (const auto& [Seq, Point, File] : Index) {
+    JsonValue Row = JsonValue::Array();
+    Row.Push(JsonValue::Int(Seq));
+    Row.Push(JsonValue::String(Point));
+    Row.Push(File ? JsonValue::String(*File) : JsonValue::Null());
+    Rows.Push(std::move(Row));
+  }
+  Detail::ReplaceFileBytes(Detail::PathToUtf8(Detail::PathFromUtf8(Dir) / "index.json"), JsonWrite(Rows) + "\n");
+}
+
+}
 
 void DiffSession::Point(std::string_view Name) {
+  // oracle_trace.py Instrument.Point: seq counts every point from 0, filtered ones included; the trace
+  // gets a point event for every point; index.json lists every point, with a null file when the
+  // snapshot was filtered out.
   const int64_t Seq = Impl_->PointSeq++;
   const MatchState& S = *Impl_->State;
   Impl_->Trace.Point(Name, S.Items(Chooser::Best).size(), S.Items(Chooser::Partial).size(),
                      S.Items(Chooser::Unreliable).size());
-  if (Impl_->Snapshots && PointMatchesAnyGlob(Name, Impl_->PointGlobs)) {
-    StateSnapshot Snap = Snapshot(Name, PointMatchesAnyGlob(Name, Impl_->CacheGlobs));
-    Snap.Seq = Seq;
-    const std::string File = SnapshotFileName(Seq, Name);
-    WriteSnapshot((fs::path(Impl_->SnapshotDir) / File).string(), Snap);
-    Impl_->Index.emplace_back(Seq, std::string(Name), File);
+  if (Impl_->Snapshots) {
+    std::optional<std::string> File;
+    if (PointMatchesAnyGlob(Name, Impl_->PointGlobs)) {
+      StateSnapshot Snap = Snapshot(Name, PointMatchesAnyGlob(Name, Impl_->CacheGlobs));
+      Snap.Seq = Seq;
+      File = "snapshots/" + SnapshotFileName(Seq, Name);
+      WriteSnapshot(Detail::PathToUtf8(Detail::PathFromUtf8(Impl_->SnapshotDir) / "snapshots" /
+                                       Detail::PathFromUtf8(SnapshotFileName(Seq, Name))),
+                    Snap);
+    }
+    Impl_->Index.emplace_back(Seq, std::string(Name), std::move(File));
+    WriteIndexFile(Impl_->SnapshotDir, Impl_->Index);
   }
 }
 
@@ -356,22 +440,7 @@ void DiffSession::Restore(const StateSnapshot& Before) {
 
 void DiffSession::FinishHarness() {
   if (Impl_->Snapshots) {
-    JsonValue Index = JsonValue::Array();
-    for (const auto& [Seq, Point, File] : Impl_->Index) {
-      JsonValue Row = JsonValue::Array();
-      Row.Push(JsonValue::Int(Seq));
-      Row.Push(JsonValue::String(Point));
-      Row.Push(JsonValue::String(File));
-      Index.Push(std::move(Row));
-    }
-    const std::string Path = (fs::path(Impl_->SnapshotDir) / "index.json").string();
-    std::ofstream Out(Path, std::ios::binary | std::ios::trunc);
-    if (!Out) {
-      throw IoFailure("cannot write '" + Path + "'");
-    }
-    JsonWriteOptions Options;
-    Options.Pretty = true;
-    Out << JsonWrite(Index, Options) << '\n';
+    WriteIndexFile(Impl_->SnapshotDir, Impl_->Index);  // also when no point was reached: "[]"
   }
   if (Impl_->Trace.Enabled()) {
     Impl_->Trace.Close();
@@ -423,31 +492,6 @@ void LoopStage(DiffSession& S, const char* Name, int Iteration, void (*Fn)(DiffS
   S.Point("after:" + Base);
 }
 
-// D:3684-3695 (the "Done, time taken" line at D:3698 is wall-clock only and is not reproduced).
-void LogFinalResults(DiffSession& S) {
-  const FinalResults& R = S.Final();
-  const size_t Best = R.Best.size();              // D:3684 len(self.best_chooser.items)
-  const size_t Partial = R.Partial.size();        // D:3685
-  const size_t Unreliable = R.Unreliable.size();  // D:3686
-  const size_t Multi = R.Multimatch.size();       // D:3687
-  const size_t Total = Best + Partial + Unreliable;  // D:3688
-  S.Log().Info("Final results: Best " + std::to_string(Best) + ", Partial " + std::to_string(Partial) +
-               ", Unreliable " + std::to_string(Unreliable) + ", Multimatches " + std::to_string(Multi));
-  const int64_t Total1 = S.State().Total1();
-  if (Total1 == 0) {
-    // D:3689 raises ZeroDivisionError. Unreachable in parity mode (D:2562 divides by the same value
-    // first) unless find_equal_matches is still a stub and set no totals.
-    if (!S.SkippedStages().empty()) {
-      S.Log().Info("Matched: not computed (total_functions1 is 0 because stages were skipped)");
-      return;
-    }
-    throw DiaphoraWouldRaise("D:3689 ZeroDivisionError", "total_functions1 == 0");
-  }
-  const double Percent = static_cast<double>(Total * 100) / static_cast<double>(Total1);  // D:3689
-  S.Log().Info("Matched " + FormatPercent2(Percent) + "% of main binary functions (" + std::to_string(Total) +
-               " out of " + std::to_string(Total1) + ")");  // D:3694-3695
-}
-
 }
 
 bool RunPipeline(DiffSession& S) {
@@ -488,7 +532,17 @@ bool RunPipeline(DiffSession& S) {
   S.Point("after:find_equal_matches");
 
   bool SkipOthers = false;  // D:3616
-  InvokeStage(S, "same_processor", [&] { S.Flags().IsSameProcessor = StageSameProcessor(S); });  // D:3617
+  const bool SameCpuImplemented =
+      InvokeStage(S, "same_processor", [&] { S.Flags().IsSameProcessor = StageSameProcessor(S); });  // D:3617
+  if (!SameCpuImplemented) {
+    // Stub fallback only, like the totals above (removed at L9): same_processor_both_databases
+    // (D:2950-2967) is `select 1 from main.program mp, diff.program dp where mp.processor =
+    // dp.processor` (D:2957-2960, kSqlSameProcessor) and `fetchone() is not None` (D:2962-2964).
+    // Without it the stubbed pipeline drops the SAME_CPU heuristics (H:44-48) from the category lists
+    // and its point sequence cannot be compared with an oracle capture's.
+    Statement Query = S.Db().Prepare(kSqlSameProcessor);
+    S.Flags().IsSameProcessor = Query.Step();
+  }
   InvokeStage(S, "ratio_prepare", [&] { S.Engine().Prepare(); });  // plan §3.6: after IsSameProcessor
   if (S.Config().Experimental) {  // D:3618-3621
     InvokeStage(S, "apply_dirty_heuristics", [&] {
@@ -515,9 +569,13 @@ bool RunPipeline(DiffSession& S) {
     }
     S.Point("after:find_remaining_functions");
   } else {
-    // D:3629-3630 run_heuristics_for_category("Best") (emits its own heuristic and category points)
-    InvokeStage(S, "run_heuristics_for_category:Best",
-                [&] { StageRunHeuristicsForCategory(S, HeurCategory::Best); });
+    // D:3629-3630 run_heuristics_for_category("Best") (emits its own heuristic and category points).
+    // oracle_trace.py WrapStage makes "run_heuristics_for_category:Best" the main-thread ctx.
+    {
+      ContextScope Scope(S, "run_heuristics_for_category:Best");
+      InvokeStage(S, "run_heuristics_for_category:Best",
+                  [&] { StageRunHeuristicsForCategory(S, HeurCategory::Best); });
+    }
     // D:3633-3634 find_partial_matches
     InvokeStage(S, "find_partial_matches", [&] { StageFindPartialMatches(S); });
     // D:3636 apply_machine_learning: use_trained_model is False (§1.1), a no-op.
@@ -525,6 +583,8 @@ bool RunPipeline(DiffSession& S) {
 
     int Iteration = 0;  // D:3653
     while (true) {      // D:3654
+      // oracle_trace.py WrapCleanup: the n-th call at the loop head (D:3655) sets iteration n-1 before
+      // its "before:cleanup:3655:<n>" point, so that point already carries k.
       S.SetIteration(Iteration);
       S.Cleanup(CleanupSite::L3655);                                   // D:3655
       const size_t OldTotal = S.State().TotalMatchedFunctions();       // D:3656
@@ -543,6 +603,10 @@ bool RunPipeline(DiffSession& S) {
     }
   }
 
+  // The snapshot "iteration" is the outer-loop k only from the loop's first cleanup (D:3655) through
+  // its last (D:3671); from before:final_pass on it is null again (tools/parity/README.md "iteration";
+  // oracle_trace.py WrapStage sets Iteration = None when final_pass is entered).
+  S.SetIteration(std::nullopt);
   S.Point("before:final_pass");  // D:3677
   {
     ContextScope Scope(S, "final_pass");
@@ -664,6 +728,7 @@ StateSnapshot RunReplay(DiffSession& S, const StateSnapshot& Before, std::string
     if (Parts.size() < 2 || (Parts[1] != "Best" && Parts[1] != "Partial")) {
       throw UnsupportedInput("replay: run_heuristics_for_category needs :Best or :Partial");
     }
+    ContextScope Scope(S, "run_heuristics_for_category:" + Parts[1]);  // the oracle's main-thread ctx
     StageRunHeuristicsForCategory(S, Parts[1] == "Best" ? HeurCategory::Best : HeurCategory::Partial);
     After = "after:run_heuristics_for_category:" + Parts[1];
   } else if (Base == "cleanup") {
@@ -674,7 +739,7 @@ StateSnapshot RunReplay(DiffSession& S, const StateSnapshot& Before, std::string
     if (!Site) {
       throw UnsupportedInput("replay: unknown cleanup site '" + Parts[1] + "'");
     }
-    ContextScope Scope(S, "cleanup");
+    // No ctx label: cleanup_matches is not a ctx in the oracle (it emits only cleanup/point events).
     S.State().Cleanup(*Site);
     After = "after:cleanup:" + Parts[1] + (Parts.size() >= 3 ? ":" + Parts[2] : std::string());
   } else if (Base == "find_matches_diffing" || Base == "find_related_matches" ||
@@ -760,12 +825,15 @@ std::string SqliteMismatchWarning(std::string_view Version) {
 namespace {
 
 bool SamePath(const std::string& A, const std::string& B) {
+  // UTF-8 paths (FileIo.h): a narrow fs::path would use the ANSI code page on Windows.
+  const fs::path PathA = Detail::PathFromUtf8(A);
+  const fs::path PathB = Detail::PathFromUtf8(B);
   std::error_code Error;
-  if (fs::exists(fs::path(A), Error) && fs::exists(fs::path(B), Error)) {
-    return fs::equivalent(fs::path(A), fs::path(B), Error);
+  if (fs::exists(PathA, Error) && fs::exists(PathB, Error)) {
+    return fs::equivalent(PathA, PathB, Error);
   }
-  const fs::path CanonA = fs::weakly_canonical(fs::path(A), Error);
-  const fs::path CanonB = fs::weakly_canonical(fs::path(B), Error);
+  const fs::path CanonA = fs::weakly_canonical(PathA, Error);
+  const fs::path CanonB = fs::weakly_canonical(PathB, Error);
   return CanonA == CanonB;
 }
 
@@ -789,8 +857,11 @@ DiffOutcome RunDiff(const DiffArgs& Args) {
                           std::string(DiffDatabase::kOracleSqliteVersion) + " (--strict-sqlite)";
         return Outcome;
       }
-      if (!Args.AllowSqliteMismatch && !Args.Quiet) {
+      // Orchestrator decision (lane R0 (c)): --quiet silences only Diaphora's summary lines, never
+      // this warning; --allow-sqlite-mismatch is the explicit way to acknowledge it.
+      if (!Args.AllowSqliteMismatch) {
         std::fprintf(stderr, "%s\n", SqliteMismatchWarning(Outcome.SqliteVersion).c_str());
+        std::fflush(stderr);
       }
     }
 
@@ -819,11 +890,13 @@ DiffOutcome RunDiff(const DiffArgs& Args) {
     S.SetCuSource(Args.CuSource);
     S.Open(Args.Db1, Args.Db2);
     S.SetPairLabel(Args.PairLabel.empty() ? PathStem(Args.Db1) + "_vs_" + PathStem(Args.Db2) : Args.PairLabel);
-    if (!Args.TracePath.empty()) {
-      S.EnableTrace(Args.TracePath, Args.TraceRows);
-    }
+    // Snapshots first: EnableSnapshots clears stale snapshot files, and the trace may live in the same
+    // capture directory (the oracle writes <capture>/trace.jsonl next to index.json).
     if (!Args.SnapshotDir.empty()) {
       S.EnableSnapshots(Args.SnapshotDir, Args.SnapshotPoints, Args.SnapshotCache);
+    }
+    if (!Args.TracePath.empty()) {
+      S.EnableTrace(Args.TracePath, Args.TraceRows);
     }
 
     if (Replay) {
@@ -839,7 +912,7 @@ DiffOutcome RunDiff(const DiffArgs& Args) {
         throw;
       }
       S.FinishHarness();
-      WriteSnapshot(Out, After, true);
+      WriteSnapshot(Out, After);  // compact, like every oracle snapshot
       Outcome.OutputWritten = true;
       Outcome.Mode = S.Mode();
       Outcome.Skipped = S.SkippedStages();

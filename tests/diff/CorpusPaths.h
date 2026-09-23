@@ -6,9 +6,14 @@
 // absent. Layout (09-oracle.md): <root>/oracle/exports/<id>/<id>.sqlite,
 // <root>/oracle/diffs/<pair>/run<N>/<pair>.diaphora, <root>/oracle/traces/<pair>/,
 // <root>/oracle/vectors/<lane>/.
+//
+// Every path string here is UTF-8, like every path the engine takes (src/diff/FileIo.h): Utf8ToPath /
+// PathToUtf8 convert explicitly, because std::filesystem::path(std::string) and path::string() use the
+// ANSI code page on Windows.
 
 #include <chrono>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <optional>
 #include <random>
@@ -17,19 +22,44 @@
 
 #include "dsigmatcher/diff/Database.h"
 
+#ifdef _WIN32
+#include <cwchar>
+#endif
+
 namespace DSig::Test {
 
-// getenv without MSVC's C4996 deprecation warning.
+inline std::filesystem::path Utf8ToPath(std::string_view Utf8) {
+  std::u8string Text(Utf8.size(), u8'\0');
+  if (!Utf8.empty()) {
+    std::memcpy(Text.data(), Utf8.data(), Utf8.size());
+  }
+  return std::filesystem::path(Text);
+}
+
+inline std::string PathToUtf8(const std::filesystem::path& Path) {
+  const std::u8string Text = Path.u8string();
+  std::string Out(Text.size(), '\0');
+  if (!Text.empty()) {
+    std::memcpy(Out.data(), Text.data(), Text.size());
+  }
+  return Out;
+}
+
+// getenv without MSVC's C4996 deprecation warning; UTF-8 on Windows (the wide environment).
 inline std::optional<std::string> GetEnv(const char* Name) {
 #ifdef _MSC_VER
-  char* Buffer = nullptr;
+  std::wstring WideName;
+  for (const char* Ch = Name; *Ch != '\0'; ++Ch) {
+    WideName += static_cast<wchar_t>(static_cast<unsigned char>(*Ch));  // variable names are ASCII
+  }
+  wchar_t* Buffer = nullptr;
   size_t Size = 0;
-  if (_dupenv_s(&Buffer, &Size, Name) != 0 || Buffer == nullptr) {
+  if (_wdupenv_s(&Buffer, &Size, WideName.c_str()) != 0 || Buffer == nullptr) {
     return std::nullopt;
   }
-  std::string Value(Buffer);
+  const std::filesystem::path Value(std::wstring(Buffer, std::wcslen(Buffer)));
   std::free(Buffer);
-  return Value;
+  return PathToUtf8(Value);  // UTF-16 -> UTF-8
 #else
   const char* Value = std::getenv(Name);
   if (Value == nullptr) {
@@ -53,34 +83,33 @@ inline std::optional<std::string> CorpusRoot() {
 
 inline std::string OracleDir() {
   const auto Root = CorpusRoot();
-  return Root ? (std::filesystem::path(*Root) / "oracle").string() : std::string();
+  return Root ? PathToUtf8(Utf8ToPath(*Root) / "oracle") : std::string();
 }
 
 // <root>/oracle/exports/<id>/<id>.sqlite
 inline std::string ExportPath(std::string_view Id) {
   const std::string Name(Id);
-  return (std::filesystem::path(OracleDir()) / "exports" / Name / (Name + ".sqlite")).string();
+  return PathToUtf8(Utf8ToPath(OracleDir()) / "exports" / Utf8ToPath(Name) / Utf8ToPath(Name + ".sqlite"));
 }
 
 inline bool ExportAvailable(std::string_view Id) {
   std::error_code Error;
-  return CorpusRoot().has_value() && std::filesystem::is_regular_file(ExportPath(Id), Error);
+  return CorpusRoot().has_value() && std::filesystem::is_regular_file(Utf8ToPath(ExportPath(Id)), Error);
 }
 
 // <root>/oracle/diffs/<pair>/run<N>/<pair>.diaphora
 inline std::string OracleResultsPath(std::string_view Pair, int Run = 1) {
   const std::string Name(Pair);
-  return (std::filesystem::path(OracleDir()) / "diffs" / Name / ("run" + std::to_string(Run)) /
-          (Name + ".diaphora"))
-      .string();
+  return PathToUtf8(Utf8ToPath(OracleDir()) / "diffs" / Utf8ToPath(Name) / ("run" + std::to_string(Run)) /
+                    Utf8ToPath(Name + ".diaphora"));
 }
 
 inline std::string TracesDir(std::string_view Pair) {
-  return (std::filesystem::path(OracleDir()) / "traces" / std::string(Pair)).string();
+  return PathToUtf8(Utf8ToPath(OracleDir()) / "traces" / Utf8ToPath(Pair));
 }
 
 inline std::string VectorsDir(std::string_view Lane) {
-  return (std::filesystem::path(OracleDir()) / "vectors" / std::string(Lane)).string();
+  return PathToUtf8(Utf8ToPath(OracleDir()) / "vectors" / Utf8ToPath(Lane));
 }
 
 // Tests that compare row order with the oracle need the oracle's SQLite (plan §2.6).
@@ -106,14 +135,14 @@ inline std::string ScratchDir(std::string_view Suite) {
   }();
   std::error_code Error;
   const std::filesystem::path Dir =
-      std::filesystem::temp_directory_path(Error) / "dsig-tests" / (std::string(Suite) + "-" + Unique);
+      std::filesystem::temp_directory_path(Error) / "dsig-tests" / Utf8ToPath(std::string(Suite) + "-" + Unique);
   std::filesystem::create_directories(Dir, Error);
-  return Dir.string();
+  return PathToUtf8(Dir);
 }
 
 inline void RemoveScratchDir(const std::string& Dir) {
   std::error_code Error;
-  std::filesystem::remove_all(Dir, Error);
+  std::filesystem::remove_all(Utf8ToPath(Dir), Error);
 }
 
 }

@@ -9,11 +9,17 @@
 //   * SQLite 3.51.1 only: the Path A row-sequence census on the 5 oracle pairs and the
 //     find_same_name EXPLAIN QUERY PLAN (02 Appendix C). Sequences Python needed more than 5 s for run
 //     only with DSIG_CENSUS_LONG=1.
+//   * lane R0 (reconciliation): the trace/snapshot conventions of tools/parity/oracle_trace.py, checked
+//     byte for byte against a finished oracle capture (skipped without it); the final-results log
+//     order (D:3689 before D:3690); the SQLite warning under --quiet (skipped on the oracle's SQLite);
+//     missing side tables refused with exit 4; Unicode and UNC paths, in process and through the CLI.
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <functional>
 #include <iterator>
 #include <fstream>
 #include <limits>
@@ -24,6 +30,25 @@
 #include <string>
 #include <vector>
 
+#include <fcntl.h>
+#include <sys/stat.h>
+#ifdef _WIN32
+#include <io.h>
+#include <share.h>
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
+
+#include <sqlite3.h>
+
+#include "FileIo.h"
 #include "diff/CorpusPaths.h"
 #include "diff/FixtureDb.h"
 #include "diff/ResultsCompare.h"
@@ -64,11 +89,27 @@ size_t CountOf(std::string_view Text, std::string_view Needle) {
   return Count;
 }
 
+// The whole file ("" when it cannot be read). UTF-8 path; shared-delete read on Windows (FileIo.h),
+// so reading an oracle capture never blocks a writer that replaces its files.
 std::string ReadFile(const std::string& Path) {
-  std::ifstream In(Path, std::ios::binary);
-  std::ostringstream Buffer;
-  Buffer << In.rdbuf();
-  return Buffer.str();
+  try {
+    return DSig::Diff::Detail::ReadFileBytes(Path);
+  } catch (const std::exception&) {
+    return std::string();
+  }
+}
+
+using DSig::Test::PathToUtf8;
+using DSig::Test::Utf8ToPath;
+
+// Path join over UTF-8 strings.
+std::string Join(const std::string& Dir, const std::string& Name) {
+  return PathToUtf8(Utf8ToPath(Dir) / Utf8ToPath(Name));
+}
+
+bool Exists(const std::string& Utf8Path) {
+  std::error_code Error;
+  return fs::exists(Utf8ToPath(Utf8Path), Error);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -337,6 +378,25 @@ void TestJson() {
   }
   CHECK_TEXT_EQ(JsonQuote("a\x1f"), "\"a\\u001f\"");
   CHECK_NUM_EQ(JsonParse(JsonWrite(Root)).At("u").AsUInt64(), 18446744073709551615ull);
+
+  // The compact writer is the oracle's json.dumps(ensure_ascii=False, separators=(",", ":")) byte for
+  // byte (tools/parity/snapshot.py DumpJson); the expected text was produced by CPython 3.13 for the
+  // same object ("c" holds quote, backslash, slash, the five named control escapes, U+0001, U+001F,
+  // U+007F, U+00E9 and U+2028).
+  {
+    JsonValue Obj = JsonValue::Object();
+    Obj.Set("a", JsonValue::Int(1));
+    JsonValue Items = JsonValue::Array();
+    Items.Push(JsonValue::Null());
+    Items.Push(JsonValue::Bool(true));
+    Items.Push(JsonValue::String("x"));
+    Obj.Set("b", std::move(Items));
+    Obj.Set("c", JsonValue::String("\"\\/\b\f\n\r\t\x01\x1f\x7f\xc3\xa9\xe2\x80\xa8"));
+    CHECK_TEXT_EQ(JsonWrite(Obj),
+                  "{\"a\":1,\"b\":[null,true,\"x\"],\"c\":\"\\\"\\\\/\\b\\f\\n\\r\\t\\u0001\\u001f\x7f\xc3\xa9\xe2\x80\xa8\"}");
+    CHECK_TEXT_EQ(JsonWrite(JsonValue::Array()), "[]");
+    CHECK_TEXT_EQ(JsonWrite(JsonValue::Object()), "{}");
+  }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -398,6 +458,32 @@ void TestSnapshot() {
     const StateSnapshot Back = ParseSnapshot(SerializeSnapshot(Sample, Pretty));
     CHECK(SameSnapshot(Sample, Back));
   }
+  // Byte-exact with the oracle's writer: snapshot.py DumpJson of the same object (key order of
+  // oracle_trace.py Instrument.BuildSnapshot), generated with CPython 3.13.
+  CHECK_TEXT_EQ(SerializeSnapshot(Sample),
+                "{\"schema\":\"dsig-parity-snapshot/1\",\"producer\":\"dsigmatcher-test\",\"pair\":\"ls-old_vs_ls\",\""
+                "seq\":17,\"point\":\"before:find_matches_diffing:0\",\"iteration\":0,\"flags\":{\"is_same_processor"
+                "\":true,\"is_patch_diff\":false,\"is_symbols_stripped\":false,\"hooks_loaded\":false,\"total_functio"
+                "ns1\":304,\"total_functions2\":318},\"all_matches\":{\"best\":[[\"4198400\",\"foo\",\"4202496\",\"fo"
+                "o\",\"Perfect match, same name\",\"3ff0000000000000\",5,5]],\"partial\":[[\"4198500\",null,\"4202500"
+                "\",\"sub_1\",\"Loop count\",\"3fecdc461c440365\",3,4]],\"unreliable\":[]},\"matched_primary\":[[\"fo"
+                "o\",\"foo\",\"3ff0000000000000\"],[null,\"sub_1\",\"3fecdc461c440365\"]],\"matched_secondary\":[[\"f"
+                "oo\",\"foo\",\"3ff0000000000000\"]],\"ratios_cache\":[[\"4198400-4202496\",\"3fee666666666666\"]],\""
+                "choosers\":{\"best\":[],\"partial\":[],\"unreliable\":[],\"multimatch\":[[\"4198500\",null,\"4202500"
+                "\",\"sub_1\",\"Loop count\",\"3fecdc461c440365\",3,4]]},\"unmatched\":{\"primary\":[[\"4210688\",\"o"
+                "nly_in_diff\"],[\"4210700\",null]],\"secondary\":null}}");
+  {
+    // iteration null and the optional members absent (the common case)
+    StateSnapshot Plain;
+    Plain.Producer = "p";
+    Plain.Point = "after:find_equal_matches";
+    CHECK_TEXT_EQ(SerializeSnapshot(Plain),
+                  "{\"schema\":\"dsig-parity-snapshot/1\",\"producer\":\"p\",\"pair\":\"\",\"seq\":0,\"point\":"
+                  "\"after:find_equal_matches\",\"iteration\":null,\"flags\":{\"is_same_processor\":false,"
+                  "\"is_patch_diff\":false,\"is_symbols_stripped\":false,\"hooks_loaded\":false,\"total_functions1\":0,"
+                  "\"total_functions2\":0},\"all_matches\":{\"best\":[],\"partial\":[],\"unreliable\":[]},"
+                  "\"matched_primary\":[],\"matched_secondary\":[]}");
+  }
   // secondary null vs empty list survive
   const StateSnapshot Back = ParseSnapshot(SerializeSnapshot(Sample));
   CHECK(Back.Unmatched && Back.Unmatched->Primary && !Back.Unmatched->Secondary);
@@ -435,6 +521,9 @@ void TestSnapshot() {
   CHECK_TEXT_EQ(SanitisePointName("before:cleanup:3185:4"), "before_cleanup_3185_4");
   CHECK_TEXT_EQ(SnapshotFileName(17, "after:final_pass"), "00017_after_final_pass.json");
   CHECK_TEXT_EQ(SnapshotFileName(123456, "a b"), "123456_a_b.json");
+  // re.sub over a Python str replaces each code point (é, €, U+1F600) with one '_' (snapshot.py)
+  CHECK_TEXT_EQ(SanitisePointName("a:\xc3\xa9\xe2\x82\xac\xf0\x9f\x98\x80" "b-._Z9"), "a____b-._Z9");
+  CHECK_TEXT_EQ(SanitisePointName("x\xffy"), "x_y");  // a stray byte counts alone
   CHECK(PointMatchesGlob("before:heuristic:41", "*heuristic:*"));
   CHECK(PointMatchesGlob("after:final_pass", "*"));
   CHECK(PointMatchesGlob("after:cleanup:3185:4", "after:cleanup:31??:*"));
@@ -443,11 +532,13 @@ void TestSnapshot() {
   CHECK(PointMatchesAnyGlob("after:final_pass", "before:*|after:final_pass"));
   CHECK(!PointMatchesAnyGlob("after:final_pass", ""));
 
-  // write/read through a file
+  // write/read through a file: compact text plus one newline, like WriteJsonAtomic
   const std::string Dir = DSig::Test::ScratchDir("foundation-snapshot");
-  const std::string Path = (fs::path(Dir) / "s.json").string();
+  const std::string Path = Join(Dir, "s.json");
   WriteSnapshot(Path, Sample, true);
   CHECK(SameSnapshot(ReadSnapshot(Path), Sample));
+  WriteSnapshot(Path, Sample);
+  CHECK_TEXT_EQ(ReadFile(Path), SerializeSnapshot(Sample) + "\n");
   DSig::Test::RemoveScratchDir(Dir);
 }
 
@@ -457,7 +548,7 @@ void TestSnapshot() {
 void TestTrace() {
   DSig::Test::Suite("trace");
   const std::string Dir = DSig::Test::ScratchDir("foundation-trace");
-  const std::string Path = (fs::path(Dir) / "trace.jsonl").string();
+  const std::string Path = Join(Dir, "trace.jsonl");
   {
     TraceSink Sink;
     CHECK(!Sink.Enabled());
@@ -469,42 +560,109 @@ void TestTrace() {
     Sink.Cleanup(3185, 4, 1, 2, 0);
     Sink.Point("after:final_pass", 3, 4, 0);
     Sink.Row("heuristic:41", "1", "2", RowDecision::BelowMin, std::nullopt);
-    CHECK_NUM_EQ(Sink.Events(), 4);
+    // an empty ctx is Python None; seq counts add_match calls only (1 here, not 4)
+    Sink.AddMatch("", std::string_view("a\xc3\xa9"), std::string_view("b\n"), "1", "2", "d", 1.0, std::nullopt,
+                  AddMatchResult::RejectedBetter);
+    Sink.Row("find_same_name", "1", "2", RowDecision::AcceptedUnreliable, 0.5);
+    CHECK_NUM_EQ(Sink.Events(), 6);
     Sink.Close();
   }
-  std::ifstream In(Path, std::ios::binary);
-  std::vector<JsonValue> Lines;
-  for (std::string Line; std::getline(In, Line);) {
-    Lines.push_back(JsonParse(Line));
-  }
-  CHECK_NUM_EQ(Lines.size(), 4);
-  if (Lines.size() == 4) {
-    CHECK_TEXT_EQ(Lines[0].At("ev").AsString(), "add_match");
-    CHECK_NUM_EQ(Lines[0].At("seq").AsInt64(), 0);
-    CHECK_TEXT_EQ(Lines[0].At("ctx").AsString(), "heuristic:41");
-    CHECK_TEXT_EQ(Lines[0].At("name1").AsString(), "foo");
-    CHECK(Lines[0].At("name2").IsNull());
-    CHECK_TEXT_EQ(Lines[0].At("ratio_bits").AsString(), "3fee666666666666");
-    CHECK_TEXT_EQ(Lines[0].At("chooser").AsString(), "partial");
-    CHECK_TEXT_EQ(Lines[0].At("result").AsString(), "appended");
-    CHECK_TEXT_EQ(Lines[1].At("ev").AsString(), "cleanup");
-    CHECK_NUM_EQ(Lines[1].At("site").AsInt64(), 3185);
-    CHECK_NUM_EQ(Lines[1].At("n").AsInt64(), 4);
-    CHECK_NUM_EQ(Lines[1].At("partial").AsInt64(), 2);
-    CHECK_TEXT_EQ(Lines[2].At("name").AsString(), "after:final_pass");
-    CHECK_TEXT_EQ(Lines[3].At("decision").AsString(), "below_min");
-    CHECK(Lines[3].At("ratio_bits").IsNull());
-    CHECK_NUM_EQ(Lines[3].At("seq").AsInt64(), 3);
-  }
+  // The same events written by CPython 3.13 through tools/parity/snapshot.py DumpJson with the keys in
+  // oracle_trace.py's order: the native lines must be byte-identical.
+  const std::string Expected =
+      "{\"ev\":\"add_match\",\"seq\":0,\"ctx\":\"heuristic:41\",\"name1\":\"foo\",\"name2\":null,\"ea1\":\"4198400\","
+      "\"ea2\":\"4202496\",\"desc\":\"Loop count\",\"ratio_bits\":\"3fee666666666666\",\"chooser\":\"partial\","
+      "\"result\":\"appended\"}\n"
+      "{\"ev\":\"cleanup\",\"site\":3185,\"n\":4,\"best\":1,\"partial\":2,\"unreliable\":0}\n"
+      "{\"ev\":\"point\",\"name\":\"after:final_pass\",\"best\":3,\"partial\":4,\"unreliable\":0}\n"
+      "{\"ev\":\"row\",\"ctx\":\"heuristic:41\",\"ea1\":\"1\",\"ea2\":\"2\",\"decision\":\"below_min\",\"ratio_bits\":null}\n"
+      "{\"ev\":\"add_match\",\"seq\":1,\"ctx\":null,\"name1\":\"a\xc3\xa9\",\"name2\":\"b\\n\",\"ea1\":\"1\",\"ea2\":\"2\","
+      "\"desc\":\"d\",\"ratio_bits\":\"3ff0000000000000\",\"chooser\":null,\"result\":\"rejected_better\"}\n"
+      "{\"ev\":\"row\",\"ctx\":\"find_same_name\",\"ea1\":\"1\",\"ea2\":\"2\",\"decision\":\"accepted_unreliable\","
+      "\"ratio_bits\":\"3fe0000000000000\"}\n";
+  CHECK_TEXT_EQ(ReadFile(Path), Expected);
   CHECK_TEXT_EQ(std::string(AddMatchResultName(AddMatchResult::RejectedBetter)), "rejected_better");
   CHECK_TEXT_EQ(std::string(RowDecisionName(RowDecision::HasBest)), "has_best");
+  // every decision name of tools/parity/README.md "row event"
+  const std::pair<RowDecision, const char*> Decisions[] = {
+      {RowDecision::Nullsub, "nullsub"},           {RowDecision::HasBest, "has_best"},
+      {RowDecision::HasBetter, "has_better"},      {RowDecision::AcceptedBest, "accepted_best"},
+      {RowDecision::AcceptedPartial, "accepted_partial"}, {RowDecision::BelowMin, "below_min"},
+      {RowDecision::AcceptedUnreliable, "accepted_unreliable"}, {RowDecision::Raised, "raised"}};
+  for (const auto& [Decision, Name] : Decisions) {
+    CHECK_TEXT_EQ(std::string(RowDecisionName(Decision)), Name);
+  }
   // "%1.2f" formatting of the summary lines
   CHECK_TEXT_EQ(FormatPercent2(100.0), "100.00");
   CHECK_TEXT_EQ(FormatPercent2(0.125), "0.12");   // exact binary tie, half-even
   CHECK_TEXT_EQ(FormatPercent2(0.375), "0.38");
   CHECK_TEXT_EQ(FormatPercent2(45.724), "45.72");
-  In.close();
   DSig::Test::RemoveScratchDir(Dir);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Final results (orchestrator decision R0 (b)): D:3689 computes percent, and raises ZeroDivisionError
+// when total_functions1 is 0, BEFORE D:3690 logs "Final results".
+
+void TestFinalResults() {
+  DSig::Test::Suite("final-results");
+  {
+    DiffSession S;
+    S.Log().SetQuiet(true);
+    S.State().SetTotals(0, 5);
+    bool Threw = false;
+    std::string Site;
+    try {
+      LogFinalResults(S);
+    } catch (const DiaphoraWouldRaise& Error) {
+      Threw = true;
+      Site = Error.Site;
+    }
+    CHECK(Threw);
+    CHECK_TEXT_EQ(Site, "D:3689 ZeroDivisionError");
+    CHECK(S.Log().Lines().empty());  // no "Final results" line before the raise
+  }
+  {
+    DiffSession S;
+    S.Log().SetQuiet(true);
+    S.State().SetTotals(8, 9);
+    Item It;
+    S.Final().Best = {It, It, It};
+    S.Final().Partial = {It};
+    S.Final().Multimatch = {It, It};
+    LogFinalResults(S);
+    const std::vector<std::string> Expected = {"Final results: Best 3, Partial 1, Unreliable 0, Multimatches 2",
+                                               "Matched 50.00% of main binary functions (4 out of 8)"};
+    CHECK(S.Log().Lines() == Expected);
+  }
+  {
+    // stub-only fallback: stages were skipped, so the zero total is the stubs' doing, not an input's
+    DiffSession S;
+    S.Log().SetQuiet(true);
+    S.NoteSkipped("find_equal_matches", "stub");
+    S.State().SetTotals(0, 0);
+    bool Threw = false;
+    try {
+      LogFinalResults(S);
+    } catch (const DiaphoraWouldRaise&) {
+      Threw = true;
+    }
+    CHECK(!Threw);
+    CHECK_NUM_EQ(S.Log().Lines().size(), 3);  // SKIPPED, Final results, Matched: not computed
+  }
+  {
+    // show_summary (D:1631) raises before its first line too
+    DiffSession S;
+    S.Log().SetQuiet(true);
+    bool Threw = false;
+    try {
+      LogShowSummary(S);
+    } catch (const DiaphoraWouldRaise& Error) {
+      Threw = Error.Site == "D:1631 ZeroDivisionError";
+    }
+    CHECK(Threw);
+    CHECK(S.Log().Lines().empty());
+  }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -548,6 +706,12 @@ void TestConfigAndNames() {
   CHECK_TEXT_EQ(DiffDatabase::UriForPath("rel/a.sqlite"), "file:rel/a.sqlite?mode=ro");
   CHECK_TEXT_EQ(DiffDatabase::UriForPath("/x/a?b#c%d.sqlite"), "file:/x/a%3fb%23c%25d.sqlite?mode=ro");
   CHECK_TEXT_EQ(DiffDatabase::UriForPath("C:/x/a.sqlite", false), "file:/C:/x/a.sqlite");
+  // a UNC path keeps an empty URI authority: file:////server/share/... (lane R0 (f))
+  CHECK_TEXT_EQ(DiffDatabase::UriForPath("//server/share/a.sqlite"), "file:////server/share/a.sqlite?mode=ro");
+#ifdef _WIN32
+  CHECK_TEXT_EQ(DiffDatabase::UriForPath("\\\\server\\share\\a b.sqlite"), "file:////server/share/a b.sqlite?mode=ro");
+  CHECK_TEXT_EQ(DiffDatabase::UriForPath("C:\\x\\a.sqlite"), "file:/C:/x/a.sqlite?mode=ro");
+#endif
   CHECK(!DiffDatabase::LibVersion().empty());
   CHECK(!DiffDatabase::SourceId().empty());
   CHECK(SqliteMismatchWarning("3.45.0").find("3.51.1") != std::string::npos);
@@ -564,15 +728,18 @@ struct FixturePair {
   bool Ok = false;
 };
 
-FixturePair BuildFoundationFixture(const std::string& Suite, const std::string& ExtraMainSql = "") {
+// The committed foundation fixture pair, built in `Dir` (UTF-8) under the given file names.
+FixturePair BuildFoundationFixtureIn(const std::string& Dir, const std::string& MainName, const std::string& DiffName,
+                                     const std::string& ExtraMainSql = "", const std::string& ExtraDiffSql = "") {
   FixturePair Pair;
-  Pair.Dir = DSig::Test::ScratchDir(Suite);
-  Pair.Main = (fs::path(Pair.Dir) / "main.sqlite").string();
-  Pair.Diff = (fs::path(Pair.Dir) / "diff.sqlite").string();
+  Pair.Dir = Dir;
+  Pair.Main = Join(Pair.Dir, MainName);
+  Pair.Diff = Join(Pair.Dir, DiffName);
   const std::string Base = DSig::Test::TestDataDir() + "/fixtures/foundation/";
   const std::string MainSql = ReadFile(Base + "main.sql") + ExtraMainSql;
+  const std::string DiffSql = ReadFile(Base + "diff.sql") + ExtraDiffSql;
   const std::string E1 = DSig::Test::BuildFixtureDbFromText(MainSql, Pair.Main);
-  const std::string E2 = DSig::Test::BuildFixtureDb(Base + "diff.sql", Pair.Diff);
+  const std::string E2 = DSig::Test::BuildFixtureDbFromText(DiffSql, Pair.Diff);
   if (!E1.empty()) {
     DSig::Test::Note("fixture main: " + E1);
   }
@@ -581,6 +748,12 @@ FixturePair BuildFoundationFixture(const std::string& Suite, const std::string& 
   }
   Pair.Ok = E1.empty() && E2.empty();
   return Pair;
+}
+
+FixturePair BuildFoundationFixture(const std::string& Suite, const std::string& ExtraMainSql = "",
+                                   const std::string& ExtraDiffSql = "") {
+  return BuildFoundationFixtureIn(DSig::Test::ScratchDir(Suite), "main.sqlite", "diff.sqlite", ExtraMainSql,
+                                  ExtraDiffSql);
 }
 
 void TestFixtureIngest() {
@@ -601,6 +774,19 @@ void TestFixtureIngest() {
     CHECK(Stat.Step() && Stat.Int(0) > 0);
     const auto Plan = Db.ExplainQueryPlan(kSqlSameName);
     CHECK(!Plan.empty());
+    // both databases are read-only: the non-URI open (lane R0 (f)) keeps SQLITE_OPEN_READONLY and the
+    // ATTACH inherits it (attach.c flags = db->openFlags)
+    for (const char* Sql : {"create table main.r0_probe (a)", "create table diff.r0_probe (a)",
+                            "delete from diff.functions"}) {
+      bool Refused = false;
+      try {
+        Statement Write = Db.Prepare(Sql);
+        Write.Step();
+      } catch (const DiaphoraWouldRaise& Error) {
+        Refused = std::string(Error.Detail).find("readonly") != std::string::npos;
+      }
+      CHECK(Refused);
+    }
   }
 
   DiffSession S;
@@ -843,7 +1029,7 @@ void TestIngestQuirks() {
     DiffArgs Args;
     Args.Db1 = Broken.Main;
     Args.Db2 = Broken.Diff;
-    Args.Out = (fs::path(Broken.Dir) / "out.diaphora").string();
+    Args.Out = Join(Broken.Dir, "out.diaphora");
     Args.Quiet = true;
     const DiffOutcome Outcome = RunDiff(Args);
     CHECK(Outcome.Status == DiffStatus::Unsupported);
@@ -868,13 +1054,77 @@ const std::vector<DSig::Test::SchemaRow>& DiaphoraDdl() {
   return Rows;
 }
 
+// A capture directory in the layout of tools/parity/oracle_trace.py (README "Output"): <Dir>/index.json
+// lists every point as [seq, point, file], and `file` ("snapshots/NNNNN_<point>.json", relative to
+// <Dir>) is null for a point whose snapshot was filtered out.
+struct IndexRow {
+  int64_t Seq = 0;
+  std::string Point;
+  std::optional<std::string> File;
+};
+
+std::vector<IndexRow> ReadIndex(const std::string& Dir) {
+  std::vector<IndexRow> Rows;
+  const JsonValue Index = JsonParse(ReadFile(Join(Dir, "index.json")));
+  for (const JsonValue& Row : Index.Items()) {
+    IndexRow Entry;
+    Entry.Seq = Row.Items().at(0).AsInt64();
+    Entry.Point = Row.Items().at(1).AsString();
+    if (!Row.Items().at(2).IsNull()) {
+      Entry.File = Row.Items().at(2).AsString();
+    }
+    Rows.push_back(std::move(Entry));
+  }
+  return Rows;
+}
+
 std::vector<std::string> ReadIndexPoints(const std::string& Dir) {
   std::vector<std::string> Points;
-  const JsonValue Index = JsonParse(ReadFile((fs::path(Dir) / "index.json").string()));
-  for (const JsonValue& Row : Index.Items()) {
-    Points.push_back(Row.Items()[1].AsString());
+  for (const IndexRow& Row : ReadIndex(Dir)) {
+    Points.push_back(Row.Point);
   }
   return Points;
+}
+
+// Every line of a JSONL file (without its newline).
+std::vector<std::string> ReadLines(const std::string& Path) {
+  std::vector<std::string> Lines;
+  const std::string Text = ReadFile(Path);
+  size_t Start = 0;
+  while (Start < Text.size()) {
+    size_t End = Text.find('\n', Start);
+    if (End == std::string::npos) {
+      End = Text.size();
+    }
+    Lines.push_back(Text.substr(Start, End - Start));
+    Start = End + 1;
+  }
+  return Lines;
+}
+
+// The oracle's snapshot "iteration" rule (tools/parity/README.md, oracle_trace.py WrapCleanup /
+// WrapStage) computed from a point sequence alone: the n-th "before:cleanup:3655:<n>" (the loop head,
+// D:3655) starts iteration n-1, which holds through the loop's last cleanup (D:3671); null before the
+// loop, in modes S and P, and from before:final_pass on.
+std::vector<std::optional<int64_t>> ExpectedIterations(const std::vector<std::string>& Points) {
+  static const std::string Head = "before:cleanup:3655:";
+  std::vector<std::optional<int64_t>> Out;
+  std::optional<int64_t> Current;
+  for (const std::string& Point : Points) {
+    if (Point.rfind(Head, 0) == 0) {
+      Current = std::stoll(Point.substr(Head.size())) - 1;
+    }
+    if (Point == "before:final_pass") {
+      Current.reset();
+    }
+    Out.push_back(Current);
+  }
+  return Out;
+}
+
+void WriteText(const std::string& Path, std::string_view Text) {
+  std::ofstream Out(Utf8ToPath(Path), std::ios::binary | std::ios::trunc);
+  Out.write(Text.data(), static_cast<std::streamsize>(Text.size()));
 }
 
 void TestPipeline() {
@@ -884,21 +1134,26 @@ void TestPipeline() {
   if (!Pair.Ok) {
     return;
   }
-  const std::string Snapshots = (fs::path(Pair.Dir) / "snapshots").string();
-  const std::string Trace = (fs::path(Pair.Dir) / "trace.jsonl").string();
+  // The oracle's capture layout: index.json, snapshots/ and trace.jsonl in one directory.
+  const std::string Capture = Join(Pair.Dir, "capture");
+  const std::string Trace = Join(Capture, "trace.jsonl");
+  {
+    // a stale snapshot of an earlier run is removed; an unrelated file is left alone
+    std::error_code Error;
+    fs::create_directories(Utf8ToPath(Join(Capture, "snapshots")), Error);
+    WriteText(Join(Join(Capture, "snapshots"), "99999_stale_point.json"), "{}");
+    WriteText(Join(Join(Capture, "snapshots"), "notes.txt"), "keep");
+  }
   DiffArgs Args;
   Args.Db1 = Pair.Main;
   Args.Db2 = Pair.Diff;
-  Args.Out = (fs::path(Pair.Dir) / "out.diaphora").string();
-  Args.SnapshotDir = Snapshots;
+  Args.Out = Join(Pair.Dir, "out.diaphora");
+  Args.SnapshotDir = Capture;
   Args.TracePath = Trace;
   Args.TraceRows = true;
   Args.Quiet = true;
   Args.AllowSqliteMismatch = true;
-  {
-    std::ofstream Stale(Args.Out);  // D:2379-2381: an existing output is replaced
-    Stale << "stale";
-  }
+  WriteText(Args.Out, "stale");  // D:2379-2381: an existing output is replaced
   const DiffOutcome Outcome = RunDiff(Args);
   CHECK(Outcome.Status == DiffStatus::Ok);
   if (Outcome.Status != DiffStatus::Ok) {
@@ -907,6 +1162,8 @@ void TestPipeline() {
   CHECK(Outcome.OutputWritten);
   CHECK(Outcome.Mode == 'N');
   CHECK(Outcome.DiffReturned);
+  CHECK(!Exists(Join(Join(Capture, "snapshots"), "99999_stale_point.json")));
+  CHECK(Exists(Join(Join(Capture, "snapshots"), "notes.txt")));
   const DSig::Test::ResultsFile File = DSig::Test::ReadResultsFile(Args.Out);
   CHECK(File.Error.empty());
   CHECK(File.Schema == DiaphoraDdl());  // Diaphora's exact DDL
@@ -920,7 +1177,8 @@ void TestPipeline() {
   }
 
   // mode-N points of Appendix B (plan §4 L0 acceptance)
-  const std::vector<std::string> Points = ReadIndexPoints(Snapshots);
+  const std::vector<IndexRow> Index = ReadIndex(Capture);
+  const std::vector<std::string> Points = ReadIndexPoints(Capture);
   const std::set<std::string> Have(Points.begin(), Points.end());
   const std::vector<std::string> Required = {
       "after:find_equal_matches",
@@ -929,6 +1187,11 @@ void TestPipeline() {
       "after:find_same_name",
       "before:heuristic:11",
       "after:heuristic:11",
+      // SAME_CPU heuristics (H:44-48) run: both fixture exports are metapc, and while
+      // same_processor_both_databases is a stub RunPipeline evaluates D:2957-2960 itself
+      "before:heuristic:0",
+      "after:heuristic:0",
+      "before:heuristic:39",
       "before:cleanup:1551:1",
       "after:cleanup:1551:1",
       "after:run_heuristics_for_category:Best",
@@ -975,48 +1238,135 @@ void TestPipeline() {
   CHECK(Pos("before:final_pass") < Pos("after:final_pass"));
   CHECK(Pos("after:final_pass") < Pos("after:find_unmatched"));
   CHECK(Pos("after:find_equal_matches") < Pos("before:find_same_name"));
-  // every snapshot parses; the special dumps are where Appendix B puts them
-  const JsonValue Index = JsonParse(ReadFile((fs::path(Snapshots) / "index.json").string()));
-  for (const JsonValue& Row : Index.Items()) {
-    const StateSnapshot Snap = ReadSnapshot((fs::path(Snapshots) / Row.Items()[2].AsString()).string());
-    CHECK_TEXT_EQ(Snap.Point, Row.Items()[1].AsString());
-    CHECK_NUM_EQ(Snap.Seq, Row.Items()[0].AsInt64());
+
+  // index.json: compact JSON plus one newline (snapshot.py WriteJsonAtomic); seq is 0-based and counts
+  // every point; file is "snapshots/" + SnapshotFileName(seq, point)
+  const std::string IndexText = ReadFile(Join(Capture, "index.json"));
+  CHECK_TEXT_EQ(IndexText, JsonWrite(JsonParse(IndexText)) + "\n");
+  const std::vector<std::optional<int64_t>> Iterations = ExpectedIterations(Points);
+  for (size_t Position = 0; Position < Index.size(); ++Position) {
+    const IndexRow& Row = Index[Position];
+    CHECK_NUM_EQ(Row.Seq, Position);
+    CHECK(Row.File.has_value());
+    if (!Row.File) {
+      continue;
+    }
+    CHECK_TEXT_EQ(*Row.File, "snapshots/" + SnapshotFileName(Row.Seq, Row.Point));
+    const std::string Bytes = ReadFile(Join(Capture, *Row.File));
+    const StateSnapshot Snap = ParseSnapshot(Bytes);
+    CHECK_TEXT_EQ(SerializeSnapshot(Snap) + "\n", Bytes);  // the writer's own format, compact
+    CHECK_TEXT_EQ(Snap.Point, Row.Point);
+    CHECK_NUM_EQ(Snap.Seq, Row.Seq);
     CHECK(Snap.Choosers.has_value() == (Snap.Point == "after:final_pass"));
     CHECK(Snap.Unmatched.has_value() == (Snap.Point == "after:find_unmatched"));
     CHECK_NUM_EQ(Snap.Flags.TotalFunctions1, 6);
     CHECK_NUM_EQ(Snap.Flags.TotalFunctions2, 7);
     CHECK(Snap.Producer.rfind("dsigmatcher-", 0) == 0);
-    CHECK(Snap.Iteration.has_value() == (Pos(Snap.Point) >= Pos("before:cleanup:3655:1")));
+    CHECK_TEXT_EQ(Snap.Pair, "main_vs_diff");
+    // iteration: k inside the loop only, null again from before:final_pass (tools/parity/README.md)
+    CHECK(Snap.Iteration == Iterations[Position]);
+    // is_same_processor is set after find_equal_matches (D:3613-3617)
+    CHECK(Snap.Flags.IsSameProcessor == (Row.Point != "after:find_equal_matches"));
   }
-  // the trace carries one point event per point, in the same order
+  CHECK(Iterations[static_cast<size_t>(Pos("after:cleanup:3671:1"))] == std::optional<int64_t>(0));
+  CHECK(!Iterations[static_cast<size_t>(Pos("before:final_pass"))].has_value());
+
+  // the trace: the oracle's event shapes; one point event per point, in the same order; only add_match
+  // events carry "seq"; a cleanup event sits right before its "after:cleanup:<site>:<n>" point
   {
-    std::ifstream In(Trace, std::ios::binary);
     std::vector<std::string> TracePoints;
-    for (std::string Line; std::getline(In, Line);) {
+    std::string LastCleanup;
+    bool CleanupsPaired = true;
+    bool SeqOnlyOnAddMatch = true;
+    for (const std::string& Line : ReadLines(Trace)) {
       const JsonValue Event = JsonParse(Line);
-      if (Event.At("ev").AsString() == "point") {
-        TracePoints.push_back(Event.At("name").AsString());
+      const std::string Kind = Event.At("ev").AsString();
+      CHECK_TEXT_EQ(JsonWrite(Event), Line);  // compact, in the writer's key order
+      if (Kind != "add_match" && Event.Find("seq") != nullptr) {
+        SeqOnlyOnAddMatch = false;
+      }
+      if (Kind == "point") {
+        const std::string Name = Event.At("name").AsString();
+        TracePoints.push_back(Name);
+        if (Name.rfind("after:cleanup:", 0) == 0 && Name != "after:cleanup:" + LastCleanup) {
+          CleanupsPaired = false;
+        }
+        LastCleanup.clear();
+      } else if (Kind == "cleanup") {
+        LastCleanup = std::to_string(Event.At("site").AsInt64()) + ":" + std::to_string(Event.At("n").AsInt64());
       }
     }
     CHECK(TracePoints == Points);
+    CHECK(SeqOnlyOnAddMatch);
+    CHECK(CleanupsPaired);
   }
 
-  // replay: a cleanup from its before snapshot reproduces the after snapshot (S-L2)
+  // --snapshot-points filters snapshot files only: index.json still lists every point with its seq,
+  // and the filtered ones have a null file (oracle --points)
+  {
+    DiffArgs Filtered = Args;
+    Filtered.Out = Join(Pair.Dir, "filtered.diaphora");
+    Filtered.SnapshotDir = Join(Pair.Dir, "filtered");
+    Filtered.TracePath.clear();
+    Filtered.SnapshotPoints = "after:*";
+    CHECK(RunDiff(Filtered).Status == DiffStatus::Ok);
+    const std::vector<IndexRow> Rows = ReadIndex(Filtered.SnapshotDir);
+    CHECK_NUM_EQ(Rows.size(), Index.size());
+    for (size_t Position = 0; Position < Rows.size() && Position < Index.size(); ++Position) {
+      CHECK_TEXT_EQ(Rows[Position].Point, Index[Position].Point);
+      CHECK_NUM_EQ(Rows[Position].Seq, Position);
+      const bool Kept = Rows[Position].Point.rfind("after:", 0) == 0;
+      CHECK(Rows[Position].File.has_value() == Kept);
+      CHECK(Exists(Join(Join(Filtered.SnapshotDir, "snapshots"), SnapshotFileName(Rows[Position].Seq,
+                                                                                   Rows[Position].Point))) == Kept);
+    }
+  }
+
+  // an oracle capture (a directory holding run.json) is never written into
+  {
+    const std::string Oracle = Join(Pair.Dir, "oracle-capture");
+    std::error_code Error;
+    fs::create_directories(Utf8ToPath(Oracle), Error);
+    WriteText(Join(Oracle, "run.json"), "{\"status\": \"complete\"}\n");
+    DiffArgs Guard = Args;
+    Guard.Out = Join(Pair.Dir, "guard.diaphora");
+    Guard.SnapshotDir = Oracle;
+    Guard.TracePath.clear();
+    const DiffOutcome Refused = RunDiff(Guard);
+    CHECK(Refused.Status == DiffStatus::Io);
+    CHECK(Refused.Message.find("run.json") != std::string::npos);
+    CHECK(!Exists(Join(Oracle, "index.json")) && !Exists(Join(Oracle, "snapshots")));
+    Guard.SnapshotDir = Join(Oracle, "snapshots");  // inside one
+    CHECK(RunDiff(Guard).Status == DiffStatus::Io);
+    Guard.SnapshotDir.clear();
+    Guard.TracePath = Join(Oracle, "trace.jsonl");
+    CHECK(RunDiff(Guard).Status == DiffStatus::Io);
+    CHECK(!Exists(Join(Oracle, "trace.jsonl")));
+    CHECK_TEXT_EQ(ReadFile(Join(Oracle, "run.json")), "{\"status\": \"complete\"}\n");
+  }
+
+  const auto Find = [&](const std::string& Name) {
+    return Join(Join(Capture, "snapshots"), SnapshotFileName(Pos(Name), Name));
+  };
+  // replay: a cleanup from its before snapshot reproduces the after snapshot (S-L2, point and
+  // iteration included)
   {
     DiffSession S;
     S.Open(Pair.Main, Pair.Diff);
-    const auto Find = [&](const std::string& Name) {
-      return (fs::path(Snapshots) / SnapshotFileName(Pos(Name), Name)).string();
-    };
     const StateSnapshot Before = ReadSnapshot(Find("before:cleanup:3655:1"));
     const StateSnapshot Expected = ReadSnapshot(Find("after:cleanup:3655:1"));
     const StateSnapshot After = RunReplay(S, Before, "cleanup:3655:1");
     CHECK_TEXT_EQ(After.Point, "after:cleanup:3655:1");
+    CHECK(After.Iteration == std::optional<int64_t>(0));
     const DSig::Test::CompareReport Report = DSig::Test::CompareSnapshots(Expected, After);
     CHECK(Report.L2Equal);
     for (const std::string& Line : Report.Differences) {
       DSig::Test::Note(Line);
     }
+    StateSnapshot Relabelled = After;
+    Relabelled.Iteration = 1;
+    CHECK(!DSig::Test::CompareSnapshots(Expected, Relabelled).L2Equal);  // iteration is compared
+    CHECK(DSig::Test::CompareSnapshots(Expected, Relabelled, 20, false).L2Equal);
     bool Threw = false;
     try {
       (void)RunReplay(S, Before, "no_such_stage");
@@ -1025,18 +1375,20 @@ void TestPipeline() {
     }
     CHECK(Threw);
   }
-  // the CLI replay path writes the after snapshot
+  // the CLI replay path writes the after snapshot, compact like every oracle snapshot
   {
     DiffArgs Replay;
     Replay.Db1 = Pair.Main;
     Replay.Db2 = Pair.Diff;
-    Replay.ReplayPath = (fs::path(Snapshots) / SnapshotFileName(Pos("before:cleanup:3671:1"), "before:cleanup:3671:1")).string();
+    Replay.ReplayPath = Find("before:cleanup:3671:1");
     Replay.ReplayStage = "cleanup:3671:1";
-    Replay.SnapshotOut = (fs::path(Pair.Dir) / "after.json").string();
+    Replay.SnapshotOut = Join(Pair.Dir, "after.json");
     Replay.Quiet = true;
     const DiffOutcome Out = RunDiff(Replay);
     CHECK(Out.Status == DiffStatus::Ok);
-    CHECK(Out.OutputWritten && fs::exists(Replay.SnapshotOut));
+    CHECK(Out.OutputWritten && Exists(Replay.SnapshotOut));
+    const std::string Written = ReadFile(Replay.SnapshotOut);
+    CHECK_TEXT_EQ(Written, SerializeSnapshot(ParseSnapshot(Written)) + "\n");
     Replay.SnapshotOut.clear();
     CHECK(RunDiff(Replay).Status == DiffStatus::Usage);
   }
@@ -1053,13 +1405,13 @@ void TestPipeline() {
     Alias.Out = Pair.Diff;  // aliases an input
     CHECK(RunDiff(Alias).Status == DiffStatus::Usage);
     DiffArgs Missing = Alias;
-    Missing.Out = (fs::path(Pair.Dir) / "x.diaphora").string();
-    Missing.Db2 = (fs::path(Pair.Dir) / "no-such.sqlite").string();
+    Missing.Out = Join(Pair.Dir, "x.diaphora");
+    Missing.Db2 = Join(Pair.Dir, "no-such.sqlite");
     const DiffOutcome Io = RunDiff(Missing);
     CHECK(Io.Status == DiffStatus::Io);
-    CHECK(!fs::exists(Missing.Db2));  // a read-only open never creates the input
+    CHECK(!Exists(Missing.Db2));  // a read-only open never creates the input
     DiffArgs Strict = Alias;
-    Strict.Out = (fs::path(Pair.Dir) / "strict.diaphora").string();
+    Strict.Out = Join(Pair.Dir, "strict.diaphora");
     Strict.StrictSqlite = true;
     const DiffStatus Expected = DiffDatabase::IsOracleSqlite() ? DiffStatus::Ok : DiffStatus::SqliteMismatch;
     CHECK(RunDiff(Strict).Status == Expected);
@@ -1095,7 +1447,440 @@ void TestPipeline() {
     S.Flags().IsPatchDiff = true;
     CHECK(S.Mode() == 'P');
   }
+  // trace ctx: the top-level context "diff" is written as null, like the oracle's None
+  {
+    const std::string Dir = DSig::Test::ScratchDir("foundation-ctx");
+    const std::string Path = Join(Dir, "ctx.jsonl");
+    DiffSession S;
+    S.EnableTrace(Path, true);
+    Interners& Ids = S.Ids();
+    Item It;
+    It.Ea1 = Ids.Addr("4096");
+    It.Ea2 = Ids.Addr("8192");
+    It.Desc = Ids.Desc("d");
+    TraceAddMatch(S, Ids.Name("a"), Ids.Name("b"), 0.5, It, Chooser::Partial, AddMatchResult::Appended);
+    {
+      ContextScope Scope(S, "find_same_name");
+      TraceAddMatch(S, Ids.Name("a"), kNoneName, 0.5, It, std::nullopt, AddMatchResult::Duplicate);
+    }
+    S.FinishHarness();
+    const std::vector<std::string> Lines = ReadLines(Path);
+    CHECK_NUM_EQ(Lines.size(), 2);
+    if (Lines.size() == 2) {
+      CHECK_TEXT_EQ(Lines[0],
+                    "{\"ev\":\"add_match\",\"seq\":0,\"ctx\":null,\"name1\":\"a\",\"name2\":\"b\",\"ea1\":\"4096\","
+                    "\"ea2\":\"8192\",\"desc\":\"d\",\"ratio_bits\":\"3fe0000000000000\",\"chooser\":\"partial\","
+                    "\"result\":\"appended\"}");
+      CHECK_TEXT_EQ(Lines[1],
+                    "{\"ev\":\"add_match\",\"seq\":1,\"ctx\":\"find_same_name\",\"name1\":\"a\",\"name2\":null,"
+                    "\"ea1\":\"4096\",\"ea2\":\"8192\",\"desc\":\"d\",\"ratio_bits\":\"3fe0000000000000\","
+                    "\"chooser\":null,\"result\":\"duplicate\"}");
+    }
+    DSig::Test::RemoveScratchDir(Dir);
+  }
   DSig::Test::RemoveScratchDir(Pair.Dir);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Missing side tables (orchestrator decision R0 (d)): refused with UnsupportedInput, exit 4, naming the
+// table, never a raw "no such table" SQL error.
+
+void TestMissingSideTables() {
+  DSig::Test::Suite("missing-side-tables");
+  struct Case {
+    const char* Side;
+    const char* Table;
+  };
+  const Case Cases[] = {{"main", "constants"},    {"diff", "compilation_unit_functions"},
+                        {"main", "program"},      {"diff", "bb_instructions"},
+                        {"diff", "instructions"}, {"main", "compilation_units"}};
+  for (const Case& C : Cases) {
+    const std::string Drop = std::string("drop table ") + C.Table + ";\n";
+    const bool OnMain = std::string(C.Side) == "main";
+    FixturePair Pair =
+        BuildFoundationFixture(std::string("foundation-missing-") + C.Table, OnMain ? Drop : "", OnMain ? "" : Drop);
+    CHECK(Pair.Ok);
+    if (!Pair.Ok) {
+      continue;
+    }
+    const std::string Expected = std::string(C.Side) + "." + C.Table + ": table is missing";
+    {
+      DiffSession S;
+      S.Open(Pair.Main, Pair.Diff);
+      CHECK_NUM_EQ((OnMain ? S.Main() : S.Diff()).Problems.size(), 1);
+      CHECK((OnMain ? S.Diff() : S.Main()).Problems.empty());
+      bool Named = false;
+      try {
+        S.RequireIngest();
+      } catch (const UnsupportedInput& Error) {
+        Named = Error.What.find(Expected) != std::string::npos;
+      }
+      CHECK(Named);
+    }
+    DiffArgs Args;
+    Args.Db1 = Pair.Main;
+    Args.Db2 = Pair.Diff;
+    Args.Out = Join(Pair.Dir, "out.diaphora");
+    Args.Quiet = true;
+    Args.AllowSqliteMismatch = true;
+    const DiffOutcome Outcome = RunDiff(Args);
+    CHECK(Outcome.Status == DiffStatus::Unsupported);
+    CHECK_NUM_EQ(static_cast<int>(Outcome.Status), 4);
+    CHECK(Outcome.Message.find(Expected) != std::string::npos);
+    CHECK(Outcome.Message.find("no such table") == std::string::npos);
+    CHECK(!Outcome.OutputWritten && !Exists(Args.Out));
+    DSig::Test::RemoveScratchDir(Pair.Dir);
+  }
+  // diff.version is not required by ingest: without it Diaphora takes the empty-result path
+  // (D:3577-3591), which is the version check's decision (L5), not a refusal.
+  {
+    FixturePair Pair = BuildFoundationFixture("foundation-missing-version", "", "drop table version;\n");
+    CHECK(Pair.Ok);
+    if (Pair.Ok) {
+      DiffSession S;
+      S.Open(Pair.Main, Pair.Diff);
+      CHECK(S.Main().Problems.empty() && S.Diff().Problems.empty());
+      DSig::Test::RemoveScratchDir(Pair.Dir);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// The SQLite version warning is not silenced by --quiet (orchestrator decision R0 (c)).
+
+// Runs F with file descriptor 2 redirected into `File` and returns what was written to it.
+std::string CaptureStderr(const std::string& File, const std::function<void()>& F) {
+  std::fflush(stderr);
+#ifdef _WIN32
+  int Sink = -1;
+  if (_wsopen_s(&Sink, Utf8ToPath(File).c_str(), _O_WRONLY | _O_CREAT | _O_TRUNC | _O_BINARY, _SH_DENYNO,
+                _S_IREAD | _S_IWRITE) != 0) {
+    F();
+    return "<stderr capture failed>";
+  }
+  const int Saved = _dup(2);
+  _dup2(Sink, 2);
+  try {
+    F();
+  } catch (...) {
+    std::fflush(stderr);
+    _dup2(Saved, 2);
+    _close(Saved);
+    _close(Sink);
+    throw;
+  }
+  std::fflush(stderr);
+  _dup2(Saved, 2);
+  _close(Saved);
+  _close(Sink);
+#else
+  const int Sink = open(File.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0644);
+  if (Sink < 0) {
+    F();
+    return "<stderr capture failed>";
+  }
+  const int Saved = dup(2);
+  dup2(Sink, 2);
+  try {
+    F();
+  } catch (...) {
+    std::fflush(stderr);
+    dup2(Saved, 2);
+    close(Saved);
+    close(Sink);
+    throw;
+  }
+  std::fflush(stderr);
+  dup2(Saved, 2);
+  close(Saved);
+  close(Sink);
+#endif
+  return ReadFile(File);
+}
+
+void TestSqliteWarning() {
+  if (DiffDatabase::IsOracleSqlite()) {
+    DSig::Test::Skip("sqlite-warning", "SQLite is the oracle's 3.51.1, so there is no mismatch warning to check "
+                                       "(run this suite against another sqlite3 build to exercise it)");
+    return;
+  }
+  DSig::Test::Suite("sqlite-warning");
+  FixturePair Pair = BuildFoundationFixture("foundation-warning");
+  CHECK(Pair.Ok);
+  if (!Pair.Ok) {
+    return;
+  }
+  DiffArgs Args;
+  Args.Db1 = Pair.Main;
+  Args.Db2 = Pair.Diff;
+  Args.Out = Join(Pair.Dir, "quiet.diaphora");
+  Args.Quiet = true;  // silences Diaphora's summary lines only
+  DiffOutcome Outcome;
+  std::string Err = CaptureStderr(Join(Pair.Dir, "stderr1.txt"), [&] { Outcome = RunDiff(Args); });
+  CHECK(Outcome.Status == DiffStatus::Ok);
+  CHECK(Err.find(SqliteMismatchWarning(DiffDatabase::LibVersion())) != std::string::npos);
+  CHECK(Err.find("Final results") == std::string::npos);
+  Args.Out = Join(Pair.Dir, "allowed.diaphora");
+  Args.AllowSqliteMismatch = true;  // the explicit acknowledgement
+  Err = CaptureStderr(Join(Pair.Dir, "stderr2.txt"), [&] { Outcome = RunDiff(Args); });
+  CHECK(Outcome.Status == DiffStatus::Ok);
+  CHECK(Err.find("WARNING: SQLite") == std::string::npos);
+  DSig::Test::RemoveScratchDir(Pair.Dir);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Unicode and UNC paths (orchestrator decision R0 (f)), in process and through the CLI binary.
+
+#ifdef DSIG_CLI_PATH
+#ifdef _WIN32
+std::wstring Utf8ToWide(const std::string& Utf8) {
+  if (Utf8.empty()) {
+    return std::wstring();
+  }
+  const int Size = MultiByteToWideChar(CP_UTF8, 0, Utf8.data(), static_cast<int>(Utf8.size()), nullptr, 0);
+  std::wstring Out(static_cast<size_t>(Size), L'\0');
+  MultiByteToWideChar(CP_UTF8, 0, Utf8.data(), static_cast<int>(Utf8.size()), Out.data(), Size);
+  return Out;
+}
+
+// One argument quoted for the CRT / CommandLineToArgvW splitting rules.
+std::wstring QuoteArgument(const std::wstring& Argument) {
+  if (!Argument.empty() && Argument.find_first_of(L" \t\n\v\"") == std::wstring::npos) {
+    return Argument;
+  }
+  std::wstring Out = L"\"";
+  for (size_t Index = 0;; ++Index) {
+    size_t Backslashes = 0;
+    while (Index < Argument.size() && Argument[Index] == L'\\') {
+      ++Index;
+      ++Backslashes;
+    }
+    if (Index == Argument.size()) {
+      Out.append(Backslashes * 2, L'\\');
+      break;
+    }
+    if (Argument[Index] == L'"') {
+      Out.append(Backslashes * 2 + 1, L'\\');
+    } else {
+      Out.append(Backslashes, L'\\');
+    }
+    Out.push_back(Argument[Index]);
+  }
+  Out.push_back(L'"');
+  return Out;
+}
+
+// Runs the CLI with the UTF-8 arguments as a WIDE command line (so no code page is involved on our
+// side); its stdout and stderr go to LogPath. Returns the exit code, or -1 if it could not start.
+int RunCli(const std::vector<std::string>& Arguments, const std::string& LogPath) {
+  std::wstring Exe = Utf8ToWide(DSIG_CLI_PATH);
+  std::replace(Exe.begin(), Exe.end(), L'/', L'\\');
+  std::wstring Line = QuoteArgument(Exe);
+  for (const std::string& Argument : Arguments) {
+    Line += L' ';
+    Line += QuoteArgument(Utf8ToWide(Argument));
+  }
+  SECURITY_ATTRIBUTES Inherit{};
+  Inherit.nLength = sizeof(Inherit);
+  Inherit.bInheritHandle = TRUE;
+  const HANDLE Log = CreateFileW(Utf8ToWide(LogPath).c_str(), GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                 &Inherit, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+  if (Log == INVALID_HANDLE_VALUE) {
+    return -1;
+  }
+  STARTUPINFOW Startup{};
+  Startup.cb = sizeof(Startup);
+  Startup.dwFlags = STARTF_USESTDHANDLES;
+  Startup.hStdInput = nullptr;
+  Startup.hStdOutput = Log;
+  Startup.hStdError = Log;
+  PROCESS_INFORMATION Process{};
+  std::vector<wchar_t> Mutable(Line.begin(), Line.end());
+  Mutable.push_back(L'\0');
+  if (!CreateProcessW(Exe.c_str(), Mutable.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr, nullptr,
+                      &Startup, &Process)) {
+    CloseHandle(Log);
+    return -1;
+  }
+  WaitForSingleObject(Process.hProcess, 300000);
+  DWORD Code = 0;
+  GetExitCodeProcess(Process.hProcess, &Code);
+  CloseHandle(Process.hThread);
+  CloseHandle(Process.hProcess);
+  CloseHandle(Log);
+  return static_cast<int>(Code);
+}
+#else
+// POSIX: argv bytes are passed through unchanged, so there is no conversion to test; the CLI checks
+// that do not depend on the platform still run.
+int RunCli(const std::vector<std::string>& Arguments, const std::string& LogPath) {
+  std::string Command = "'" DSIG_CLI_PATH "'";
+  for (const std::string& Argument : Arguments) {
+    std::string Quoted = "'";
+    for (const char Ch : Argument) {
+      Quoted += Ch == '\'' ? std::string("'\\''") : std::string(1, Ch);
+    }
+    Command += " " + Quoted + "'";
+  }
+  Command += " >'" + LogPath + "' 2>&1";
+  const int Status = std::system(Command.c_str());
+  if (Status == -1) {
+    return -1;
+  }
+  return (Status >> 8) & 0xff;  // WEXITSTATUS without <sys/wait.h>
+}
+#endif
+#endif
+
+void TestUnicodePaths() {
+  DSig::Test::Suite("unicode-paths");
+  const std::string Base = DSig::Test::ScratchDir("foundation-unicode");
+  // A directory name no ANSI code page holds: Latin-1, Cyrillic, Japanese, an astral-plane character
+  // and a space ("dsig-üñî-дсиг-テスト-📁 x").
+  const std::string Dir = Join(Base, "dsig-\xc3\xbc\xc3\xb1\xc3\xae-\xd0\xb4\xd1\x81\xd0\xb8\xd0\xb3-"
+                                     "\xe3\x83\x86\xe3\x82\xb9\xe3\x83\x88-\xf0\x9f\x93\x81 x");
+  std::error_code Error;
+  fs::create_directories(Utf8ToPath(Dir), Error);
+  CHECK(Exists(Dir));
+  FixturePair Pair = BuildFoundationFixtureIn(Dir, "m\xc3\xa4" "in.sqlite", "d\xc3\xaf" "ff.sqlite");
+  CHECK(Pair.Ok);
+  if (!Pair.Ok) {
+    DSig::Test::RemoveScratchDir(Base);
+    return;
+  }
+  CHECK(Exists(Pair.Main) && Exists(Pair.Diff));
+  {
+    DiffDatabase Db;
+    Db.Open(Pair.Main, Pair.Diff);
+    CHECK(Db.TableExists("main", "functions") && Db.TableExists("diff", "functions"));
+  }
+  DiffArgs Args;
+  Args.Db1 = Pair.Main;
+  Args.Db2 = Pair.Diff;
+  Args.Out = Join(Dir, "\xe3\x83\xaf out.diaphora");
+  Args.SnapshotDir = Join(Dir, "sn\xc3\xa4" "ps");
+  Args.TracePath = Join(Args.SnapshotDir, "tr\xc3\xa4" "ce.jsonl");
+  Args.Quiet = true;
+  Args.AllowSqliteMismatch = true;
+  const DiffOutcome Outcome = RunDiff(Args);
+  CHECK(Outcome.Status == DiffStatus::Ok);
+  if (Outcome.Status != DiffStatus::Ok) {
+    DSig::Test::Note("RunDiff: " + Outcome.Message);
+  }
+  CHECK(Exists(Args.Out) && Exists(Args.TracePath) && Exists(Join(Args.SnapshotDir, "index.json")));
+  const DSig::Test::ResultsFile File = DSig::Test::ReadResultsFile(Args.Out);
+  CHECK(File.Error.empty());
+  CHECK(File.Config.size() == 1 && File.Config[0][0] == Args.Db1 && File.Config[0][1] == Args.Db2);
+  const std::vector<IndexRow> Index = ReadIndex(Args.SnapshotDir);
+  CHECK(!Index.empty());
+  for (const IndexRow& Row : Index) {
+    if (Row.Point != "before:cleanup:3655:1" || !Row.File) {
+      continue;
+    }
+    CHECK_TEXT_EQ(ReadSnapshot(Join(Args.SnapshotDir, *Row.File)).Point, Row.Point);
+    DiffArgs Replay;  // a replay reads and writes snapshots through UTF-8 paths too
+    Replay.Db1 = Pair.Main;
+    Replay.Db2 = Pair.Diff;
+    Replay.ReplayPath = Join(Args.SnapshotDir, *Row.File);
+    Replay.ReplayStage = "cleanup:3655:1";
+    Replay.SnapshotOut = Join(Dir, "\xc3\xa4" "fter.json");
+    Replay.Quiet = true;
+    CHECK(RunDiff(Replay).Status == DiffStatus::Ok);
+    CHECK_TEXT_EQ(ReadSnapshot(Replay.SnapshotOut).Point, "after:cleanup:3655:1");
+  }
+
+#ifdef _WIN32
+  // UNC: the same files through the local administrative share, \\localhost\<drive>$\...
+  if (Dir.size() > 2 && Dir[1] == ':') {
+    std::string Rest = Dir.substr(2);
+    std::replace(Rest.begin(), Rest.end(), '/', '\\');
+    const std::string UncDir = std::string("\\\\localhost\\") + Dir[0] + "$" + Rest;
+    const std::string UncMain = Join(UncDir, "m\xc3\xa4" "in.sqlite");
+    const std::string UncDiff = Join(UncDir, "d\xc3\xaf" "ff.sqlite");
+    if (Exists(UncMain)) {
+      DiffDatabase Db;
+      bool Opened = true;
+      try {
+        Db.Open(UncMain, UncDiff);
+      } catch (const std::exception& Failure) {
+        Opened = false;
+        DSig::Test::Note(std::string("UNC open: ") + Failure.what());
+      }
+      CHECK(Opened);
+      CHECK(Opened && Db.TableExists("main", "functions") && Db.TableExists("diff", "functions"));
+      Db.Close();
+      DiffArgs Unc = Args;
+      Unc.Db1 = UncMain;
+      Unc.Db2 = UncDiff;
+      Unc.Out = Join(UncDir, "unc.diaphora");
+      Unc.SnapshotDir = Join(UncDir, "unc-snaps");
+      Unc.TracePath = Join(Unc.SnapshotDir, "trace.jsonl");
+      const DiffOutcome UncOutcome = RunDiff(Unc);
+      CHECK(UncOutcome.Status == DiffStatus::Ok);
+      if (UncOutcome.Status != DiffStatus::Ok) {
+        DSig::Test::Note("RunDiff over UNC: " + UncOutcome.Message);
+      }
+      CHECK(Exists(Join(Dir, "unc.diaphora")) && Exists(Join(Join(Dir, "unc-snaps"), "index.json")));
+      // the URI form of a UNC path (DiffDatabase::UriForPath) opens as well
+      sqlite3* Handle = nullptr;
+      const std::string Uri = DiffDatabase::UriForPath(UncMain);
+      CHECK(Uri.rfind("file:////localhost/", 0) == 0);
+      const int Code = sqlite3_open_v2(Uri.c_str(), &Handle, SQLITE_OPEN_READONLY | SQLITE_OPEN_URI, nullptr);
+      CHECK(Code == SQLITE_OK &&
+            sqlite3_exec(Handle, "select count(*) from functions", nullptr, nullptr, nullptr) == SQLITE_OK);
+      sqlite3_close(Handle);
+      DSig::Test::Note("UNC checks ran through \\\\localhost\\" + std::string(1, Dir[0]) + "$");
+    } else {
+      DSig::Test::Note("UNC checks not run: \\\\localhost\\" + std::string(1, Dir[0]) + "$ is not reachable");
+    }
+  }
+#endif
+
+#ifdef DSIG_CLI_PATH
+  // The CLI binary itself, with the Unicode paths as command-line arguments (wmain /
+  // CommandLineToArgvW on Windows).
+  {
+    const std::string Log = Join(Dir, "cli.log");
+    const std::string CliOut = Join(Dir, "cli \xe2\x86\x92 out.diaphora");  // "cli → out.diaphora"
+    const std::string CliSnaps = Join(Dir, "cli-sn\xc3\xa4" "ps");
+    const int Code = RunCli({"diff", Pair.Main, Pair.Diff, "-o", CliOut, "--snapshot-dir", CliSnaps, "--quiet",
+                             "--allow-sqlite-mismatch"},
+                            Log);
+    CHECK_NUM_EQ(Code, 0);
+    if (Code != 0) {
+      DSig::Test::Note("cli: " + ReadFile(Log));
+    }
+    CHECK(Exists(CliOut) && Exists(Join(CliSnaps, "index.json")));
+    const DSig::Test::ResultsFile CliFile = DSig::Test::ReadResultsFile(CliOut);
+    // the arguments reached the engine with every character intact
+    CHECK(CliFile.Config.size() == 1 && CliFile.Config[0][0] == Pair.Main && CliFile.Config[0][1] == Pair.Diff);
+    // a refused input through the CLI: exit 4, naming the table
+    FixturePair Broken = BuildFoundationFixtureIn(Dir, "br\xc3\xb6" "ken-main.sqlite", "br\xc3\xb6" "ken-diff.sqlite",
+                                                  "drop table constants;\n");
+    CHECK(Broken.Ok);
+    CHECK_NUM_EQ(RunCli({"diff", Broken.Main, Broken.Diff, "-o", Join(Dir, "broken.diaphora"), "--quiet"}, Log), 4);
+    CHECK(ReadFile(Log).find("main.constants: table is missing") != std::string::npos);
+    // --help documents that DIAPHORA_* variables are ignored (orchestrator decision R0 (e))
+    CHECK_NUM_EQ(RunCli({"--help"}, Log), 0);
+    CHECK(ReadFile(Log).find("DIAPHORA_* variables are deliberately ignored") != std::string::npos);
+    DSig::Test::Note("CLI ran with Unicode path arguments (exit 0), a refused input (exit 4) and --help");
+#ifdef _WIN32
+    if (Dir.size() > 2 && Dir[1] == ':') {
+      std::string Rest = Dir.substr(2);
+      std::replace(Rest.begin(), Rest.end(), '/', '\\');
+      const std::string UncDir = std::string("\\\\localhost\\") + Dir[0] + "$" + Rest;
+      if (Exists(Join(UncDir, "m\xc3\xa4" "in.sqlite"))) {
+        const int UncCode = RunCli({"diff", Join(UncDir, "m\xc3\xa4" "in.sqlite"), Join(UncDir, "d\xc3\xaf" "ff.sqlite"),
+                                    "-o", Join(UncDir, "cli-unc.diaphora"), "--quiet", "--allow-sqlite-mismatch"},
+                                   Log);
+        CHECK_NUM_EQ(UncCode, 0);
+        CHECK(Exists(Join(Dir, "cli-unc.diaphora")));
+      }
+    }
+#endif
+  }
+#endif
+  DSig::Test::RemoveScratchDir(Base);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1156,8 +1941,8 @@ void TestCorpusIngestCensus() {
     const std::string Sha = DSig::Sha256::FileHex(Path, HashOk);
     CHECK(HashOk);
     CHECK_TEXT_EQ(Sha, E.Sha256);  // equal to the census (which asserted the manifest at generation)
-    const std::string ManifestPath = (fs::path(DSig::Test::OracleDir()) / "manifest.json").string();
-    if (fs::exists(ManifestPath)) {  // and to the oracle manifest itself
+    const std::string ManifestPath = Join(DSig::Test::OracleDir(), "manifest.json");
+    if (Exists(ManifestPath)) {  // and to the oracle manifest itself
       const JsonValue Manifest = JsonParse(ReadFile(ManifestPath));
       const JsonValue* Entry = Manifest.At("exports").Find(E.Id);
       CHECK(Entry != nullptr);
@@ -1269,6 +2054,15 @@ void TestRowSequenceCensus() {
     DSig::Test::Skip("row-sequence-census", "SQLite " + DiffDatabase::LibVersion() + " is not the oracle's 3.51.1");
     return;
   }
+  // Orchestrator decision R0 (a): DSIG_CORPUS_ROOT set but the exports absent is a skip, not a failure.
+  bool AnyPair = false;
+  for (const CensusSequence& Seq : kCensusSequences) {
+    AnyPair = AnyPair || (DSig::Test::ExportAvailable(Seq.Main) && DSig::Test::ExportAvailable(Seq.Diff));
+  }
+  if (!AnyPair) {
+    DSig::Test::Skip("row-sequence-census", "no oracle export pair under DSIG_CORPUS_ROOT");
+    return;
+  }
   DSig::Test::Suite("row-sequence-census");
   const bool Long = DSig::Test::GetEnv("DSIG_CENSUS_LONG").value_or("") == "1";
   std::string OpenPair;
@@ -1351,6 +2145,15 @@ void TestSameNamePlan() {
     DSig::Test::Skip("same-name-plan", "needs DSIG_CORPUS_ROOT and SQLite 3.51.1");
     return;
   }
+  // Orchestrator decision R0 (a): DSIG_CORPUS_ROOT set but the exports absent is a skip, not a failure.
+  size_t Available = 0;
+  for (const CensusPlan& Plan : kCensusSameNamePlans) {
+    Available += DSig::Test::ExportAvailable(Plan.Main) && DSig::Test::ExportAvailable(Plan.Diff) ? 1 : 0;
+  }
+  if (Available == 0) {
+    DSig::Test::Skip("same-name-plan", "no oracle export pair under DSIG_CORPUS_ROOT");
+    return;
+  }
   DSig::Test::Suite("same-name-plan");
   // 02 Appendix C: SCAN f > MULTI-INDEX OR > INDEX 1 > idx_3 > INDEX 2 > idx_2 > TEMP B-TREE FOR DISTINCT
   const std::vector<std::string> Expected = {"SCAN f",
@@ -1379,7 +2182,13 @@ void TestSameNamePlan() {
     CHECK(Details == Expected);
     ++Checked;
   }
-  CHECK_NUM_EQ(Checked, 4);
+  if (Available == std::size(kCensusSameNamePlans)) {
+    CHECK_NUM_EQ(Checked, 4);  // the 4 pairs of 02 Appendix C
+  } else {
+    DSig::Test::Note(std::to_string(Available) + " of " + std::to_string(std::size(kCensusSameNamePlans)) +
+                     " plan pairs available");
+    CHECK_NUM_EQ(Checked, Available);
+  }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1387,7 +2196,7 @@ void TestSameNamePlan() {
 
 void TestCorpusDiffDdl() {
   if (!DSig::Test::ExportAvailable("ls-old") || !DSig::Test::ExportAvailable("ls") ||
-      !fs::exists(DSig::Test::OracleResultsPath("ls-old_vs_ls"))) {
+      !Exists(DSig::Test::OracleResultsPath("ls-old_vs_ls"))) {
     DSig::Test::Skip("corpus-diff-ddl", "ls-old / ls exports or the oracle results are missing");
     return;
   }
@@ -1396,7 +2205,7 @@ void TestCorpusDiffDdl() {
   DiffArgs Args;
   Args.Db1 = DSig::Test::ExportPath("ls-old");
   Args.Db2 = DSig::Test::ExportPath("ls");
-  Args.Out = (fs::path(Dir) / "ls-old_vs_ls.diaphora").string();
+  Args.Out = Join(Dir, "ls-old_vs_ls.diaphora");
   Args.Quiet = true;
   const DiffOutcome Outcome = RunDiff(Args);
   CHECK(Outcome.Status == DiffStatus::Ok);
@@ -1413,7 +2222,7 @@ void TestCorpusDiffDdl() {
   // comparison self-checks on the oracle (run1 vs run1, run1 vs run2: determinism.json says equal)
   const DSig::Test::CompareReport Self = DSig::Test::CompareResults(Oracle, Oracle);
   CHECK(Self.DdlEqual && Self.L1Equal && Self.L2Equal);
-  if (fs::exists(DSig::Test::OracleResultsPath("ls-old_vs_ls", 2))) {
+  if (Exists(DSig::Test::OracleResultsPath("ls-old_vs_ls", 2))) {
     const DSig::Test::ResultsFile Run2 = DSig::Test::ReadResultsFile(DSig::Test::OracleResultsPath("ls-old_vs_ls", 2));
     const DSig::Test::CompareReport Runs = DSig::Test::CompareResults(Oracle, Run2);
     CHECK(Runs.L2Equal);
@@ -1430,6 +2239,309 @@ void TestCorpusDiffDdl() {
   DSig::Test::RemoveScratchDir(Dir);
 }
 
+// ---------------------------------------------------------------------------------------------
+// Lane R0: the oracle instrumentation (tools/parity/oracle_trace.py, lane L0b) is the reference for the
+// trace and snapshot conventions, because hours-long oracle captures already exist in its format.
+// Checked on the finished ls-old_vs_ls capture (skipped without it):
+//   * index.json and every snapshot round-trip byte for byte through the native reader and writer
+//     (and, modulo the producer string, the native writer produces the oracle's bytes);
+//   * the capture's file names, seq and iteration values follow the rules the native engine applies;
+//   * every trace event, re-emitted through TraceSink, reproduces the oracle's line byte for byte;
+//   * a native run of ls-old vs ls (stubbed stages) emits an in-order subsequence of the oracle's
+//     points with the same keys, labels, flags and iteration at every shared point, and S-L2-equal
+//     snapshots wherever the oracle's state is still empty.
+
+std::vector<std::string> MemberNames(const JsonValue& Object) {
+  std::vector<std::string> Names;
+  for (const auto& Member : Object.Members()) {
+    Names.push_back(Member.first);
+  }
+  return Names;
+}
+
+std::optional<std::string_view> OptionalText(const JsonValue& Value) {
+  if (Value.IsNull()) {
+    return std::nullopt;
+  }
+  return std::string_view(Value.AsString());
+}
+
+// Re-emits one oracle trace event through the native sink. False for an event it cannot express.
+bool EchoTraceEvent(TraceSink& Sink, const JsonValue& Event) {
+  const std::string Kind = Event.At("ev").AsString();
+  const auto Ctx = [&](const JsonValue& Value) { return Value.IsNull() ? std::string_view() : std::string_view(Value.AsString()); };
+  const auto Size = [&](const char* Name) { return static_cast<size_t>(Event.At(Name).AsInt64()); };
+  if (Kind == "add_match") {
+    static const std::map<std::string, AddMatchResult> Results = {{"appended", AddMatchResult::Appended},
+                                                                  {"duplicate", AddMatchResult::Duplicate},
+                                                                  {"rejected_better", AddMatchResult::RejectedBetter}};
+    const auto Result = Results.find(Event.At("result").AsString());
+    if (Result == Results.end() || Event.At("ea1").IsNull() || Event.At("ea2").IsNull() || Event.At("desc").IsNull()) {
+      return false;
+    }
+    Sink.AddMatch(Ctx(Event.At("ctx")), OptionalText(Event.At("name1")), OptionalText(Event.At("name2")),
+                  Event.At("ea1").AsString(), Event.At("ea2").AsString(), Event.At("desc").AsString(),
+                  RatioFromBits(ParseRatioBits(Event.At("ratio_bits").AsString())), OptionalText(Event.At("chooser")),
+                  Result->second);
+    return true;
+  }
+  if (Kind == "cleanup") {
+    Sink.Cleanup(static_cast<int>(Event.At("site").AsInt64()), Event.At("n").AsInt64(), Size("best"), Size("partial"),
+                 Size("unreliable"));
+    return true;
+  }
+  if (Kind == "point") {
+    Sink.Point(Event.At("name").AsString(), Size("best"), Size("partial"), Size("unreliable"));
+    return true;
+  }
+  if (Kind == "row") {
+    static const std::map<std::string, RowDecision> Decisions = {
+        {"nullsub", RowDecision::Nullsub},           {"has_best", RowDecision::HasBest},
+        {"has_better", RowDecision::HasBetter},      {"accepted_best", RowDecision::AcceptedBest},
+        {"accepted_partial", RowDecision::AcceptedPartial}, {"below_min", RowDecision::BelowMin},
+        {"accepted_unreliable", RowDecision::AcceptedUnreliable}, {"raised", RowDecision::Raised}};
+    const auto Decision = Decisions.find(Event.At("decision").AsString());
+    if (Decision == Decisions.end() || !Event.At("ea1").IsString() || !Event.At("ea2").IsString()) {
+      return false;
+    }
+    std::optional<double> Ratio;
+    if (!Event.At("ratio_bits").IsNull()) {
+      Ratio = RatioFromBits(ParseRatioBits(Event.At("ratio_bits").AsString()));
+    }
+    Sink.Row(Ctx(Event.At("ctx")), Event.At("ea1").AsString(), Event.At("ea2").AsString(), Decision->second, Ratio);
+    return true;
+  }
+  return false;
+}
+
+void TestOracleConventions() {
+  const std::string PairName = "ls-old_vs_ls";
+  const std::string Capture = DSig::Test::TracesDir(PairName);
+  if (!DSig::Test::CorpusRoot() || !Exists(Join(Capture, "index.json")) || !Exists(Join(Capture, "trace.jsonl")) ||
+      !Exists(Join(Capture, "run.json"))) {
+    DSig::Test::Skip("oracle-conventions", "no oracle capture " + PairName + " under DSIG_CORPUS_ROOT");
+    return;
+  }
+  // Only a finished capture is read: a running oracle_trace.py still rewrites its index.json.
+  const JsonValue Run = JsonParse(ReadFile(Join(Capture, "run.json")));
+  const JsonValue* Status = Run.Find("status");
+  if (Status == nullptr || !Status->IsString() || Status->AsString() != "complete") {
+    DSig::Test::Skip("oracle-conventions", "the " + PairName + " capture is not complete");
+    return;
+  }
+  DSig::Test::Suite("oracle-conventions");
+
+  // 1. index.json and the snapshots, byte for byte
+  const std::string IndexText = ReadFile(Join(Capture, "index.json"));
+  CHECK_TEXT_EQ(JsonWrite(JsonParse(IndexText)) + "\n", IndexText);
+  const std::vector<IndexRow> Index = ReadIndex(Capture);
+  std::vector<std::string> Points;
+  for (const IndexRow& Row : Index) {
+    Points.push_back(Row.Point);
+  }
+  const std::vector<std::optional<int64_t>> Iterations = ExpectedIterations(Points);
+  size_t Files = 0;
+  size_t SeqOk = 0;
+  size_t Named = 0;
+  size_t RoundTrips = 0;
+  size_t ProducerSwaps = 0;
+  size_t Labels = 0;
+  std::string FirstMismatch;
+  std::map<std::string, JsonValue> OracleByPoint;  // parsed oracle snapshots, for part 3
+  for (size_t Position = 0; Position < Index.size(); ++Position) {
+    const IndexRow& Row = Index[Position];
+    SeqOk += Row.Seq == static_cast<int64_t>(Position) ? 1 : 0;  // 0-based, every point counted
+    if (!Row.File) {
+      continue;
+    }
+    ++Files;
+    Named += *Row.File == "snapshots/" + SnapshotFileName(Row.Seq, Row.Point) ? 1 : 0;
+    const std::string Bytes = ReadFile(Join(Capture, *Row.File));
+    StateSnapshot Snap;
+    try {
+      Snap = ParseSnapshot(Bytes);
+    } catch (const std::exception& Failure) {
+      DSig::Test::Note(*Row.File + ": " + Failure.what());
+      continue;
+    }
+    if (SerializeSnapshot(Snap) + "\n" == Bytes) {
+      ++RoundTrips;
+    } else if (FirstMismatch.empty()) {
+      FirstMismatch = *Row.File;
+    }
+    // modulo producer: the native producer in place of the oracle's changes only that string
+    StateSnapshot Native = Snap;
+    Native.Producer = std::string("dsigmatcher-") + DSIG_VERSION;
+    std::string Swapped = Bytes;
+    const std::string From = "\"producer\":" + JsonQuote(Snap.Producer);
+    const size_t At = Swapped.find(From);
+    if (At != std::string::npos) {
+      Swapped.replace(At, From.size(), "\"producer\":" + JsonQuote(Native.Producer));
+    }
+    ProducerSwaps += SerializeSnapshot(Native) + "\n" == Swapped ? 1 : 0;
+    Labels += Snap.Seq == Row.Seq && Snap.Point == Row.Point && Snap.Iteration == Iterations[Position] &&
+                      Snap.Pair == PairName
+                  ? 1
+                  : 0;
+    OracleByPoint.emplace(Row.Point, JsonParse(Bytes));
+  }
+  CHECK(Files > 0);
+  CHECK_NUM_EQ(SeqOk, Index.size());
+  CHECK_NUM_EQ(Named, Files);
+  CHECK_NUM_EQ(RoundTrips, Files);
+  CHECK_NUM_EQ(ProducerSwaps, Files);
+  CHECK_NUM_EQ(Labels, Files);
+  if (!FirstMismatch.empty()) {
+    DSig::Test::Note("first snapshot that does not round-trip: " + FirstMismatch);
+  }
+  DSig::Test::Note(std::to_string(Files) + " oracle snapshots and index.json round-trip byte for byte");
+  // the capture exercises the outer loop (06 V3: three iterations)
+  CHECK(std::find(Iterations.begin(), Iterations.end(), std::optional<int64_t>(2)) != Iterations.end());
+
+  // 2. the trace, event by event through the native sink
+  {
+    const std::string Scratch = DSig::Test::ScratchDir("foundation-oracle-trace");
+    const std::string Echo = Join(Scratch, "echo.jsonl");
+    const std::string Text = ReadFile(Join(Capture, "trace.jsonl"));
+    std::map<std::string, size_t> Kinds;
+    size_t Unexpressible = 0;
+    {
+      TraceSink Sink;
+      Sink.Open(Echo, true);
+      size_t Start = 0;
+      while (Start < Text.size()) {
+        size_t End = Text.find('\n', Start);
+        if (End == std::string::npos) {
+          End = Text.size();
+        }
+        const JsonValue Event = JsonParse(std::string_view(Text).substr(Start, End - Start));
+        ++Kinds[Event.At("ev").AsString()];
+        Unexpressible += EchoTraceEvent(Sink, Event) ? 0 : 1;
+        Start = End + 1;
+      }
+      Sink.Close();
+    }
+    const std::string Written = ReadFile(Echo);
+    CHECK_NUM_EQ(Unexpressible, 0);
+    CHECK_NUM_EQ(Written.size(), Text.size());
+    const bool Same = Written == Text;
+    CHECK(Same);
+    if (!Same) {
+      size_t Line = 1;
+      size_t Index2 = 0;
+      while (Index2 < Written.size() && Index2 < Text.size() && Written[Index2] == Text[Index2]) {
+        Line += Text[Index2] == '\n' ? 1 : 0;
+        ++Index2;
+      }
+      DSig::Test::Note("trace differs first on line " + std::to_string(Line));
+    }
+    std::string Summary = "trace events re-emitted byte for byte:";
+    for (const auto& [Kind, Count] : Kinds) {
+      Summary += " " + Kind + "=" + std::to_string(Count);
+    }
+    DSig::Test::Note(Summary);
+    CHECK(Kinds["add_match"] > 0 && Kinds["cleanup"] > 0 && Kinds["point"] == Index.size());
+    DSig::Test::RemoveScratchDir(Scratch);
+  }
+
+  // 3. a native run with the stubbed stages against the capture
+  if (!DSig::Test::ExportAvailable("ls-old") || !DSig::Test::ExportAvailable("ls")) {
+    DSig::Test::Note("ls-old / ls exports missing: native comparison not run");
+    return;
+  }
+  const std::string Scratch = DSig::Test::ScratchDir("foundation-oracle-native");
+  DiffArgs Args;
+  Args.Db1 = DSig::Test::ExportPath("ls-old");
+  Args.Db2 = DSig::Test::ExportPath("ls");
+  Args.Out = Join(Scratch, PairName + ".diaphora");
+  Args.SnapshotDir = Join(Scratch, PairName);
+  Args.TracePath = Join(Args.SnapshotDir, "trace.jsonl");
+  Args.TraceRows = true;
+  Args.PairLabel = PairName;
+  Args.Quiet = true;
+  Args.AllowSqliteMismatch = true;
+  // the capture's own --with-cache globs (run.json options), so ratios_cache sits at the same points
+  if (const JsonValue* Options = Run.Find("options"); Options != nullptr && Options->Find("with_cache") != nullptr) {
+    for (const JsonValue& Glob : Options->At("with_cache").Items()) {
+      Args.SnapshotCache += (Args.SnapshotCache.empty() ? "" : "|") + Glob.AsString();
+    }
+  }
+  const DiffOutcome Outcome = RunDiff(Args);
+  CHECK(Outcome.Status == DiffStatus::Ok);
+  const std::vector<IndexRow> NativeIndex = ReadIndex(Args.SnapshotDir);
+  std::vector<std::string> NativePoints;
+  for (const IndexRow& Row : NativeIndex) {
+    NativePoints.push_back(Row.Point);
+  }
+  // an in-order subsequence of the oracle's points; equal once no stage is skipped any more
+  size_t Cursor = 0;
+  bool Subsequence = true;
+  for (const std::string& Point : NativePoints) {
+    while (Cursor < Points.size() && Points[Cursor] != Point) {
+      ++Cursor;
+    }
+    if (Cursor == Points.size()) {
+      Subsequence = false;
+      DSig::Test::Note("native point not in the oracle's order: " + Point);
+      break;
+    }
+    ++Cursor;
+  }
+  CHECK(Subsequence);
+  CHECK(NativePoints.size() >= 3);
+  if (Outcome.Skipped.empty()) {
+    CHECK(NativePoints == Points);
+  } else {
+    size_t Common = 0;
+    while (Common < NativePoints.size() && Common < Points.size() && NativePoints[Common] == Points[Common]) {
+      ++Common;
+    }
+    DSig::Test::Note(std::to_string(NativePoints.size()) + " of the oracle's " + std::to_string(Points.size()) +
+                     " points reached with " + std::to_string(Outcome.Skipped.size()) +
+                     " stub stages skipped; sequences agree for the first " + std::to_string(Common) +
+                     (Common < Points.size() ? " (the oracle continues with " + Points[Common] + ")" : std::string()));
+  }
+  size_t Shared = 0;
+  size_t SameShape = 0;
+  size_t EmptyState = 0;
+  size_t EmptyStateEqual = 0;
+  for (const IndexRow& Row : NativeIndex) {
+    const auto Oracle = OracleByPoint.find(Row.Point);
+    if (!Row.File || Oracle == OracleByPoint.end()) {
+      continue;
+    }
+    ++Shared;
+    const JsonValue NativeJson = JsonParse(ReadFile(Join(Args.SnapshotDir, *Row.File)));
+    const JsonValue& OracleJson = Oracle->second;
+    const bool Shape = MemberNames(NativeJson) == MemberNames(OracleJson) &&
+                       NativeJson.At("schema") == OracleJson.At("schema") &&
+                       NativeJson.At("pair") == OracleJson.At("pair") &&
+                       NativeJson.At("point") == OracleJson.At("point") &&
+                       NativeJson.At("iteration") == OracleJson.At("iteration") &&
+                       NativeJson.At("flags") == OracleJson.At("flags") &&
+                       MemberNames(NativeJson.At("flags")) == MemberNames(OracleJson.At("flags"));
+    SameShape += Shape ? 1 : 0;
+    if (!Shape) {
+      DSig::Test::Note("labels or flags differ at " + Row.Point);
+    }
+    // where the oracle's match state is still empty, the whole snapshot is S-L2 equal
+    const StateSnapshot OracleSnap = ParseSnapshot(JsonWrite(OracleJson));
+    if (OracleSnap.Best.empty() && OracleSnap.Partial.empty() && OracleSnap.Unreliable.empty() &&
+        OracleSnap.MatchedPrimary.empty() && OracleSnap.MatchedSecondary.empty() && !OracleSnap.Choosers &&
+        !OracleSnap.Unmatched && (!OracleSnap.RatiosCache || OracleSnap.RatiosCache->empty())) {
+      ++EmptyState;
+      EmptyStateEqual += DSig::Test::CompareSnapshots(OracleSnap, ParseSnapshot(JsonWrite(NativeJson))).L2Equal ? 1 : 0;
+    }
+  }
+  CHECK_NUM_EQ(Shared, NativeIndex.size());
+  CHECK_NUM_EQ(SameShape, Shared);
+  CHECK(EmptyState >= 3);  // after:find_equal_matches, after:apply_dirty_heuristics, before:find_same_name
+  CHECK_NUM_EQ(EmptyStateEqual, EmptyState);
+  DSig::Test::Note(std::to_string(Shared) + " shared points: same keys, labels, flags and iteration; " +
+                   std::to_string(EmptyStateEqual) + " S-L2 equal");
+  DSig::Test::RemoveScratchDir(Scratch);
+}
+
 }
 
 int main() {
@@ -1442,9 +2554,14 @@ int main() {
   TestFixtureIngest();
   TestIngestQuirks();
   TestPipeline();
+  TestFinalResults();
+  TestMissingSideTables();
+  TestSqliteWarning();
+  TestUnicodePaths();
   TestCorpusIngestCensus();
   TestRowSequenceCensus();
   TestSameNamePlan();
   TestCorpusDiffDdl();
+  TestOracleConventions();
   return DSig::Test::Finish();
 }

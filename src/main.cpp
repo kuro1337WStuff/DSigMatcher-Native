@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <cwchar>
 #include <map>
 #include <optional>
 #include <set>
@@ -18,6 +19,17 @@
 #include "dsigmatcher/Types.h"
 #include "dsigmatcher/cli/Commands.h"
 #include "dsigmatcher/diff/Pipeline.h"
+
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#include <shellapi.h>
+#endif
 
 #ifndef DSIG_VERSION
 #define DSIG_VERSION "0.0.0"
@@ -46,7 +58,9 @@ void PrintUsage() {
   std::printf("      --ignore-small-functions     %%POSTFIX%% = \" and f.instructions > 5 and df.instructions > 5 \"\n");
   std::printf("      --trace <file.jsonl>         JSONL trace of add_match / cleanup / point events\n");
   std::printf("      --trace-rows                 also one event per consumed SQL row\n");
-  std::printf("      --snapshot-dir <dir>         write a JSON snapshot at every point (and index.json)\n");
+  std::printf("      --snapshot-dir <dir>         a JSON snapshot at every point: <dir>/index.json lists\n");
+  std::printf("                                   [seq, point, file], files are <dir>/snapshots/NNNNN_<point>.json\n");
+  std::printf("                                   (tools/parity/oracle_trace.py layout; earlier snapshots replaced)\n");
   std::printf("      --snapshot-points <globs>    only points matching these globs (a|b, default *)\n");
   std::printf("      --snapshot-cache <globs>     include ratios_cache at these points\n");
   std::printf("      --pair <label>               pair label stored in snapshots\n");
@@ -55,12 +69,18 @@ void PrintUsage() {
   std::printf("      --related-cu-source native|sql\n");
   std::printf("      --strict-sqlite              exit 5 unless SQLite is the oracle's 3.51.1\n");
   std::printf("      --allow-sqlite-mismatch      do not warn about another SQLite version\n");
-  std::printf("      --quiet                      no Diaphora summary lines on stderr\n");
+  std::printf("      --quiet                      no Diaphora summary lines on stderr (the SQLite version\n");
+  std::printf("                                   warning is still printed; see --allow-sqlite-mismatch)\n");
   std::printf("  legacy engine only:\n");
   std::printf("  -t, --threads <n>                worker threads (default: hardware concurrency)\n");
   std::printf("      --assume-same-cpu            run processor specific heuristics unconditionally\n");
   std::printf("  exit codes: 0 ok, 2 usage, 3 Diaphora would raise (no output), 4 unsupported or not\n");
   std::printf("  implemented, 5 SQLite mismatch with --strict-sqlite, 6 I/O\n");
+  std::printf("  environment: DIAPHORA_* variables are deliberately ignored. The parity engine is not\n");
+  std::printf("  Diaphora and has no environment configuration: it always runs Diaphora's default\n");
+  std::printf("  standalone configuration (docs/parity/00-plan.md 1.1), and the non-default settings\n");
+  std::printf("  (--unreliable, --relaxed-ratio, --use-trained-model, --project-script) are refused.\n");
+  std::printf("  paths: any UTF-8 / Unicode path, including UNC paths (\\\\server\\share\\...).\n");
   std::printf("\n");
   std::printf("port options:\n");
   std::printf("  -o, --output <path>              required; labelled copy of the target database\n");
@@ -717,9 +737,7 @@ int RunInfo(const Parsed& Arguments) {
   return 0;
 }
 
-}
-
-int main(int Argc, char** Argv) {
+int RunMain(int Argc, char** Argv) {
   const Parsed Arguments = ParseArguments(Argc, Argv);
 
   if (Arguments.ShowHelp) {
@@ -744,3 +762,67 @@ int main(int Argc, char** Argv) {
   }
   return RunDiffCommand(Arguments);
 }
+
+// ---------------------------------------------------------------------------------------------
+// Entry point. Every argument string is UTF-8 from here on (lane R0 (f)): the engine hands paths to
+// SQLite, which takes UTF-8 file names, and src/diff converts UTF-8 to wide paths for every file API
+// (src/diff/FileIo.h). On Windows the narrow argv of main() is in the ANSI code page, which cannot hold
+// arbitrary Unicode, so the wide command line is converted instead.
+
+#ifdef _WIN32
+std::string WideToUtf8(const wchar_t* Text) {
+  const int Length = static_cast<int>(std::wcslen(Text));
+  if (Length == 0) {
+    return std::string();
+  }
+  const int Size = WideCharToMultiByte(CP_UTF8, 0, Text, Length, nullptr, 0, nullptr, nullptr);
+  if (Size <= 0) {
+    return std::string();
+  }
+  std::string Out(static_cast<size_t>(Size), '\0');
+  WideCharToMultiByte(CP_UTF8, 0, Text, Length, Out.data(), Size, nullptr, nullptr);
+  return Out;
+}
+
+int RunUtf8(std::vector<std::string> Arguments) {
+  std::vector<char*> Pointers;
+  Pointers.reserve(Arguments.size() + 1);
+  for (std::string& Argument : Arguments) {
+    Pointers.push_back(Argument.data());
+  }
+  Pointers.push_back(nullptr);
+  return RunMain(static_cast<int>(Arguments.size()), Pointers.data());
+}
+#endif
+
+}
+
+#if defined(_WIN32) && defined(_MSC_VER)
+// MSVC and clang-cl: the CRT splits the wide command line with the same rules it uses for argv.
+int wmain(int Argc, wchar_t** Argv) {
+  std::vector<std::string> Arguments;
+  Arguments.reserve(static_cast<size_t>(Argc));
+  for (int Index = 0; Index < Argc; ++Index) {
+    Arguments.push_back(WideToUtf8(Argv[Index]));
+  }
+  return RunUtf8(std::move(Arguments));
+}
+#else
+int main(int Argc, char** Argv) {
+#ifdef _WIN32
+  // Other Windows toolchains (MinGW without -municode): split GetCommandLineW() ourselves.
+  int Count = 0;
+  LPWSTR* Wide = CommandLineToArgvW(GetCommandLineW(), &Count);
+  if (Wide != nullptr) {
+    std::vector<std::string> Arguments;
+    Arguments.reserve(static_cast<size_t>(Count));
+    for (int Index = 0; Index < Count; ++Index) {
+      Arguments.push_back(WideToUtf8(Wide[Index]));
+    }
+    LocalFree(Wide);
+    return RunUtf8(std::move(Arguments));
+  }
+#endif
+  return RunMain(Argc, Argv);  // POSIX: argv bytes are the file names as given (UTF-8 on any sane system)
+}
+#endif

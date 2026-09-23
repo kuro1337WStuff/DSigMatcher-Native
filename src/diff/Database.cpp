@@ -231,18 +231,47 @@ std::string DiffDatabase::UriForPath(const std::string& Path, bool ReadOnly) {
         break;
     }
   }
-  // A drive-letter path becomes file:/C:/... (SQLite's documented Windows URI form).
   if (Escaped.size() >= 2 && std::isalpha(static_cast<unsigned char>(Escaped[0])) && Escaped[1] == ':') {
+    // A drive-letter path becomes file:/C:/... (SQLite's documented Windows URI form).
     Escaped.insert(Escaped.begin(), '/');
+  } else if (Escaped.size() >= 2 && Escaped[0] == '/' && Escaped[1] == '/') {
+    // A UNC path //server/share/x: "file://server/..." would make "server" the URI authority, which
+    // SQLite rejects unless it is empty or "localhost". An empty authority keeps the whole UNC path:
+    // file:////server/share/x, whose path part //server/share/x SQLite's Windows VFS treats as
+    // verbatim (winIsVerbatimPathname).
+    Escaped.insert(0, "//");
   }
   return "file:" + Escaped + (ReadOnly ? "?mode=ro" : "");
 }
 
+namespace {
+
+// The file name handed to a non-URI sqlite3_open_v2 / ATTACH. Everything is a plain filesystem path
+// (UTF-8; SQLite converts it to UTF-16 on Windows), so drive paths, UNC paths (\\server\share\x) and
+// names containing '?', '#' or '%' need no escaping. Only names SQLite itself would reinterpret are
+// changed: "" (a private temporary database), ":memory:", and a leading "file:" (parsed as a URI when
+// SQLite is built with SQLITE_USE_URI=1) get a "./" prefix, which names the same relative file.
+std::string PlainFileName(const std::string& Path, const char* What) {
+  if (Path.empty()) {
+    throw IoFailure(std::string("empty ") + What + " path");
+  }
+  if (Path == ":memory:" || Path.rfind("file:", 0) == 0) {
+    return "./" + Path;
+  }
+  return Path;
+}
+
+}
+
 void DiffDatabase::OpenSingle(const std::string& MainPath) {
   Close();
-  const std::string Uri = UriForPath(MainPath, true);
+  // Read-only, without URI processing (lane R0 (f)): the old "file:<path>?mode=ro" URI broke UNC paths
+  // (the server became the URI authority). SQLITE_OPEN_READONLY is what mode=ro set, and ATTACH
+  // reuses these open flags (attach.c: flags = db->openFlags), so the attached diff database is
+  // read-only too.
+  const std::string Name = PlainFileName(MainPath, "database");
   sqlite3* Handle = nullptr;
-  const int Code = sqlite3_open_v2(Uri.c_str(), &Handle, SQLITE_OPEN_READONLY | SQLITE_OPEN_URI, nullptr);
+  const int Code = sqlite3_open_v2(Name.c_str(), &Handle, SQLITE_OPEN_READONLY, nullptr);
   if (Code != SQLITE_OK) {
     const std::string Message = ErrorText(Handle);
     if (Handle != nullptr) {
@@ -269,8 +298,10 @@ void DiffDatabase::Open(const std::string& MainPath, const std::string& DiffPath
     Close();
     throw IoFailure("cannot attach '" + DiffPath + "': " + Message);
   }
-  const std::string Uri = UriForPath(DiffPath, true);
-  sqlite3_bind_text(Attach, 1, Uri.c_str(), static_cast<int>(Uri.size()), SQLITE_TRANSIENT);
+  // `attach "<db2>" as diff` (D:2441 / D:657), with the name bound (no quoting issues) and read-only
+  // through the connection's open flags.
+  const std::string Name = PlainFileName(DiffPath, "diff database");
+  sqlite3_bind_text(Attach, 1, Name.c_str(), static_cast<int>(Name.size()), SQLITE_TRANSIENT);
   const int Code = sqlite3_step(Attach);
   sqlite3_finalize(Attach);
   if (Code != SQLITE_DONE) {

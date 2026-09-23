@@ -72,6 +72,7 @@ dsig_apply_warnings(dsigmatcher_core)
 # Parity engine (docs/parity/00-plan.md §3). Every source is listed explicitly (no globs).
 add_library(dsigmatcher_diff STATIC
   src/diff/Database.cpp
+  src/diff/FileIo.cpp
   src/diff/Ingest.cpp
   src/diff/SideTables.cpp
   src/diff/Json.cpp
@@ -125,6 +126,14 @@ dsig_apply_fp(dsigmatcher_cli)
 add_executable(dsigmatcher src/main.cpp)
 target_link_libraries(dsigmatcher PRIVATE dsigmatcher_cli dsigmatcher_diff dsigmatcher_core)
 dsig_apply_warnings(dsigmatcher)
+if(WIN32)
+  # main.cpp reads the wide command line (wmain on MSVC, CommandLineToArgvW elsewhere) and passes UTF-8
+  # on; the manifest makes the process ANSI code page UTF-8 for code that still uses narrow file APIs.
+  target_link_libraries(dsigmatcher PRIVATE shell32)
+  if(MSVC)
+    target_sources(dsigmatcher PRIVATE src/dsigmatcher.manifest)
+  endif()
+endif()
 
 # Stage the sqlite3.dll that sits next to the linked import library beside the executables, so manual
 # runs load the same SQLite the tests use (plan §3.4; 07 §11.2). Windows only.
@@ -203,6 +212,11 @@ function(dsig_add_suite Name Source)
 endfunction()
 
 dsig_add_suite(diff_foundation tests/diff/foundation_tests.cpp)
+# The foundation suite also runs the CLI binary itself (Unicode command-line arguments on Windows) and
+# reads oracle captures through the engine's UTF-8 file helpers (src/diff/FileIo.h).
+target_compile_definitions(diff_foundation PRIVATE DSIG_CLI_PATH="$<TARGET_FILE:dsigmatcher>")
+target_include_directories(diff_foundation PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/diff)
+add_dependencies(diff_foundation dsigmatcher)
 dsig_add_suite(diff_state tests/diff/state_tests.cpp)
 dsig_add_suite(diff_ratio tests/diff/ratio_tests.cpp)
 dsig_add_suite(diff_textdiff tests/diff/textdiff_tests.cpp)

@@ -1,13 +1,19 @@
-// Snapshot JSON I/O (docs/parity/00-plan.md §2.2, Appendix B).
+// Snapshot JSON I/O (docs/parity/00-plan.md §2.2, Appendix B). The reference for every convention is
+// the oracle instrumentation, tools/parity/oracle_trace.py + snapshot.py (lane L0b), because long
+// oracle captures already exist in its format: keys in its order (Instrument.BuildSnapshot), compact
+// json.dumps(ensure_ascii=False, separators=(",", ":")) text plus one newline (snapshot.py DumpJson /
+// WriteJsonAtomic), file names "%05d_%s.json" % (seq, re.sub(r"[^A-Za-z0-9._-]", "_", point))
+// (snapshot.py SnapshotFileName). ParseSnapshot + SerializeSnapshot round-trip a real oracle snapshot
+// byte for byte (diff_foundation "oracle-conventions").
 
 #include "dsigmatcher/diff/Snapshot.h"
 
 #include <cstdio>
 #include <cstring>
-#include <fstream>
-#include <sstream>
 
+#include "FileIo.h"
 #include "dsigmatcher/diff/Errors.h"
+#include "dsigmatcher/diff/Table.h"
 
 namespace DSig::Diff {
 
@@ -58,12 +64,36 @@ uint64_t ParseRatioBits(std::string_view Hex) {
 // names and globs
 
 std::string SanitisePointName(std::string_view Point) {
+  // snapshot.py SanitisePoint: re.sub(r"[^A-Za-z0-9._-]", "_", point) over a Python str, so each CODE
+  // POINT outside the class becomes one '_' (a well-formed UTF-8 sequence is one code point; any other
+  // byte counts alone). Appendix B point names are ASCII, where this is byte-wise.
   std::string Result;
   Result.reserve(Point.size());
-  for (const char Ch : Point) {
+  size_t Index = 0;
+  while (Index < Point.size()) {
+    const char Ch = Point[Index];
     const bool Keep = (Ch >= 'a' && Ch <= 'z') || (Ch >= 'A' && Ch <= 'Z') || (Ch >= '0' && Ch <= '9') ||
                       Ch == '.' || Ch == '_' || Ch == '-';
-    Result += Keep ? Ch : '_';
+    if (Keep) {
+      Result += Ch;
+      ++Index;
+      continue;
+    }
+    const unsigned char Lead = static_cast<unsigned char>(Ch);
+    size_t Length = 1;
+    if (Lead >= 0xC2 && Lead <= 0xDF) {
+      Length = 2;
+    } else if (Lead >= 0xE0 && Lead <= 0xEF) {
+      Length = 3;
+    } else if (Lead >= 0xF0 && Lead <= 0xF4) {
+      Length = 4;
+    }
+    if (Length > 1 && Index + Length <= Point.size() && IsValidUtf8(Point.substr(Index, Length))) {
+      Index += Length;
+    } else {
+      ++Index;
+    }
+    Result += '_';
   }
   return Result;
 }
@@ -387,24 +417,13 @@ std::string SerializeSnapshot(const StateSnapshot& Snapshot, bool Pretty) {
 }
 
 StateSnapshot ReadSnapshot(const std::string& Path) {
-  std::ifstream In(Path, std::ios::binary);
-  if (!In) {
-    throw IoFailure("cannot read snapshot '" + Path + "'");
-  }
-  std::ostringstream Buffer;
-  Buffer << In.rdbuf();
-  return ParseSnapshot(Buffer.str());
+  // UTF-8 path; on Windows a shared-delete read, so a concurrent os.replace is never blocked (FileIo.h).
+  return ParseSnapshot(Detail::ReadFileBytes(Path));
 }
 
 void WriteSnapshot(const std::string& Path, const StateSnapshot& Snapshot, bool Pretty) {
-  std::ofstream Out(Path, std::ios::binary | std::ios::trunc);
-  if (!Out) {
-    throw IoFailure("cannot write snapshot '" + Path + "'");
-  }
-  Out << SerializeSnapshot(Snapshot, Pretty) << '\n';
-  if (!Out) {
-    throw IoFailure("cannot write snapshot '" + Path + "'");
-  }
+  // The oracle's WriteJsonAtomic (tools/parity/snapshot.py): the JSON text, then one newline.
+  Detail::WriteFileBytes(Path, SerializeSnapshot(Snapshot, Pretty) + "\n");
 }
 
 }

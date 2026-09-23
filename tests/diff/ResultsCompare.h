@@ -219,15 +219,26 @@ inline CompareReport CompareResults(const ResultsFile& Oracle, const ResultsFile
   return Report;
 }
 
-// S-L2 snapshot comparison.
+// S-L2 snapshot comparison. With CompareLabels (the default) the point name and the outer-loop
+// iteration must match too, as tools/parity/snapshot.py CompareSnapshots requires; seq, producer and
+// pair are never compared.
 inline CompareReport CompareSnapshots(const Diff::StateSnapshot& Oracle, const Diff::StateSnapshot& Native,
-                                      size_t MaxDiffs = 20) {
+                                      size_t MaxDiffs = 20, bool CompareLabels = true) {
   CompareReport Report;
   const auto Fail = [&](const std::string& Text) {
     Report.L2Equal = false;
     Report.L1Equal = false;
     Report.Note(MaxDiffs, Text);
   };
+  if (CompareLabels) {
+    if (Oracle.Point != Native.Point) {
+      Fail("point: oracle " + Oracle.Point + " native " + Native.Point);
+    }
+    if (Oracle.Iteration != Native.Iteration) {
+      const auto Text = [](const std::optional<int64_t>& I) { return I ? std::to_string(*I) : std::string("null"); };
+      Fail("iteration: oracle " + Text(Oracle.Iteration) + " native " + Text(Native.Iteration));
+    }
+  }
   const auto ItemText = [](const Diff::SnapItem& I) {
     return I.Ea1 + "," + I.Name1.value_or("None") + "," + I.Ea2 + "," + I.Name2.value_or("None") + "," + I.Desc +
            "," + Diff::RatioBitsHex(Diff::RatioFromBits(I.RatioBits)) + "," + std::to_string(I.Nodes1) + "," +

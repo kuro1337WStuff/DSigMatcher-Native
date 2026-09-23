@@ -162,6 +162,8 @@ port options (in addition to the above):
       --overwrite-existing     replace real names already present in the target
 ```
 
+Environment: `DIAPHORA_*` variables are deliberately ignored. The parity engine is not Diaphora and has no environment configuration: `diff` always runs Diaphora's default standalone configuration (`docs/parity/00-plan.md` §1.1), and the non-default settings (`--unreliable`, `--relaxed-ratio`, `--use-trained-model`, `--project-script`) are refused with exit code 4. Paths may contain any Unicode characters and may be UNC paths (`\\server\share\...`). `--quiet` silences Diaphora's summary lines but not the warning about a SQLite other than the oracle's 3.51.1 (`--allow-sqlite-mismatch` acknowledges it). `dsigmatcher --help` lists the current `diff` options.
+
 `reference` is the database carrying the symbols you want; `target` is the one that receives them. `diff` writes `matches` (every resolved pair with ratio and category) and `symbols_to_port` (only rows where the reference name is a real symbol and differs from the target's current name). `info` prints a database's identity, provenance chain and name-confidence histogram.
 
 ## Rolling symbols forward across releases

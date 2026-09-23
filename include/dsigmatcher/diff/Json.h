@@ -87,7 +87,8 @@ struct JsonParseOptions {
 JsonValue JsonParse(std::string_view Text, const JsonParseOptions& Options = {});
 
 struct JsonWriteOptions {
-  bool Pretty = false;               // newline + two-space indent
+  bool Pretty = false;               // newline + two-space indent; compact (the default) is exactly
+                                     // json.dumps(ensure_ascii=False, separators=(",", ":"))
 };
 
 std::string JsonWrite(const JsonValue& Value, const JsonWriteOptions& Options = {});

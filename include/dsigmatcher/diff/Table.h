@@ -166,7 +166,9 @@ struct ExportData {
   std::string Path;  // exactly as given on the command line
   FunctionTable Functions;
   SideTables Tables;
-  // Problems found by ingest (missing `functions` table or columns). Ingest never throws for them:
+  // Problems found by ingest (missing `functions` table or columns, or a missing side table the default
+  // diff reads: program, instructions, bb_instructions, constants, compilation_units,
+  // compilation_unit_functions). Ingest never throws for them:
   // Diaphora checks diff.version first (D:3577-3591), so they are refused with UnsupportedInput only
   // after the version check passes (DiffSession::RequireIngest).
   std::vector<std::string> Problems;

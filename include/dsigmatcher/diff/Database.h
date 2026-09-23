@@ -1,8 +1,8 @@
 #pragma once
 
 // Path A connection (docs/parity/00-plan.md §3.4). One read-only connection holds both exports:
-//   sqlite3_open_v2("file:<db1>?mode=ro", SQLITE_OPEN_READONLY | SQLITE_OPEN_URI)
-//   ATTACH 'file:<db2>?mode=ro' AS diff
+//   sqlite3_open_v2(<db1>, SQLITE_OPEN_READONLY)        (plain UTF-8 file name, no URI: lane R0 (f))
+//   ATTACH ? AS diff  with <db2> bound                  (read-only through the connection's open flags)
 // exactly the schema names Diaphora uses (`main`, and `diff` from `attach "<db2>" as diff`,
 // D:2441 / D:657). The engine never writes, never runs ANALYZE and never creates indexes, so the
 // planner sees the exporter's indices and sqlite_stat1 unchanged. `pragma threads` stays 0 so the

@@ -353,6 +353,29 @@ void IngestExport(const DiffDatabase& Db, Side Which, Interners& Ids, ExportData
   LoadSideTables(Db, Which, Out.Tables);
   const std::string Schema(SchemaName(Which));
 
+  // Orchestrator decision (lane R0 (d)): a side table the default diff reads must exist on both sides,
+  // else the input is refused with UnsupportedInput naming the table (exit 4) instead of surfacing a
+  // raw "no such table" SQL error from whichever stage first reads it. `version` is not listed: a
+  // missing diff.version is Diaphora's empty-result path (D:3577-3591), main.version is never read.
+  struct RequiredTable {
+    const char* Name;
+    const char* ReadBy;
+  };
+  static const RequiredTable kRequired[] = {
+      {"program", "check_callgraph D:1294-1296, same_processor_both_databases D:2957-2960"},
+      {"instructions", "H39 (H:888-934), H40 (H:936-979)"},
+      {"bb_instructions", "H40 (H:936-979)"},
+      {"constants", "H15 (H:417-434), H20 (H:546-564), H21 (H:567-585), find_related_constants D:3375-3387"},
+      {"compilation_units", "H12-H14 (H:325-412), find_related_compilation_unit D:3419-3433"},
+      {"compilation_unit_functions", "H12-H14 (H:325-412), find_related_compilation_unit D:3419-3433"},
+  };
+  for (const RequiredTable& Table : kRequired) {
+    if (!Out.Tables.Has(Table.Name)) {
+      Out.Problems.push_back(Schema + "." + Table.Name + ": table is missing (read by the default diff: " +
+                             Table.ReadBy + ")");
+    }
+  }
+
   const TableInfo* Functions = Out.Tables.Find("functions");
   if (Functions == nullptr || !Functions->Present) {
     Out.Problems.push_back(Schema + ".functions: table is missing");

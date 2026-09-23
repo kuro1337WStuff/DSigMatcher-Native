@@ -1,6 +1,14 @@
 // Minimal JSON DOM, parser and writer (docs/parity/00-plan.md Appendix B). Grammar follows Python's
 // json module: NUMBER_RE `-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][-+]?[0-9]+)?`, whitespace " \t\n\r",
 // NaN / Infinity / -Infinity only in PythonCompat mode, strict control characters.
+//
+// The compact writer produces exactly the bytes of the oracle's
+// json.dumps(obj, ensure_ascii=False, separators=(",", ":"), allow_nan=False) (tools/parity/snapshot.py
+// DumpJson) for the values the parity formats hold: members in insertion order, no whitespace,
+// numbers as their source text, strings with json's ESCAPE_DCT escapes (quote, backslash, newline,
+// carriage return, tab, backspace, form feed; every other U+0000-U+001F as a six-character escape
+// with lowercase hex digits) and all other bytes, non-ASCII included, written raw
+// (Lib/json/encoder.py py_encode_basestring with ensure_ascii=False).
 
 #include "dsigmatcher/diff/Json.h"
 
@@ -574,7 +582,7 @@ void Write(const JsonValue& Value, std::string& Out, const JsonWriteOptions& Opt
       Out += '[';
       for (size_t Index = 0; Index < Items.size(); ++Index) {
         if (Index > 0) {
-          Out += Options.Pretty ? "," : ", ";
+          Out += ',';
         }
         NewLine(Indent + 1);
         Write(Items[Index], Out, Options, Indent + 1);
@@ -590,11 +598,11 @@ void Write(const JsonValue& Value, std::string& Out, const JsonWriteOptions& Opt
       Out += '{';
       for (size_t Index = 0; Index < Members.size(); ++Index) {
         if (Index > 0) {
-          Out += Options.Pretty ? "," : ", ";
+          Out += ',';
         }
         NewLine(Indent + 1);
         Out += JsonQuote(Members[Index].first);
-        Out += ": ";
+        Out += Options.Pretty ? ": " : ":";
         Write(Members[Index].second, Out, Options, Indent + 1);
       }
       if (!Members.empty()) {

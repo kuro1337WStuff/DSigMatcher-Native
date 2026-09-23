@@ -15,13 +15,16 @@
 #include <string>
 #include <string_view>
 
+#include "diff/CorpusPaths.h"
+
 namespace DSig::Test {
 
 // Returns "" on success, else the error text. The database file (and its -wal/-shm) is replaced.
+// DbPath is UTF-8 (SQLite takes UTF-8 file names; the removal converts explicitly).
 inline std::string BuildFixtureDbFromText(std::string_view Sql, const std::string& DbPath, bool Wal = true) {
   std::error_code Error;
   for (const char* Suffix : {"", "-wal", "-shm", "-journal"}) {
-    std::filesystem::remove(DbPath + Suffix, Error);
+    std::filesystem::remove(Utf8ToPath(DbPath + Suffix), Error);
   }
   sqlite3* Db = nullptr;
   if (sqlite3_open_v2(DbPath.c_str(), &Db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr) != SQLITE_OK) {
@@ -50,7 +53,7 @@ inline std::string BuildFixtureDbFromText(std::string_view Sql, const std::strin
 }
 
 inline std::string BuildFixtureDb(const std::string& SqlPath, const std::string& DbPath, bool Wal = true) {
-  std::ifstream In(SqlPath, std::ios::binary);
+  std::ifstream In(Utf8ToPath(SqlPath), std::ios::binary);
   if (!In) {
     return "cannot read " + SqlPath;
   }
