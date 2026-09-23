@@ -75,6 +75,7 @@ struct FunctionTable {
   std::vector<PackedString> KghHash;
   std::vector<PackedString> MdIndex;
   std::vector<PackedString> Mnemonics;
+  std::vector<PackedString> Constants;
   std::vector<PackedString> CleanAssembly;
   std::vector<PackedString> CleanPseudo;
   std::vector<PackedString> CleanMicrocode;
@@ -107,6 +108,7 @@ struct FunctionTable {
     KghHash.reserve(Rows);
     MdIndex.reserve(Rows);
     Mnemonics.reserve(Rows);
+    Constants.reserve(Rows);
     CleanAssembly.reserve(Rows);
     CleanPseudo.reserve(Rows);
     CleanMicrocode.reserve(Rows);
@@ -136,6 +138,7 @@ struct FunctionTable {
     KghHash.resize(Rows);
     MdIndex.resize(Rows);
     Mnemonics.resize(Rows);
+    Constants.resize(Rows);
     CleanAssembly.resize(Rows);
     CleanPseudo.resize(Rows);
     CleanMicrocode.resize(Rows);

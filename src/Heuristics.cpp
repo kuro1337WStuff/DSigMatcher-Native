@@ -200,22 +200,114 @@ void RunSameCleanedPseudoCode(const FunctionTable& A, const FunctionTable& B,
       true, Id, MatchCategory::Best, Sink);
 }
 
+using RarityMap = std::unordered_map<std::string_view, uint32_t>;
+
+RarityMap BuildRarity(const FunctionTable& Table,
+                      const std::vector<PackedString> FunctionTable::*Column) {
+  RarityMap Counts;
+  Counts.reserve(Table.Count() * 2 + 1);
+
+  for (uint32_t Index = 0; Index < static_cast<uint32_t>(Table.Count()); ++Index) {
+    const std::string_view Key = Table.Text((Table.*Column)[Index]);
+    if (Key.empty() || Key == "0") {
+      continue;
+    }
+    Counts[Key] += 1;
+  }
+
+  return Counts;
+}
+
+bool IsRare(const RarityMap& ReferenceCounts, const RarityMap& TargetCounts,
+            std::string_view Key) {
+  const auto ReferenceIterator = ReferenceCounts.find(Key);
+  const auto TargetIterator = TargetCounts.find(Key);
+  const bool RareInReference =
+      ReferenceIterator != ReferenceCounts.end() && ReferenceIterator->second <= 2;
+  const bool RareInTarget = TargetIterator != TargetCounts.end() && TargetIterator->second <= 2;
+  return RareInReference || RareInTarget;
+}
+
+void RunSameKokaHashAndMdIndex(const FunctionTable& A, const FunctionTable& B,
+                               const DiffOptions& Options, std::vector<Match>& Sink,
+                               uint16_t Id) {
+  JoinByKey(
+      A, B, [](const FunctionTable& T, uint32_t I) { return T.Text(T.KghHash[I]); },
+      [&](uint32_t I, uint32_t J) {
+        if (!PassesSizeGate(A, I, B, J, Options)) {
+          return false;
+        }
+        return A.Text(A.MdIndex[I]) == B.Text(B.MdIndex[J]) && A.Nodes[I] == B.Nodes[J] &&
+               A.Nodes[I] >= 4 && A.Outdegree[I] == B.Outdegree[J] &&
+               A.Indegree[I] == B.Indegree[J] &&
+               (IsAutoNamed(A.Text(A.Name[I])) || IsAutoNamed(B.Text(B.Name[J])));
+      },
+      true, Id, MatchCategory::Partial, Sink);
+}
+
+void RunSameConstants(const FunctionTable& A, const FunctionTable& B, const DiffOptions& Options,
+                      std::vector<Match>& Sink, uint16_t Id) {
+  JoinByKey(
+      A, B, [](const FunctionTable& T, uint32_t I) { return T.Text(T.Constants[I]); },
+      [&](uint32_t I, uint32_t J) {
+        return PassesSizeGate(A, I, B, J, Options) &&
+               A.ConstantsCount[I] == B.ConstantsCount[J] && A.ConstantsCount[I] > 1;
+      },
+      true, Id, MatchCategory::Partial, Sink);
+}
+
+void RunSameRareKokaHash(const FunctionTable& A, const FunctionTable& B,
+                         const DiffOptions& Options, std::vector<Match>& Sink, uint16_t Id) {
+  const RarityMap ReferenceCounts = BuildRarity(A, &FunctionTable::KghHash);
+  const RarityMap TargetCounts = BuildRarity(B, &FunctionTable::KghHash);
+
+  JoinByKey(
+      A, B, [](const FunctionTable& T, uint32_t I) { return T.Text(T.KghHash[I]); },
+      [&](uint32_t I, uint32_t J) {
+        if (!PassesSizeGate(A, I, B, J, Options)) {
+          return false;
+        }
+        return IsRare(ReferenceCounts, TargetCounts, A.Text(A.KghHash[I])) && A.Nodes[I] > 5 &&
+               (IsAutoNamed(A.Text(A.Name[I])) || IsAutoNamed(B.Text(B.Name[J])));
+      },
+      true, Id, MatchCategory::Partial, Sink);
+}
+
+void RunSameRareMdIndex(const FunctionTable& A, const FunctionTable& B,
+                        const DiffOptions& Options, std::vector<Match>& Sink, uint16_t Id) {
+  const RarityMap ReferenceCounts = BuildRarity(A, &FunctionTable::MdIndex);
+  const RarityMap TargetCounts = BuildRarity(B, &FunctionTable::MdIndex);
+
+  JoinByKey(
+      A, B, [](const FunctionTable& T, uint32_t I) { return T.Text(T.MdIndex[I]); },
+      [&](uint32_t I, uint32_t J) {
+        return PassesSizeGate(A, I, B, J, Options) &&
+               IsRare(ReferenceCounts, TargetCounts, A.Text(A.MdIndex[I])) && A.Nodes[I] > 10;
+      },
+      true, Id, MatchCategory::Partial, Sink);
+}
+
 struct Definition {
   const char* Name;
+  MatchCategory Category;
   bool RequiresSameProcessor;
   void (*Runner)(const FunctionTable&, const FunctionTable&, const DiffOptions&, std::vector<Match>&,
                  uint16_t);
 };
 
 const Definition Definitions[] = {
-  {"Same RVA and hash", true, RunSameRvaAndHash},
-  {"Same order and hash", true, RunSameOrderAndHash},
-  {"Function Hash", true, RunFunctionHash},
-  {"Bytes hash", true, RunBytesHash},
-  {"Same address and mnemonics", false, RunSameAddressAndMnemonics},
-  {"Same cleaned assembly", true, RunSameCleanedAssembly},
-  {"Same cleaned microcode", true, RunSameCleanedMicrocode},
-  {"Same cleaned pseudo-code", false, RunSameCleanedPseudoCode},
+  {"Same RVA and hash", MatchCategory::Best, true, RunSameRvaAndHash},
+  {"Same order and hash", MatchCategory::Best, true, RunSameOrderAndHash},
+  {"Function Hash", MatchCategory::Best, true, RunFunctionHash},
+  {"Bytes hash", MatchCategory::Best, true, RunBytesHash},
+  {"Same address and mnemonics", MatchCategory::Best, false, RunSameAddressAndMnemonics},
+  {"Same cleaned assembly", MatchCategory::Best, true, RunSameCleanedAssembly},
+  {"Same cleaned microcode", MatchCategory::Best, true, RunSameCleanedMicrocode},
+  {"Same cleaned pseudo-code", MatchCategory::Best, false, RunSameCleanedPseudoCode},
+  {"Same KOKA hash and MD-Index", MatchCategory::Partial, false, RunSameKokaHashAndMdIndex},
+  {"Same constants", MatchCategory::Partial, false, RunSameConstants},
+  {"Same rare KOKA hash", MatchCategory::Partial, false, RunSameRareKokaHash},
+  {"Same rare MD Index", MatchCategory::Partial, false, RunSameRareMdIndex},
 };
 
 constexpr size_t DefinitionCount = sizeof(Definitions) / sizeof(Definitions[0]);
@@ -270,7 +362,7 @@ DiffResult RunExactHeuristics(const FunctionTable& OldTable, const FunctionTable
   for (size_t Slot = 0; Slot < DefinitionCount; ++Slot) {
     HeuristicStats& Stats = Result.Stats[Slot];
     Stats.Name = Definitions[Slot].Name;
-    Stats.Category = MatchCategory::Best;
+    Stats.Category = Definitions[Slot].Category;
 
     if (Definitions[Slot].RequiresSameProcessor && !Options.SameProcessor) {
       Stats.Ran = false;
