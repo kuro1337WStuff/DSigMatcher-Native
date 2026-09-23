@@ -1,0 +1,7 @@
+type	line	address	name	address2	name2	ratio	nodes1	nodes2	description
+best	00000	00401100	func_1	00501100	sub_501100	1.0000000	4	4	Equal assembly
+best	00001	00401200	func_2	00501200	sub_501200	1.0000000	4	4	Equal assembly
+best	00002	00401300	func_3	00501300	sub_501300	1.0000000	4	4	Equal assembly
+best	00003	00401400	func_4	00501400	sub_501400	1.0000000	4	4	Equal assembly
+best	00004	00401500	func_5	00501500	sub_501500	1.0000000	4	4	Equal assembly
+best	00005	00401600	func_6	00501600	sub_501600	1.0000000	4	4	Equal assembly

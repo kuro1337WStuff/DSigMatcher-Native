@@ -1,0 +1,3 @@
+type	line	address	name	address2	name2	ratio	nodes1	nodes2	description
+best	00000	00401000	func_same	00501000	sub_501000	1.0000000	4	4	Equal assembly
+partial	00000	00401100	func_loop	00501100	sub_501100	0.8601429	3	3	Loop count

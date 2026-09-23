@@ -1,0 +1,2 @@
+type	line	address	name	address2	name2	ratio	nodes1	nodes2	description
+best	00000	00001000	func_1	00009100	sub_9100	1.0000000	4	4	Equal assembly

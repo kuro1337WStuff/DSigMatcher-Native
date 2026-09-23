@@ -1,0 +1,3 @@
+type	line	address	name
+primary	00000	00009700	sub_9700
+secondary	00000	00002000	func_2
