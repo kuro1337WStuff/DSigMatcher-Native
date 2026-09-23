@@ -38,11 +38,6 @@ void Suite(const char* Name) {
   std::fflush(stdout);
 }
 
-void Checkpoint(const char* Label) {
-  std::printf("  ck: %s\n", Label);
-  std::fflush(stdout);
-}
-
 #define CHECK(Expr) Report(static_cast<bool>(Expr), #Expr, __FILE__, __LINE__)
 #define CHECK_EQ(A, B) Report((A) == (B), #A " == " #B, __FILE__, __LINE__)
 
@@ -70,22 +65,17 @@ struct TestFunction {
 
 bool CreateExport(const std::string& Path, const std::vector<TestFunction>& Rows,
                   const std::string& Processor) {
-  Checkpoint("ce: enter");
-
   std::error_code Removed;
   std::filesystem::remove(Path, Removed);
-  Checkpoint("ce: old file removed");
 
   sqlite3* Handle = nullptr;
   if (sqlite3_open_v2(Path.c_str(), &Handle, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr) !=
       SQLITE_OK) {
-    Checkpoint("ce: open failed branch");
     if (Handle != nullptr) {
       sqlite3_close(Handle);
     }
     return false;
   }
-  Checkpoint("ce: database opened");
 
   char* ErrorMessage = nullptr;
 
@@ -107,7 +97,6 @@ bool CreateExport(const std::string& Path, const std::vector<TestFunction>& Rows
     sqlite3_close(Handle);
     return false;
   }
-  Checkpoint("ce: schema created");
 
   sqlite3_stmt* ProgramStatement = nullptr;
   if (sqlite3_prepare_v2(Handle,
@@ -125,7 +114,6 @@ bool CreateExport(const std::string& Path, const std::vector<TestFunction>& Rows
     sqlite3_close(Handle);
     return false;
   }
-  Checkpoint("ce: program row inserted");
 
   sqlite3_stmt* Insert = nullptr;
   sqlite3_prepare_v2(
@@ -168,7 +156,6 @@ bool CreateExport(const std::string& Path, const std::vector<TestFunction>& Rows
     sqlite3_reset(Insert);
   }
 
-  Checkpoint("ce: function rows inserted");
   sqlite3_finalize(Insert);
   sqlite3_close(Handle);
   return true;
@@ -748,7 +735,6 @@ void TestIngestRoundTrip() {
 
   const std::filesystem::path Directory = ScratchDirectory();
   const std::string Path = (Directory / "ingest.sqlite").string();
-  Checkpoint("scratch dir resolved");
 
   std::vector<TestFunction> Rows;
   for (int Index = 0; Index < 25; ++Index) {
@@ -768,16 +754,13 @@ void TestIngestRoundTrip() {
     Row.PseudocodeLines = 9;
     Rows.push_back(Row);
   }
-  Checkpoint("rows built");
 
   CHECK(CreateExport(Path, Rows, "metapc"));
-  Checkpoint("export database created");
 
   ExportDatabase Loader;
   FunctionTable Table;
   ProgramInfo Program;
   const LoadResult Loaded = Loader.Load(Path, Table, Program);
-  Checkpoint("load returned");
 
   CHECK(Loaded.Ok);
   CHECK_EQ(Loaded.RowsRead, static_cast<int64_t>(25));
@@ -795,11 +778,9 @@ void TestIngestRoundTrip() {
 
   FunctionTable Missing;
   ProgramInfo MissingProgram;
-  Checkpoint("field assertions done, loading a nonexistent path");
   const LoadResult BadLoad = Loader.Load((Directory / "does_not_exist.sqlite").string(), Missing,
                                          MissingProgram);
   CHECK(!BadLoad.Ok);
-  Checkpoint("nonexistent path rejected");
 }
 
 std::string HexAddress(uint64_t Value) {

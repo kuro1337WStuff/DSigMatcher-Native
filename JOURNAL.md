@@ -1400,6 +1400,92 @@ output showing `.lib` versus `.a`.
 Separately, the `resolve` failures on Linux and macOS were fixed by the `memcmp`-over-padding change,
 which is strong evidence that diagnosis was correct: both platforms went green with no other change.
 
+### CI green on all three platforms: the four-round debugging arc
+
+Run `35826458518`: Linux/GCC ✓ 50s, macOS/Clang ✓ 49s, Windows/MSVC ✓ 2m46s. All five suites pass on
+every platform — 316 unit, 67 disassembler, 302 peimage, 825 resolve, 152,784 control-flow-graph
+assertions.
+
+Getting there took four rounds, and each round's diagnosis was wrong or incomplete in an instructive way.
+
+**Round 1 — Linux build error.** `Spec::Kind` member named identically to its type. GCC rejects, MSVC
+accepts. Renamed the member. Straightforward.
+
+**Round 2 — `resolve` determinism failures on Linux and macOS.** Nine sites, including
+`SameMatches(ReversedExpected, Expected)` which compares the *oracle against itself* on forward and
+reversed input. Root cause was in the test: `SameMatches` used
+
+```cpp
+std::memcmp(Left.data(), Right.data(), Left.size() * sizeof(Match)) == 0
+```
+
+`Match` is `{uint32_t, uint32_t, uint16_t, float, uint8_t enum}` — 20 bytes with **5 padding bytes**.
+Default member initializers do not initialize padding, so two logically identical matches can differ in
+indeterminate bytes. Whether they do depends on allocator and stack contents, which is exactly why it
+passed on MSVC and failed on libstdc++ and libc++. Replaced with field-by-field comparison; both
+platforms went green with no other change, which confirms the diagnosis rather than merely correlating
+with it.
+
+An earlier attempt here was **wrong and is worth recording**: I added `Category` to `OrdersBefore` and
+`Outranks`, reasoning that the comparator was not a strict total order over `Match`. Locally that broke
+**236 assertions**, because `resolve_tests.cpp` deliberately constructs matches differing only in
+`Category` and asserts the order-dependent outcome (lines 509-523 expect `Partial` forward and
+`Unreliable` reversed). The tests encode input-order sensitivity as intended behaviour. I changed the
+comparator on a hypothesis without reading the contract it had to satisfy, measured it, and reverted.
+Whether that order-dependence is *desirable* is a separate open question; it is not mine to answer by
+silently changing a comparator.
+
+**Round 3 — Windows `unit` segfault.** Passed locally on the identical MSVC toolset version
+(14.51.36231) and against the identical SQLite version (3.53.4, downloaded as the amalgamation and
+compiled in). Not reproducible from the repo root, from the build directory, or with a CI-like temp
+path.
+
+What made it findable was instrumentation rather than insight: `std::printf` to a redirected stdout is
+**block-buffered**, so the crash discarded the entire buffer and ctest captured nothing. Adding
+`fflush(stdout)` to the suite header narrowed it to one function in one round; adding flushed
+checkpoints inside `CreateExport` narrowed it to one statement in the next:
+
+```
+ck: scratch dir resolved
+ck: rows built
+ck: ce: enter
+ck: ce: old file removed
+<crash>
+```
+
+`ce: open failed branch` never printed, so the crash was **inside `sqlite3_open_v2`** — the first
+SQLite call in the process. Consistent with only `unit` crashing, since it is the only suite that
+touches SQLite.
+
+**Round 4 — the actual cause, and a wrong guess along the way.** I hypothesised that
+`C:\Windows\System32\sqlite3.dll` (present on Windows 10+) was winning the DLL search over vcpkg's,
+since the executable directory and System32 both precede PATH. I added a CI step to print whether that
+file exists. **It does not** — the branch never fired, on the runner or locally. The hypothesis was
+wrong.
+
+The fix worked anyway, for an adjacent reason: the runner's PATH contains `C:\Strawberry\c\bin` and
+`C:\Program Files\Git\mingw64\bin`, and both ship **MinGW-built** `sqlite3.dll`. An MSVC-linked import
+library bound against a MinGW DLL is an ABI mismatch that faults on first call. Prefixing PATH with
+vcpkg's `bin` did **not** help — the step ran under Git-Bash, and a Windows-style `C:/...` entry
+injected into a bash `PATH` does not survive conversion when bash spawns a native child process.
+Copying `sqlite3.dll` into `build/` beside the executables does work, because the executable's own
+directory is the **first** location Windows searches, ahead of System32 and PATH. That is now a CI step,
+and it prints the staged size (1,111,040 bytes) so the right file is verifiably the one being used.
+
+Two transferable lessons. First, **the loader search order matters more than PATH**, and the only
+reliable way to control which DLL loads is to put it next to the executable. Second, **flush before you
+rely on printed output** — a crashing process with block-buffered stdout produces no evidence at all,
+and the difference between "no diagnostic" and "exact statement" was one `fflush`.
+
+All checkpoints were removed once the fault was located; the `fflush` in the suite header stays, since
+it costs nothing and makes any future crash locatable.
+
+**Still disabled:** the partitioned `Resolve` path, from the earlier round. It is not implicated in any
+of these four failures — every one was in the test harness, the compiler-specific language rule, or DLL
+resolution — so the case for re-enabling it is now stronger, but it still needs a low-worker-count
+reproducer before it goes back on. Until then the `resolve` suite's thread-count cases compare serial
+against serial and prove nothing about the parallel path.
+
 ### Not yet done
 
 - 38 remaining heuristics: 4 `Best`, 26 `Partial`, 8 `Unreliable`
