@@ -76,8 +76,22 @@ EXIT_OUTPUT = 19
 EXIT_INTERNAL = 20
 EXIT_INTERRUPTED = 130
 
-# Diaphora refuses to export into these (diaphora_ida.py:3978-3987 is_ida_file, used at :3664).
+# Diaphora refuses to export into these (diaphora_ida.py:3978-3987 is_ida_file, used at :3664). A .pdb
+# is never a valid export name either (audit F02: `-o x.pdb --pdb x.pdb` replaced the PDB).
 IDA_EXTENSIONS = (".idb", ".i64", ".til", ".id0", ".id1", ".nam")
+REFUSED_OUTPUT_EXTENSIONS = IDA_EXTENSIONS + (".pdb",)
+
+# The longest --timeout (30 days), the same cap as src/cli/ExportBridge.cpp kMaxTimeoutSeconds: on Windows
+# Popen.wait cannot take much more than 2^32 ms (audit F42).
+MAX_TIMEOUT_SECONDS = 30 * 24 * 3600
+
+# Work directories: tempfile.mkdtemp(prefix=WORK_PREFIX) names, and the file that says who owns one.
+WORK_PREFIX = "dsig-export-"
+WORK_NAME_RE = re.compile(r"^dsig-export-[a-z0-9_]{8}$")
+OWNER_FILE = "owner.json"
+# A work directory without an owner file (a version before owner files, or a run killed in the instant
+# between mkdtemp and the owner file) is only swept once it is this old.
+UNOWNED_SWEEP_AGE_SECONDS = 48 * 3600
 # What an IDA database left unpacked next to its packed file looks like (open in IDA, or crashed).
 UNPACKED_EXTENSIONS = (".id0", ".id1", ".id2", ".nam", ".til")
 
@@ -169,18 +183,33 @@ def DefaultSidecar(Output):
     return (Root if Extension else Output) + ".export.json"
 
 
+# The only PYTHON* variables the IDA worker gets; every other one is removed by CleanEnv.
+WORKER_PYTHON_ENV = {"PYTHONDONTWRITEBYTECODE": "1", "PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1",
+                     "PYTHONUNBUFFERED": "1"}
+
+
 def CleanEnv():
     """The caller's environment minus everything that steers Diaphora (CBinDiff.__init__ reads
-    DIAPHORA_<name> through get_value_for, diaphora.py:400-421 and :560-569) or idapro."""
-    Removed = sorted(Key for Key in os.environ if Key.upper().startswith("DIAPHORA_"))
-    Env = {Key: Value for Key, Value in os.environ.items() if not Key.upper().startswith("DIAPHORA_")}
+    DIAPHORA_<name> through get_value_for, diaphora.py:400-421 and :560-569) or idapro, and minus every
+    PYTHON* variable but the four set here: PYTHONPATH, PYTHONHOME, PYTHONSTARTUP and the like would let
+    a module from the caller's environment shadow idapro, Diaphora or this script in the worker (audit
+    F66). The names removed (never the values) are returned for the sidecar.
+
+    NoDefaultCurrentDirectoryInExePath=1 keeps Windows from resolving a program started by a bare name
+    in the current directory, for the worker and everything it starts (audit F16)."""
+    Removed = [Key for Key in os.environ
+               if Key.upper().startswith("DIAPHORA_")
+               or (Key.upper().startswith("PYTHON") and Key.upper() not in WORKER_PYTHON_ENV)]
+    Env = {Key: Value for Key, Value in os.environ.items() if Key not in Removed}
     for Key in ("IDA_IS_INTERACTIVE", "_NT_ALT_SYMBOL_PATH", "_NT_SYMCACHE_PATH"):
-        Env.pop(Key, None)
-    Env["PYTHONDONTWRITEBYTECODE"] = "1"
-    Env["PYTHONIOENCODING"] = "utf-8"
-    Env["PYTHONUTF8"] = "1"
-    Env["PYTHONUNBUFFERED"] = "1"
-    return Env, Removed
+        if Key in Env:
+            Env.pop(Key)
+            Removed.append(Key)
+    for Key in [Key for Key in Env if Key.upper() in WORKER_PYTHON_ENV]:
+        Env.pop(Key)  # a case variant on POSIX; the canonical spelling is set below
+    Env.update(WORKER_PYTHON_ENV)
+    Env["NoDefaultCurrentDirectoryInExePath"] = "1"
+    return Env, sorted(Removed)
 
 
 # ----------------------------------------------------------------------------- PE / PDB identity
@@ -417,11 +446,35 @@ def ResolveDiaphoraDir(Flag):
     return Directory, Source
 
 
+def FindProgramOnPath(Name):
+    """The absolute path of program Name found in an ABSOLUTE PATH entry, or None.
+
+    Never the current directory: on Windows, CreateProcess (and so subprocess with a bare "git") and
+    shutil.which before Python 3.12 look there first, and the current directory is often the folder of
+    the sample being analysed, where anyone can plant a git.exe (audit F16). Empty and relative PATH
+    entries ("", ".", "bin") are skipped for the same reason."""
+    Names = [Name + ".exe"] if sys.platform == "win32" and not os.path.splitext(Name)[1] else [Name]
+    for Entry in os.environ.get("PATH", "").split(os.pathsep):
+        Entry = Entry.strip().strip('"')
+        if not Entry or not os.path.isabs(Entry):
+            continue
+        for Candidate in (os.path.join(Entry, Each) for Each in Names):
+            if os.path.isfile(Candidate) and (sys.platform == "win32" or os.access(Candidate, os.X_OK)):
+                return os.path.abspath(Candidate)
+    return None
+
+
+# What `git describe --tags --long --always` prints: tag-count-gsha, or a bare abbreviated sha.
+GIT_DESCRIBE_RE = re.compile(r"^[0-9A-Za-z][0-9A-Za-z._/+-]{0,199}$")
+
+
 def DiaphoraIdentity(Directory):
     """VERSION_VALUE (read from diaphora.py:100 as text, not imported) and the git revision.
 
     git runs with GIT_OPTIONAL_LOCKS=0 and without `describe --dirty`, so it never rewrites the
-    checkout's index: the Diaphora tree is only ever read."""
+    checkout's index: the Diaphora tree is only ever read. git is found on PATH only
+    (FindProgramOnPath), runs inside the Diaphora checkout with no stdin, and what it prints is kept only
+    when it looks like a describe string."""
     Identity = {"version_value": None, "git_describe": None, "git_dirty": None}
     try:
         with open(os.path.join(Directory, "diaphora.py"), "r", encoding="utf-8", errors="replace") as Handle:
@@ -429,17 +482,23 @@ def DiaphoraIdentity(Directory):
         Identity["version_value"] = Match.group(1) if Match else None
     except OSError:
         pass
-    Env = dict(os.environ, GIT_OPTIONAL_LOCKS="0")
+    Git = FindProgramOnPath("git")
+    if Git is None:
+        return Identity
+    Env = dict(os.environ, GIT_OPTIONAL_LOCKS="0", NoDefaultCurrentDirectoryInExePath="1")
     try:
-        Describe = subprocess.run(["git", "-C", Directory, "describe", "--tags", "--long", "--always"],
-                                  capture_output=True, text=True, env=Env, timeout=30)
-        if Describe.returncode == 0:
-            Identity["git_describe"] = Describe.stdout.strip()
-            Status = subprocess.run(["git", "-C", Directory, "status", "--porcelain", "--untracked-files=no"],
-                                    capture_output=True, text=True, env=Env, timeout=60)
+        Describe = subprocess.run([Git, "-C", Directory, "describe", "--tags", "--long", "--always"],
+                                  capture_output=True, text=True, env=Env, cwd=Directory,
+                                  stdin=subprocess.DEVNULL, timeout=30)
+        Text = Describe.stdout.strip()
+        if Describe.returncode == 0 and GIT_DESCRIBE_RE.match(Text):
+            Identity["git_describe"] = Text
+            Status = subprocess.run([Git, "-C", Directory, "status", "--porcelain", "--untracked-files=no"],
+                                    capture_output=True, text=True, env=Env, cwd=Directory,
+                                    stdin=subprocess.DEVNULL, timeout=60)
             if Status.returncode == 0:
                 Identity["git_dirty"] = bool(Status.stdout.strip())
-    except (OSError, subprocess.SubprocessError):
+    except (OSError, ValueError, subprocess.SubprocessError):
         pass
     return Identity
 
@@ -466,7 +525,8 @@ def ParseArgs(Argv):
     Common.add_argument("--allow-no-decompiler", action="store_true",
                         default=os.environ.get("DSIG_EXPORT_ALLOW_NO_DECOMPILER") == "1",
                         help="export even without Hex-Rays (no pseudo-code or microcode); such an export "
-                        "must not be diffed against one that has them")
+                        "must not be diffed against one that has them (through dsigmatcher: set "
+                        "DSIG_EXPORT_ALLOW_NO_DECOMPILER=1)")
     Idb = Modes.add_parser("idb", parents=[Common], help="export an existing .i64/.idb (copied, never saved)")
     Idb.add_argument("input", help="IDA database (.i64 or .idb)")
     Binary = Modes.add_parser("binary", parents=[Common], help="analyse a raw binary and export it")
@@ -475,8 +535,8 @@ def ParseArgs(Argv):
     Pdb.add_argument("--pdb", help="apply exactly this PDB (it must match the binary's RSDS GUID and age)")
     Pdb.add_argument("--no-pdb", action="store_true", help="no PDB and no symbol server (the default)")
     Args = Parser.parse_args(Argv)
-    if Args.timeout < 0:
-        Parser.error("--timeout must be >= 0")
+    if Args.timeout < 0 or Args.timeout > MAX_TIMEOUT_SECONDS:
+        Parser.error("--timeout must be between 0 and %d seconds (30 days)" % MAX_TIMEOUT_SECONDS)
     if Args.mode == "idb":
         Args.pdb = None
         Args.no_pdb = False
@@ -599,6 +659,199 @@ def InstallPlugins(IdaDir):
         return []
 
 
+# ----------------------------------------------------------------------------- path aliasing (audit F02)
+
+def SamePath(A, B):
+    """A and B name one file: equal once normalised (case-insensitively where the platform's normcase
+    is), or both exist and os.path.samefile says so (hard links, 8.3 short names)."""
+    if os.path.normcase(os.path.abspath(A)) == os.path.normcase(os.path.abspath(B)):
+        return True
+    try:
+        return os.path.exists(A) and os.path.exists(B) and os.path.samefile(A, B)
+    except (OSError, ValueError):
+        return False
+
+
+def WrittenPathAlias(Output, Sidecar, Protected):
+    """A refusal message when a file this run writes, replaces or moves aside is one of Protected
+    ((role, path) pairs: the input and the PDB), else None. Mirrors src/cli/ExportBridge.cpp
+    WrittenPathAlias: the output, its OUTPUT_SIDECARS (PublishOutput renames them aside and deletes them),
+    the sidecar, and the pid-named staging, moved-aside and temporary files."""
+    Refusal = "; refusing to overwrite an input (nothing was changed)"
+    Written = ([("the output", Output)] + [("the output's %s file" % Suffix, Output + Suffix) for Suffix in OUTPUT_SIDECARS]
+               + [("the sidecar", Sidecar)])
+    for WrittenRole, WrittenPath in Written:
+        for Role, Path in Protected:
+            if SamePath(WrittenPath, Path):
+                return "%s '%s' is %s '%s'%s" % (WrittenRole, WrittenPath, Role, Path, Refusal)
+    OutputName = os.path.normcase(os.path.basename(Output))
+    Prefixes = ([("the output's staging copy", OutputName + ".dsig-tmp-")]
+                + [("the previous output's %s file moved aside" % Suffix, OutputName + Suffix + ".dsig-old-")
+                   for Suffix in OUTPUT_SIDECARS]
+                + [("the sidecar's temporary file", os.path.normcase(os.path.basename(Sidecar)) + ".tmp-")])
+    for Role, Path in Protected:
+        if not SamePath(os.path.dirname(Path), os.path.dirname(Output)):
+            continue
+        Name = os.path.normcase(os.path.basename(Path))
+        for WrittenRole, Prefix in Prefixes:
+            if Name.startswith(Prefix):
+                return "%s '%s' has the name of %s ('%s<pid>')%s" % (Role, Path, WrittenRole, Prefix, Refusal)
+    return None
+
+
+# ----------------------------------------------------------------------------- work directory ownership (audit F43)
+
+def _WindowsProcess(Pid):
+    """(alive, creation time) of a process on Windows; (True, None) when it exists but cannot be queried."""
+    import ctypes
+    from ctypes import wintypes
+    Kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    Kernel32.OpenProcess.restype = wintypes.HANDLE
+    Kernel32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+    Kernel32.GetExitCodeProcess.argtypes = (wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD))
+    Kernel32.GetProcessTimes.argtypes = (wintypes.HANDLE,) + (ctypes.POINTER(wintypes.FILETIME),) * 4
+    Kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+    Handle = Kernel32.OpenProcess(0x1000, False, Pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+    if not Handle:
+        # ERROR_INVALID_PARAMETER: no such process. Anything else (access denied): it exists.
+        return ctypes.get_last_error() != 87, None
+    try:
+        Code = wintypes.DWORD()
+        Running = bool(Kernel32.GetExitCodeProcess(Handle, ctypes.byref(Code))) and Code.value == 259
+        Times = [wintypes.FILETIME() for _ in range(4)]
+        Created = None
+        if Kernel32.GetProcessTimes(Handle, *(ctypes.byref(Each) for Each in Times)):
+            Created = (Times[0].dwHighDateTime << 32) | Times[0].dwLowDateTime
+        return Running, Created
+    finally:
+        Kernel32.CloseHandle(Handle)
+
+
+def _LinuxStart(Pid):
+    try:
+        with open("/proc/%d/stat" % Pid, "rb") as Handle:
+            Fields = Handle.read().rsplit(b")", 1)[1].split()
+        return int(Fields[19])  # field 22, starttime in clock ticks since boot
+    except (OSError, IndexError, ValueError):
+        return None
+
+
+def ProcessStart(Pid):
+    """A token for when process Pid started (None when the platform cannot tell), so that a recycled pid
+    is not mistaken for the process that owned a work directory."""
+    try:
+        if sys.platform == "win32":
+            return _WindowsProcess(Pid)[1]
+        return _LinuxStart(Pid)
+    except Exception:
+        return None
+
+
+def ProcessAlive(Pid, Start=None):
+    """Whether process Pid still runs (and, when both start tokens are known, is the same process).
+    Doubtful cases count as alive: the sweep must never delete a running export's directory."""
+    if not isinstance(Pid, int) or isinstance(Pid, bool) or Pid <= 0:
+        return False
+    try:
+        if sys.platform == "win32":
+            Running, Created = _WindowsProcess(Pid)
+            return Running and (Start is None or Created is None or Created == Start)
+        os.kill(Pid, 0)  # POSIX only: signal 0 just probes (on Windows os.kill would terminate)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        pass
+    except Exception:
+        return True
+    Now = _LinuxStart(Pid) if Start is not None else None
+    return Start is None or Now is None or Now == Start
+
+
+def WriteOwner(TempRoot, Worker=None, Kept=False):
+    """owner.json in the work directory: which processes use it, so a later run can tell a directory
+    left behind by a killed run (dsigmatcher terminated, a crash, a power cut) from a live one."""
+    Record = {"tool": TOOL_NAME, "pid": os.getpid(), "start": ProcessStart(os.getpid()), "created_utc": UtcNow(),
+              "kept": Kept}
+    if Worker is not None:
+        Record.update({"worker_pid": Worker.pid, "worker_start": ProcessStart(Worker.pid)})
+    WriteJsonAtomic(os.path.join(TempRoot, OWNER_FILE), Record)
+
+
+def SweepWorkDirectories(Parent):
+    """Removes the dsig-export-<8 chars> work directories under Parent that a killed run left behind:
+    their owner.json names no live process (or, without an owner file, they are older than
+    UNOWNED_SWEEP_AGE_SECONDS). A directory kept with --keep-temp, one whose owner file cannot be read,
+    and anything whose name is not exactly mkdtemp's are left alone. Returns the removed paths."""
+    Removed = []
+    try:
+        Names = os.listdir(Parent)
+    except OSError:
+        return Removed
+    IsJunction = getattr(os.path, "isjunction", lambda _Path: False)
+    for Name in Names:
+        if not WORK_NAME_RE.match(Name):
+            continue
+        Path = os.path.join(Parent, Name)
+        try:
+            if os.path.islink(Path) or IsJunction(Path) or not os.path.isdir(Path):
+                continue
+            with open(os.path.join(Path, OWNER_FILE), "r", encoding="utf-8") as Handle:
+                Owner = json.load(Handle)
+        except FileNotFoundError:
+            Owner = None
+        except (OSError, ValueError):
+            continue
+        if Owner is None:
+            try:
+                if time.time() - os.path.getmtime(Path) < UNOWNED_SWEEP_AGE_SECONDS:
+                    continue
+            except OSError:
+                continue
+        elif not isinstance(Owner, dict) or Owner.get("tool") != TOOL_NAME or Owner.get("kept"):
+            continue
+        elif any(ProcessAlive(Pid, Start) for Pid, Start in ((Owner.get("pid"), Owner.get("start")),
+                                                             (Owner.get("worker_pid"), Owner.get("worker_start")))
+                 if Pid is not None):
+            continue
+        if RemoveTree(Path):
+            Removed.append(Path)
+            Log("removed the work directory %s left behind by an earlier run" % Path)
+        else:
+            Log("warning: could not remove the stale work directory %s" % Path)
+    return Removed
+
+
+class ParentWatch(threading.Thread):
+    """Notices the launcher going away (audit F44). POSIX re-parents an orphan, so os.getppid() changes:
+    the IDA worker is then killed and nothing is published after the caller has already seen a failure.
+    On Windows os.getppid() never changes, and dsigmatcher's kill-on-close job object ends the tree."""
+
+    def __init__(self):
+        threading.Thread.__init__(self, daemon=True)
+        self.Parent = os.getppid()
+        self.Gone = threading.Event()
+        self.Stopped = threading.Event()
+        self.Worker = None
+
+    def run(self):
+        while not self.Stopped.wait(1.0):
+            if os.getppid() != self.Parent:
+                self.Gone.set()
+                Worker = self.Worker
+                if Worker is not None and Worker.poll() is None:
+                    try:
+                        Worker.kill()
+                    except OSError:
+                        pass
+                return
+
+    def Check(self):
+        if self.Gone.is_set() or os.getppid() != self.Parent:
+            self.Gone.set()
+            raise ExportError(EXIT_INTERRUPTED, "the launcher (process %d) went away; nothing was published"
+                              % self.Parent)
+
+
 class Terminated(BaseException):
     pass
 
@@ -630,9 +883,9 @@ def Drive(Args):
         raise ExportError(EXIT_INPUT, "input not readable: %s (%s)" % (Input, Exc))
 
     # ---- the output
-    if Output.lower().endswith(IDA_EXTENSIONS):
-        raise ExportError(EXIT_USAGE, "the output must not have an IDA extension (%s): %s"
-                          % (", ".join(IDA_EXTENSIONS), Output))
+    if Output.lower().endswith(REFUSED_OUTPUT_EXTENSIONS):
+        raise ExportError(EXIT_USAGE, "the output must not have an IDA or PDB extension (%s): %s"
+                          % (", ".join(REFUSED_OUTPUT_EXTENSIONS), Output))
     if os.path.normcase(Output) == os.path.normcase(Input) or (
             os.path.exists(Output) and os.path.samefile(Output, Input)):
         raise ExportError(EXIT_USAGE, "the output is the input: %s" % Output)
@@ -644,10 +897,14 @@ def Drive(Args):
     # ---- the PDB
     PdbRecord = {"mode": "database" if Args.mode == "idb" else ("file" if Args.pdb else "none")}
     CodeView = None
+    PdbPath = os.path.abspath(Args.pdb) if Args.pdb else None
+    if PdbPath is not None and not os.path.isfile(PdbPath):
+        raise ExportError(EXIT_INPUT, "PDB not found: %s" % PdbPath)
+    # Nothing this run writes, replaces or moves aside may be the input or the PDB (audit F02).
+    Alias = WrittenPathAlias(Output, Sidecar, [("the input", Input)] + ([("the PDB", PdbPath)] if PdbPath else []))
+    if Alias:
+        raise ExportError(EXIT_USAGE, Alias)
     if Args.pdb:
-        PdbPath = os.path.abspath(Args.pdb)
-        if not os.path.isfile(PdbPath):
-            raise ExportError(EXIT_INPUT, "PDB not found: %s" % PdbPath)
         CodeView, Why = ReadCodeView(Input)
         if CodeView is None:
             raise ExportError(EXIT_PDB, "--pdb needs a PE that names a PDB: %s: %s" % (Input, Why))
@@ -677,13 +934,22 @@ def Drive(Args):
 
     if Args.temp_dir and not os.path.isdir(Args.temp_dir):
         raise ExportError(EXIT_OUTPUT, "--temp-dir does not exist: %s" % Args.temp_dir)
+    # A run that was killed (dsigmatcher terminated, a crash) cannot remove its work directory, which
+    # holds a copy of the user's database; the next run in the same place does (audit F43).
+    SweepWorkDirectories(Args.temp_dir or tempfile.gettempdir())
     try:
-        TempRoot = tempfile.mkdtemp(prefix="dsig-export-", dir=Args.temp_dir or None)
+        TempRoot = tempfile.mkdtemp(prefix=WORK_PREFIX, dir=Args.temp_dir or None)
     except OSError as Exc:
         raise ExportError(EXIT_OUTPUT, "cannot create a work directory: %s" % Exc)
     Log("work directory %s" % TempRoot)
     Worker = None
+    Watch = ParentWatch()
+    Watch.start()
     try:
+        try:
+            WriteOwner(TempRoot)
+        except OSError as Exc:
+            raise ExportError(EXIT_OUTPUT, "cannot write to the work directory %s: %s" % (TempRoot, Exc))
         WorkDir = os.path.join(TempRoot, "work")
         IdaUsr = os.path.join(TempRoot, "idausr")
         NoSymbols = os.path.join(TempRoot, "nosymbols")
@@ -742,6 +1008,11 @@ def Drive(Args):
         WorkerStarted = time.monotonic()
         Worker = subprocess.Popen(Command, cwd=WorkDir, env=Env, stdin=subprocess.DEVNULL,
                                   stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        Watch.Worker = Worker
+        try:
+            WriteOwner(TempRoot, Worker)
+        except OSError as Exc:
+            raise ExportError(EXIT_OUTPUT, "cannot write to the work directory %s: %s" % (TempRoot, Exc))
         Reader = WorkerOutput(Worker.stdout, os.path.join(TempRoot, "worker.log"))
         Reader.start()
         try:
@@ -753,6 +1024,7 @@ def Drive(Args):
             raise ExportError(EXIT_TIMEOUT, "timeout: IDA did not finish within %d s" % Args.timeout)
         Reader.join(60)
         WorkerSeconds = round(time.monotonic() - WorkerStarted, 3)
+        Watch.Check()
 
         # ---- the original must be untouched, whatever happened
         InputRecord["sha256_after"] = Sha256OfFile(Input)
@@ -808,6 +1080,7 @@ def Drive(Args):
             raise ExportError(EXIT_EXPORT, "Diaphora wrote no database")
 
         # ---- publish: copy beside the destination, then an atomic replace
+        Watch.Check()
         PublishOutput(ExportPath, Output)
 
         Stats = Result.get("export_stats") or {}
@@ -873,10 +1146,15 @@ def Drive(Args):
     except (KeyboardInterrupt, Terminated):
         raise ExportError(EXIT_INTERRUPTED, "interrupted")
     finally:
+        Watch.Stopped.set()
         if Worker is not None and Worker.poll() is None:
             Worker.kill()
             Worker.wait()
         if Args.keep_temp:
+            try:
+                WriteOwner(TempRoot, Kept=True)  # a later run's sweep leaves it alone
+            except OSError:
+                pass
             Log("work directory kept: %s" % TempRoot)
         elif not RemoveTree(TempRoot):
             Log("warning: could not remove the work directory %s" % TempRoot)
@@ -1056,8 +1334,16 @@ def RunWorker(SpecPath):
             if not Spec["allow_no_decompiler"]:
                 raise ExportError(EXIT_HEXRAYS, "the Hex-Rays decompiler is not available for this binary; an "
                                   "export without pseudo-code and microcode is not comparable with one that "
-                                  "has them (pass --allow-no-decompiler to export anyway)")
+                                  "has them (to export anyway set DSIG_EXPORT_ALLOW_NO_DECOMPILER=1, or pass "
+                                  "--allow-no-decompiler when running dsig_export.py directly)")
             Result["warnings"].append("exported WITHOUT Hex-Rays: no pseudo-code or microcode")
+
+        # A file IDA loads but finds no code in (a text file, data) would otherwise surface as Diaphora's
+        # "_diff_or_export returned None" (audit F57 d). An unsupported input: exit 15 (CLI exit 4).
+        import ida_funcs
+        if ida_funcs.get_func_qty() == 0:
+            raise ExportError(EXIT_OPEN, "IDA found no functions in '%s' (not an executable IDA can analyse, or "
+                              "the analysis failed)" % os.path.basename(Spec["input"]))
 
         diaphora_config, diaphora_ida = ImportDiaphora(Spec["diaphora_dir"])
         ShimDiaphoraUi(diaphora_ida)
@@ -1148,8 +1434,33 @@ def RunWorker(SpecPath):
 
 # ----------------------------------------------------------------------------- entry
 
+SEM_FAILCRITICALERRORS = 0x0001
+SEM_NOOPENFILEERRORBOX = 0x8000
+
+
+def QuietHardErrors():
+    """Windows: a failed DLL load fails instead of raising a modal dialog.
+
+    Under cmd.exe, PowerShell or Explorer a process may show critical-error dialogs. When idapro then
+    loads a broken or foreign idalib, Windows raises a modal "Bad Image" hard error and the headless
+    run blocks until someone clicks it. The worker started by the driver inherits this mode. Returns
+    the new mode (None elsewhere, or when it cannot be set)."""
+    if sys.platform != "win32":
+        return None
+    try:
+        import ctypes
+        Kernel32 = ctypes.WinDLL("kernel32")
+        Kernel32.GetErrorMode.restype = ctypes.c_uint
+        Kernel32.SetErrorMode.argtypes = (ctypes.c_uint,)
+        Kernel32.SetErrorMode(Kernel32.GetErrorMode() | SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX)
+        return Kernel32.GetErrorMode()
+    except (OSError, AttributeError):
+        return None
+
+
 def Main(Argv=None):
     Argv = sys.argv[1:] if Argv is None else Argv
+    QuietHardErrors()
     if Argv[:1] == ["_worker"]:
         if len(Argv) != 2:
             LogError("usage: dsig_export.py _worker <spec.json>")

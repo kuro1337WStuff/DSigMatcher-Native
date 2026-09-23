@@ -37,13 +37,19 @@ python dsig_export.py binary <binary> -o <out.sqlite> --diaphora-dir <diaphora> 
 
 | What | Order |
 |---|---|
-| Python (C++ CLI) | `--python`, `DSIG_PYTHON`, then `python.exe`/`python3.exe` (Windows) or `python3`/`python` on `PATH` |
-| `dsig_export.py` (C++ CLI) | `--export-script`, `DSIG_EXPORT_SCRIPT`, then next to the executable, `<prefix>/share/dsigmatcher/tools/export/`, or `tools/export/` in the executable's directory or any of its parents (a build directory inside the source tree) |
+| Python (C++ CLI) | `--python`, `DSIG_PYTHON`, then `python.exe`/`python3.exe` (Windows) or `python3`/`python` on `PATH`. On Windows a bare name means `<name>.exe`. |
+| `dsig_export.py` (C++ CLI) | `--export-script`, `DSIG_EXPORT_SCRIPT`, then `<exe dir>/dsig_export.py` (CMake copies it next to every built executable; ship it there in a zip), `<exe dir>/share/dsigmatcher/tools/export/`, or `<exe dir>/../share/dsigmatcher/tools/export/` (an install prefix). The executable's parent directories are **not** searched: a script planted higher up (for example `<drive>/tools/export/`) would otherwise run. The error lists every place that was searched. |
 | IDA | `--ida-dir`, `DSIG_IDADIR`, `IDADIR`, then idapro's `ida-config.json` (`Paths.ida-install-dir`) in the user's IDA directory |
 | Diaphora | `--diaphora-dir`, `DSIG_DIAPHORA_DIR`; required |
 
 The C++ side checks every tool before it starts anything and names **all** missing ones in one
 message, with exit code 4.
+
+**`--python` must be a real interpreter executable.** On Windows a `.bat`, `.cmd` or `.btm` file, or a
+file without an `MZ` header, is refused (exit 4). Such a file would be run by `cmd.exe`, which
+re-parses the arguments: a sample named `a&command&b.dll` would run `command`. This rules out the
+pyenv-win and conda shims, which are batch files. Point `--python` at the `python.exe` inside the
+environment instead. The Store's `python.exe` app-execution alias is still accepted.
 
 ## Modes
 
@@ -87,8 +93,12 @@ in the oracle. The resolved values go into the sidecar. The ones that matter mos
   therefore show more functions than the export has: the user's win32u database has 1516 in IDA and
   1510 in the export (1 library function and 5 thunks). The sidecar records both counts.
 - Pseudo-code and microcode come from Hex-Rays. Without Hex-Rays the run is refused (exit 13),
-  because such an export is not comparable with one that has them; `--allow-no-decompiler` (or
-  `DSIG_EXPORT_ALLOW_NO_DECOMPILER=1`) exports anyway and records it.
+  because such an export is not comparable with one that has them. `DSIG_EXPORT_ALLOW_NO_DECOMPILER=1`
+  exports anyway and records it; it works through `dsigmatcher extract`/`ingest`, which pass the
+  environment on. `--allow-no-decompiler` does the same, but only when `dsig_export.py` is run
+  directly: it is not a `dsigmatcher` option.
+- IDA must find at least one function. A file IDA loads but finds no code in (a text file, a data
+  blob) is refused with exit 15 (`dsigmatcher` exit 4), "IDA found no functions".
 - Diaphora's own size defaults still apply and are reported as warnings: microcode export is off
   above `MIN_FUNCTIONS_TO_CONSIDER_MEDIUM` (8001) functions, and only function summaries are exported
   above `MIN_FUNCTIONS_TO_CONSIDER_HUGE` (100000).
@@ -111,6 +121,18 @@ in the oracle. The resolved values go into the sidecar. The ones that matter mos
 - Every `DIAPHORA_*` variable is removed from the environment (Diaphora reads them through
   `get_value_for`, `diaphora.py:400-421`), as are `IDA_IS_INTERACTIVE`, `_NT_ALT_SYMBOL_PATH` and
   `_NT_SYMCACHE_PATH`.
+- Every `PYTHON*` variable is removed too (`PYTHONPATH`, `PYTHONHOME`, `PYTHONSTARTUP`, ...), except
+  the four the worker needs (`PYTHONDONTWRITEBYTECODE`, `PYTHONIOENCODING`, `PYTHONUTF8`,
+  `PYTHONUNBUFFERED`). A module on the caller's `PYTHONPATH` therefore cannot shadow `idapro`,
+  Diaphora or the script. The launcher starts the driver with `python -E`, so the driver ignores them
+  as well. The sidecar lists the removed names (never their values) under
+  `isolation.removed_environment`. If your `idapro` wheel is only reachable through `PYTHONPATH`,
+  install it into the interpreter instead; the copy in `<IDA>/idalib/python` is also used as a
+  fallback.
+- No program is looked up in the current directory. `git` (for the Diaphora revision) is resolved from
+  absolute `PATH` entries only and runs inside the Diaphora checkout. The launcher and the script set
+  `NoDefaultCurrentDirectoryInExePath=1` for everything they start, and the launcher starts the script
+  in the script's own directory rather than the caller's (often the sample's folder).
 - Results still depend on the IDA version and on the analysing host: IDA's PE loader reads
   `System32\<import>.dll` to name ordinal imports (see `docs/parity/09-oracle.md`, "Caveats"). An
   export is only comparable with the oracle when the IDA build, the Diaphora revision and the host
@@ -135,42 +157,67 @@ in the oracle. The resolved values go into the sidecar. The ones that matter mos
   output hashes it records.
 - The work directory (`--temp-dir`, else the system temp directory) holds the copies, the private
   `IDAUSR` and the worker log. It is removed unless `--keep-temp`.
+- A run that is killed (the launcher terminated, a crash, a power cut) cannot remove its work
+  directory, which may hold a copy of the user's database. Each work directory therefore has an
+  `owner.json` naming the driver and worker processes (pid and start time). Every run first removes
+  the `dsig-export-XXXXXXXX` directories in the same place whose processes are all gone. A directory
+  kept with `--keep-temp` is marked as kept and left alone. A directory without an owner file (an older
+  version) is removed only after 48 hours.
+
+**Refused output names.** Nothing the run writes, replaces or moves aside may be the input or the
+PDB. That covers the output, its `-wal`, `-shm`, `-journal` and `-crash` files, the sidecar, and the
+pid-named staging files (`<out>.dsig-tmp-<pid>`, `<out>-wal.dsig-old-<pid>`,
+`<sidecar>.tmp-<pid>`). Aliases are detected by name (case-insensitively on Windows and macOS), by hard
+link and by 8.3 short name. A `.pdb` output name is always refused. Every such refusal is exit 2,
+before anything runs, and leaves all files as they were. Both the launcher and the script check this.
 
 ## Exit codes
 
 | `dsig_export.py` | Meaning | `dsigmatcher` |
 |---|---|---|
 | 0 | ok | 0 |
-| 2 | usage (bad arguments, wrong input kind for the mode, output name) | 2 |
+| 2 | usage (bad arguments, wrong input kind for the mode, output name, an output that aliases the input or PDB, `--timeout` above 2592000 s) | 2 |
 | 10 | input or PDB file missing or unreadable | 6 |
 | 11 | IDA not found, or idalib cannot be loaded (licence, wrong Python) | 4 |
 | 12 | Diaphora not found, or it fails to import | 4 |
 | 13 | Hex-Rays unavailable | 4 |
 | 14 | the PDB does not belong to the binary, or `--pdb` on a non-PE | 2 |
-| 15 | IDA cannot open the input | 4 |
+| 15 | IDA cannot open the input, or finds no functions in it | 4 |
 | 16 | the export failed (Diaphora raised, crash marker, PDB not applied or applied unexpectedly, ...) | 6 |
 | 17 | THE INPUT CHANGED during the export | 6 |
 | 18 | timeout (`--timeout`) | 6 |
 | 19 | the output, sidecar or work directory cannot be written | 6 |
 | 20 | internal error | 6 |
-| 130 | interrupted | 6 |
+| 130 | interrupted, or the launcher went away (nothing is published) | 6 |
 
 The launcher itself also returns 2 for its own argument checks, 4 when Python, the script, IDA or
 Diaphora is missing (and for the Windows Store `python` placeholder, exit 9009), and 6 when the input
 is missing, the process cannot be started, the backstop timeout (`--timeout` + 120 s) kills the
 process tree, or the sidecar does not match the run. Its message always ends with the script's own
-`dsig_export: error: ...` line when there is one.
+`dsig_export: error: ...` line when there is one. After exit 13 it adds how to export anyway
+(`DSIG_EXPORT_ALLOW_NO_DECOMPILER=1`).
+
+`--timeout` accepts 0 (none) to 2592000 seconds (30 days) in both the launcher and the script. Longer
+waits cannot be expressed on every platform: a Windows wait is 32-bit milliseconds.
 
 ## How the launcher runs the script
 
-- `python -B -u dsig_export.py <mode> <input> -o <output> --sidecar <json> ...`, with
-  `PYTHONIOENCODING=utf-8`, `PYTHONUTF8=1`, `PYTHONDONTWRITEBYTECODE=1` and `PYTHONUNBUFFERED=1`
-  added to the inherited environment. Paths are absolute.
+- `python -E -X utf8 -B -u dsig_export.py <mode> <input> -o <output> --sidecar <json> ...`, started
+  in the script's directory, with `PYTHONIOENCODING=utf-8`, `PYTHONUTF8=1`,
+  `PYTHONDONTWRITEBYTECODE=1`, `PYTHONUNBUFFERED=1` and `NoDefaultCurrentDirectoryInExePath=1` added to
+  the inherited environment. Paths are absolute. `-E` makes the driver ignore `PYTHON*` variables;
+  `-I` and `-s` are not used, because the `idapro` wheel may live in the user's site-packages.
 - Windows: `CreateProcessW` with a UTF-16 command line quoted by the C runtime's rules (the rules
   `CommandLineToArgvW` and Python use), only the output pipe and `NUL` inherited, and a
   kill-on-close job object so a timeout, or the launcher exiting, ends the script and its IDA worker
-  together. Ctrl+C is left to the script, which stops IDA and removes its work directory.
-- POSIX: `posix_spawn`; on timeout SIGTERM (the script cleans up), then SIGKILL after 30 s.
+  together. Ctrl+C is left to the script, which stops IDA and removes its work directory. A batch file
+  is never started.
+- POSIX: `posix_spawn` into a new process group, so the script and its IDA worker are signalled
+  together. On timeout the group gets SIGTERM (the script cleans up), then SIGKILL after 30 s; once
+  the script has exited, anything left in its group is killed. SIGINT, SIGTERM and SIGHUP that reach
+  the launcher are forwarded to the group, because the group is no longer the terminal's foreground
+  group. If the launcher itself dies, the script notices that it has been re-parented, kills the
+  worker and publishes nothing (exit 130).
 - The script's output (IDA's console, Diaphora's log) is streamed to stderr. On success `dsigmatcher`
   prints a summary to stdout: output, function counts, the unchanged input sha256, the PDB, the tool
   versions and the sidecar path.
@@ -190,7 +237,12 @@ process tree, or the sidecar does not match the run. Its message always ends wit
   (`cryptbase-8875-pdb`), `ingest --no-pdb` of win32u 10.0.26100.9444 (`win32u-9444-nopdb`), and
   `extract` of a copy of the user's win32u `.i64` (`win32u-9168-useri64`, 1510 functions).
 - `python -B tools/export/selftest_dsig_export.py` checks the script's PE/PDB identity readers on
-  synthetic files and its argument and tool checks, without IDA.
+  synthetic files and its argument and tool checks, without IDA. It then runs whole driver + worker
+  exports against stand-in idalib and Diaphora modules: output aliasing, git lookup, the work-directory
+  sweep, the launcher-gone check, the timeout cap, the Hex-Rays advice, the no-functions refusal and
+  the `PYTHON*` isolation. `cli_export_bridge` runs this selftest whenever a Python is available
+  (`DSIG_PYTHON` or `python` on `PATH`), and skips it otherwise. It also runs the real script under a
+  `PYTHONPATH` whose `sitecustomize` would kill any interpreter that loaded it.
 - To compare an export with an oracle export by hand, run `tools/oracle/compare_exports.py` on
   **copies**: it opens both files read-write, which removes the leftover `-wal`/`-shm` pair next to an
   oracle export.

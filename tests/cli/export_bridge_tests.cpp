@@ -6,6 +6,12 @@
 //   * process tests that use THIS executable as the child (DSIG_TEST_CHILD_MODE = echo / sleep /
 //     fake-export), so argument passing, output capture, timeouts, tool discovery, error messages and
 //     the sidecar checks are exercised end to end without Python or IDA (ctest never needs either);
+//   * the v1.0.0 audit regressions (F02 path aliasing, F15 batch-file interpreters, F16 working
+//     directory and program lookup, F42 long timeouts, F45 script discovery, F46 Hex-Rays advice, F57 c
+//     messages, F64 error-line parsing, F66 PYTHON* isolation), with the same child modes; and, when a
+//     Python is available (DSIG_PYTHON or python on PATH; skipped otherwise), dsig_export.py's own
+//     selftest (F02, F16, F42, F43, F44, F46, F57 d, F66 on the script side) and a run of the real script
+//     under a hostile PYTHONPATH;
 //   * real exports, gated on DSIG_EXPORT_TESTS=1 plus DSIG_IDADIR and DSIG_DIAPHORA_DIR (DSIG_PYTHON or a
 //     python on PATH) and the corpus: ingest cryptbase 8875 with its PDB, ingest win32u 9444 without a
 //     PDB, and extract a COPY of the user's win32u .i64. Each result must equal the oracle export table
@@ -48,7 +54,9 @@
 #pragma comment(lib, "shell32.lib")
 #endif
 #else
+#include <signal.h>
 #include <stdlib.h>
+#include <unistd.h>
 #endif
 
 namespace {
@@ -177,7 +185,12 @@ std::string ArgumentAfter(const std::vector<std::string>& Arguments, const std::
   return std::string();
 }
 
-// Plays dsig_export.py: `<python> -B -u <script> <mode> <input> -o <output> --sidecar <json> ...`.
+// argv[1..] of the bridge's command line: -E -X utf8 -B -u <script> <mode> <input> -o <output> ...
+constexpr size_t kScriptIndex = 5;
+constexpr size_t kModeIndex = 6;
+constexpr size_t kInputIndex = 7;
+
+// Plays dsig_export.py: `<python> -E -X utf8 -B -u <script> <mode> <input> -o <output> --sidecar <json> ...`.
 int ChildFakeExport(const std::vector<std::string>& Arguments) {
   if (const auto Record = GetEnvUtf8("DSIG_TEST_CHILD_RECORD")) {
     std::string Lines;
@@ -185,16 +198,20 @@ int ChildFakeExport(const std::vector<std::string>& Arguments) {
       Lines += Hex(Argument) + "\n";
     }
     WriteFile(PathFromUtf8(*Record), Lines);
+    std::error_code Error;
+    const auto Switch = GetEnvUtf8("NoDefaultCurrentDirectoryInExePath");
+    WriteFile(PathFromUtf8(*Record + ".env"), "cwd " + Hex(PathToUtf8(fs::current_path(Error))) + "\nnodefault " +
+                                                  Hex(Switch.value_or("-")) + "\n");
   }
   const int Exit = EnvInt("DSIG_TEST_CHILD_EXIT", 0);
   if (Exit != 0) {
     std::printf("[dsig_export] pretending to fail\ndsig_export: error: fake failure %d\n", Exit);
     return Exit;
   }
-  if (Arguments.size() < 6) {
+  if (Arguments.size() < kInputIndex + 2) {
     return 99;
   }
-  const fs::path Input = PathFromUtf8(Arguments[4]);
+  const fs::path Input = PathFromUtf8(Arguments[kInputIndex]);
   if (GetEnvUtf8("DSIG_TEST_CHILD_TOUCH_INPUT")) {
     std::ofstream(Input, std::ios::binary | std::ios::app) << "x";
   }
@@ -206,7 +223,7 @@ int ChildFakeExport(const std::vector<std::string>& Arguments) {
   WriteFile(Output, "fake export database");
   const std::string InputSha = GetEnvUtf8("DSIG_TEST_CHILD_BAD_SHA") ? std::string(64, '0') : *FileSha256(Input);
   const bool Pdb = !ArgumentAfter(Arguments, "--pdb").empty();
-  std::string Json = "{\"schema\": \"dsig-export/1\", \"mode\": " + Diff::JsonQuote(Arguments[3]) +
+  std::string Json = "{\"schema\": \"dsig-export/1\", \"mode\": " + Diff::JsonQuote(Arguments[kModeIndex]) +
                      ", \"input\": {\"sha256\": \"" + InputSha + "\", \"unchanged\": true}, \"output\": {\"sha256\": \"" +
                      *FileSha256(Output) +
                      "\"}, \"counts\": {\"functions\": 3, \"functions_named\": 2, \"functions_sub\": 1, "
@@ -231,6 +248,32 @@ int RunChild(const std::string& Mode, int Argc, char** Argv) {
   if (Mode == "fake-export") {
     return ChildFakeExport(Arguments);
   }
+  if (Mode == "find-script") {
+    // What a dsigmatcher installed where this copy of the test executable lives would run.
+    const Located Script = FindExportScript(std::string());
+    if (Script.Ok()) {
+      std::printf("SCRIPT %s\n", Hex(PathToUtf8(Script.Path)).c_str());
+    } else {
+      std::printf("ERROR %s\n", Script.Error.c_str());
+    }
+    return 0;
+  }
+#ifdef _WIN32
+  if (Mode == "error-mode") {
+    std::printf("ERRORMODE %u\n", GetErrorMode());
+    return 0;
+  }
+  if (Mode == "load-bad-image" && !Arguments.empty()) {
+    // What idapro does with a broken idalib. With critical-error dialogs on, this blocks on a modal
+    // "Bad Image" hard error until someone clicks it.
+    const HMODULE Module = LoadLibraryW(PathFromUtf8(Arguments[0]).c_str());
+    std::printf("LOADED %d\n", Module != nullptr ? 1 : 0);
+    if (Module != nullptr) {
+      FreeLibrary(Module);
+    }
+    return 0;
+  }
+#endif
   return 98;
 }
 
@@ -328,9 +371,60 @@ void TestExitMapping() {
   CHECK(Contains(MapToolExit(kToolInputChanged).What, "INPUT CHANGED"));
 }
 
+void TestToolErrorLine() {
+  Test::Suite("the script's error line (F64)");
+  CHECK_TEXT_EQ(ToolErrorLine(""), "");
+  CHECK_TEXT_EQ(ToolErrorLine("dsig_export: error: at the very start"), "at the very start");
+  CHECK_TEXT_EQ(ToolErrorLine("x\ndsig_export: error: first\r\ny\ndsig_export: error: last\r\nz"), "last");
+  // A prefix inside a line (quoted by IDA or Diaphora) is not the script's error line.
+  CHECK_TEXT_EQ(ToolErrorLine("dsig_export: error: real\nlog: dsig_export: error: quoted"), "real");
+  CHECK_TEXT_EQ(ToolErrorLine("only quoted: dsig_export: error: no"), "");
+  CHECK_TEXT_EQ(ToolErrorLine("a\ndsig_export: error: "), "");
+}
+
+void TestSameFile(const std::string& Scratch) {
+  Test::Suite("path identity and written-path aliasing (F02)");
+  const fs::path Dir = PathFromUtf8(Scratch) / "same file";
+  std::error_code Error;
+  fs::create_directories(Dir, Error);
+  WriteFile(Dir / "a.dll", "a");
+  CHECK(SameFile(Dir / "a.dll", Dir / "." / "a.dll"));
+  CHECK(!SameFile(Dir / "a.dll", Dir / "b.dll"));
+  CHECK(!SameFile(Dir / "a.dll", fs::path()));
+  fs::create_hard_link(Dir / "a.dll", Dir / "hard link.sqlite", Error);
+  if (!Error) {
+    CHECK(SameFile(Dir / "a.dll", Dir / "hard link.sqlite"));
+  }
+#if defined(_WIN32) || defined(__APPLE__)
+  CHECK(SameFile(Dir / "a.dll", Dir / "A.DLL"));
+#endif
+  const fs::path Output = Dir / "out.sqlite";
+  const fs::path Sidecar = SidecarPathFor(Output);
+  const auto Refused = [&](const fs::path& Input) {
+    WriteFile(Input, "input");
+    const bool Result = WrittenPathAlias(Output, Sidecar, {{"the input", Input}}).has_value();
+    fs::remove(Input, Error);
+    return Result;
+  };
+  for (const char* Name : {"out.sqlite", "out.sqlite-wal", "out.sqlite-shm", "out.sqlite-journal", "out.sqlite-crash",
+                           "out.export.json", "out.sqlite.dsig-tmp-17", "out.sqlite-wal.dsig-old-17",
+                           "out.sqlite-crash.dsig-old-17", "out.export.json.tmp-17"}) {
+    CHECK(Refused(Dir / Name));
+  }
+  for (const char* Name : {"out.sqlite-walrus.dll", "out.dll", "out.sqlite.bak", "xout.sqlite-wal"}) {
+    CHECK(!Refused(Dir / Name));
+  }
+#if defined(_WIN32)
+  CHECK(Refused(Dir / "OUT.SQLITE-WAL"));
+  CHECK(Refused(Dir / "Out.Sqlite.DSIG-TMP-3"));
+#endif
+  const auto Message = WrittenPathAlias(Output, Sidecar, {{"the PDB", Dir / "a.dll"}, {"the input", Output}});
+  CHECK(Message.has_value() && Contains(*Message, "refusing to overwrite an input (nothing was changed)"));
+}
+
 // ------------------------------------------------------------------------------------------------ processes
 
-void TestRunProcess() {
+void TestRunProcess(const std::string& Scratch) {
   Test::Suite("process launch (this executable as the child)");
   const fs::path Self = SelfExecutablePath();
   CHECK(!Self.empty());
@@ -382,6 +476,125 @@ void TestRunProcess() {
   const ProcessResult Missing = RunProcess({PathToUtf8(Self.parent_path() / "no-such-program.exe")}, {}, 5, nullptr);
   CHECK(!Missing.Started);
   CHECK(!Missing.Error.empty());
+
+  // F42: a long timeout is honoured, not wrapped. 4294848 s * 1000 used to wrap to 0.7 s as a DWORD.
+  for (const int64_t Long : {int64_t{4294848}, int64_t{4294967} + 120, int64_t{1} << 40}) {
+    const auto Begin = std::chrono::steady_clock::now();
+    const ProcessResult Waited =
+        RunProcess({PathToUtf8(Self)}, {{"DSIG_TEST_CHILD_MODE", "sleep"}, {"DSIG_TEST_CHILD_SLEEP", "2"}}, Long, nullptr);
+    const auto Elapsed =
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - Begin).count();
+    CHECK(Waited.Started);
+    CHECK(!Waited.TimedOut);
+    CHECK_NUM_EQ(Waited.ExitCode, 0);
+    CHECK(Elapsed >= 1500);
+  }
+
+#ifdef _WIN32
+  // A child that fails to load a DLL must not block on a modal hard-error dialog. cmd.exe, and so ctest
+  // under dsig_build.cmd, leaves those dialogs on; emulate that whatever started this suite.
+  Test::Suite("process launch: no hard-error dialogs in the child");
+  const UINT SavedMode = GetErrorMode();
+  SetErrorMode(0);
+  const ProcessResult ModeRun = RunProcess({PathToUtf8(Self)}, {{"DSIG_TEST_CHILD_MODE", "error-mode"}}, 60, nullptr);
+  CHECK_NUM_EQ(GetErrorMode(), 0u);  // this process's own mode is restored
+  unsigned ChildMode = 0;
+  for (const std::string& Line : SplitLines(ModeRun.Tail)) {
+    if (Line.rfind("ERRORMODE ", 0) == 0) {
+      ChildMode = static_cast<unsigned>(std::strtoul(Line.c_str() + 10, nullptr, 10));
+    }
+  }
+  CHECK(ModeRun.Started);
+  CHECK_NUM_EQ(ChildMode & (SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX),
+               static_cast<unsigned>(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX));
+  const fs::path BadImage = PathFromUtf8(Scratch) / "bad image" / "idalib.dll";
+  std::error_code Error;
+  fs::create_directories(BadImage.parent_path(), Error);
+  WriteFile(BadImage, "x");
+  const ProcessResult Load = RunProcess({PathToUtf8(Self), PathToUtf8(BadImage)},
+                                        {{"DSIG_TEST_CHILD_MODE", "load-bad-image"}}, 60, nullptr);
+  CHECK(Load.Started);
+  CHECK(!Load.TimedOut);
+  CHECK_NUM_EQ(Load.ExitCode, 0);
+  CHECK(Contains(Load.Tail, "LOADED 0"));
+  SetErrorMode(SavedMode);
+#else
+  (void)Scratch;
+#endif
+}
+
+// F44: on POSIX the script runs in its own process group, which the bridge signals as a whole.
+void TestProcessGroup(const std::string& Scratch) {
+#ifdef _WIN32
+  (void)Scratch;
+  Test::Skip("process group (F44)", "POSIX only: Windows uses a kill-on-close job object");
+#else
+  Test::Suite("process group (F44)");
+  const fs::path Dir = PathFromUtf8(Scratch) / "group";
+  std::error_code Error;
+  fs::create_directories(Dir, Error);
+  const auto Alive = [](const fs::path& PidFile) {
+    std::ifstream Stream(PidFile);
+    int Pid = 0;
+    return static_cast<bool>(Stream >> Pid) && Pid > 0 && kill(Pid, 0) == 0;
+  };
+  // A timeout reaches the script's own children, not only the script.
+  const fs::path First = Dir / "first.pid";
+  ProcessResult Run =
+      RunProcess({"/bin/sh", "-c", "sleep 300 & echo $! > '" + PathToUtf8(First) + "'; sleep 300"}, {}, 1, nullptr);
+  CHECK(Run.Started && Run.TimedOut);
+  std::this_thread::sleep_for(std::chrono::milliseconds(300));
+  CHECK(fs::exists(First) && !Alive(First));
+  // A child the script left running dies with the group once the script has exited.
+  const fs::path Second = Dir / "second.pid";
+  Run = RunProcess({"/bin/sh", "-c", "sleep 300 & echo $! > '" + PathToUtf8(Second) + "'; exit 7"}, {}, 0, nullptr);
+  CHECK_NUM_EQ(Run.ExitCode, 7);
+  std::this_thread::sleep_for(std::chrono::milliseconds(300));
+  CHECK(fs::exists(Second) && !Alive(Second));
+  // SIGINT that reaches the launcher (here sent by the script to its parent) is forwarded to the group.
+  // Not when this process ignores SIGINT (started as a background job): it then stays ignored.
+  struct sigaction Before {};
+  sigaction(SIGINT, nullptr, &Before);
+  if (Before.sa_handler == SIG_IGN) {
+    Test::Note("SIGINT is ignored by this process (a background job): forwarding not checked");
+  } else {
+    Run = RunProcess({"/bin/sh", "-c", "trap 'echo GOT-INT; exit 130' INT; kill -INT $PPID; sleep 30 & wait"}, {},
+                     60, nullptr);
+    CHECK_NUM_EQ(Run.ExitCode, 130);
+    CHECK(Contains(Run.Tail, "GOT-INT"));
+  }
+  struct sigaction After {};
+  sigaction(SIGINT, nullptr, &After);
+  CHECK(After.sa_handler == Before.sa_handler);  // the launcher's own disposition is restored
+#endif
+}
+
+void TestBatchRefusal(const std::string& Scratch) {
+#ifdef _WIN32
+  Test::Suite("batch files are never started (F15)");
+  const fs::path Dir = PathFromUtf8(Scratch) / "batch";
+  std::error_code Error;
+  fs::create_directories(Dir, Error);
+  const fs::path Marker = Dir / "batch ran";
+  const fs::path Batch = Dir / "shim.bat";
+  WriteFile(Batch, "@echo off\r\nmkdir \"" + PathToUtf8(Marker) + "\"\r\n");
+  const ProcessResult Run = RunProcess({PathToUtf8(Batch), "a&b"}, {}, 30, nullptr);
+  CHECK(!Run.Started);
+  CHECK(Contains(Run.Error, "batch file"));
+  CHECK(!fs::exists(Marker));
+  CHECK(!InterpreterProblem(Batch).empty());
+  CHECK(!InterpreterProblem(Dir / "SHIM.CMD").empty());
+  CHECK(!InterpreterProblem(Dir / "shim.btm").empty());
+  CHECK(!InterpreterProblem(PathFromUtf8(PathToUtf8(Batch) + ". .")).empty());
+  WriteFile(Dir / "python", "#!/bin/sh\nexec python3 \"$@\"\n");
+  CHECK(Contains(InterpreterProblem(Dir / "python"), "MZ"));
+  CHECK(InterpreterProblem(SelfExecutablePath()).empty());
+  CHECK(InterpreterProblem(Dir / "missing app alias.exe").empty());  // unreadable .exe: the Store alias case
+  CHECK(!InterpreterProblem(Dir / "missing.txt").empty());
+#else
+  (void)Scratch;
+  Test::Skip("batch files are never started (F15)", "Windows only: posix_spawn with an argv involves no shell");
+#endif
 }
 
 struct FakeTools {
@@ -484,7 +697,8 @@ void TestFakeExports(const std::string& Scratch) {
     CHECK(NoPdbLine);
     CHECK(Functions);
     const std::vector<std::string> Expected = {
-        "-B", "-u", PathToUtf8(Fake.Script), "binary", PathToUtf8(Fake.Input), "-o", PathToUtf8(Fake.Output),
+        "-E", "-X", "utf8", "-B", "-u", PathToUtf8(Fake.Script), "binary", PathToUtf8(Fake.Input), "-o",
+        PathToUtf8(Fake.Output),
         "--sidecar", PathToUtf8(Fake.Root / PathFromUtf8("out \xC3\xBC.export.json")), "--ida-dir",
         PathToUtf8(Fake.IdaDir), "--diaphora-dir", PathToUtf8(Fake.DiaphoraDir), "--temp-dir",
         PathToUtf8(fs::absolute(PathFromUtf8(Args.Tools.TempDir)).lexically_normal()), "--keep-temp", "--timeout",
@@ -494,6 +708,58 @@ void TestFakeExports(const std::string& Scratch) {
     for (size_t Index = 0; Index < Expected.size() && Index < Recorded.size(); ++Index) {
       CHECK_TEXT_EQ(Recorded[Index], Hex(Expected[Index]));
     }
+    // F16: the script starts in its own directory with the current-directory program lookup switched off
+    const std::vector<std::string> Env = SplitLines(ReadFile(PathFromUtf8(PathToUtf8(Fake.Record) + ".env")));
+    CHECK(Env.size() == 2);
+    if (Env.size() == 2) {
+#ifdef _WIN32
+      // Windows searches the current directory for programs and DLLs; POSIX does not, and posix_spawn
+      // has no portable chdir, so the working directory is only set on Windows.
+      CHECK_TEXT_EQ(Env[0], "cwd " + Hex(PathToUtf8(Fake.Script.parent_path())));
+#endif
+      CHECK_TEXT_EQ(Env[1], "nodefault " + Hex("1"));
+    }
+  }
+
+  // F42: --timeout is range-checked; the largest accepted value is passed on as is
+  {
+    for (const int Bad : {-1, kMaxTimeoutSeconds + 1, 2147483647}) {
+      ClearRecord(Fake);
+      IngestArgs Args;
+      Args.Input = PathToUtf8(Fake.Input);
+      Args.Output = PathToUtf8(Fake.Output);
+      Args.Tools = FakeOptions(Fake);
+      Args.Tools.TimeoutSeconds = Bad;
+      const CommandOutcome Outcome = RunIngest(Args);
+      CHECK_NUM_EQ(Outcome.ExitCode, kExitUsage);
+      CHECK(Contains(Outcome.Message, "--timeout must be between 0 and 2592000"));
+      CHECK(!fs::exists(Fake.Record));
+    }
+    ClearRecord(Fake);
+    IngestArgs Args;
+    Args.Input = PathToUtf8(Fake.Input);
+    Args.Output = PathToUtf8(Fake.Output);
+    Args.Tools = FakeOptions(Fake);
+    Args.Tools.TimeoutSeconds = kMaxTimeoutSeconds;
+    CHECK_NUM_EQ(RunIngest(Args).ExitCode, kExitOk);
+    CHECK(ArgumentAfter(RecordedArguments(Fake), Hex("--timeout")) == Hex("2592000"));
+  }
+
+  // F15: a sample whose name holds cmd metacharacters reaches the interpreter as one literal argument
+  {
+    ClearRecord(Fake);
+    const fs::path Hostile = Fake.Root / PathFromUtf8("a&md,PWNED&b %PATH% ^x.dll");
+    WriteFile(Hostile, std::string("MZ hostile name", 15));
+    IngestArgs Args;
+    Args.Input = PathToUtf8(Hostile);
+    Args.Output = PathToUtf8(Fake.Output);
+    Args.Tools = FakeOptions(Fake);
+    CHECK_NUM_EQ(RunIngest(Args).ExitCode, kExitOk);
+    const std::vector<std::string> Recorded = RecordedArguments(Fake);
+    CHECK(Recorded.size() > kInputIndex && Recorded[kInputIndex] == Hex(PathToUtf8(Hostile)));
+    std::error_code Error;
+    CHECK(!fs::exists(Fake.Root / "PWNED", Error) && !fs::exists(fs::current_path(Error) / "PWNED", Error));
+    fs::remove(Hostile, Error);
   }
 
   // ingest --pdb
@@ -527,7 +793,8 @@ void TestFakeExports(const std::string& Scratch) {
     CHECK_NUM_EQ(Outcome.ExitCode, kExitOk);
     CHECK(!Outcome.Report.empty() && Contains(Outcome.Report[0], "extract: wrote"));
     const std::vector<std::string> Recorded = RecordedArguments(Fake);
-    CHECK(Recorded.size() >= 5 && Recorded[3] == Hex("idb") && Recorded[4] == Hex(PathToUtf8(Fake.Database)));
+    CHECK(Recorded.size() > kInputIndex && Recorded[kModeIndex] == Hex("idb") &&
+          Recorded[kInputIndex] == Hex(PathToUtf8(Fake.Database)));
     bool AnyPdb = false;
     for (const std::string& Line : Recorded) {
       AnyPdb = AnyPdb || Line == Hex("--pdb") || Line == Hex("--no-pdb");
@@ -548,7 +815,7 @@ void TestFakeExports(const std::string& Scratch) {
     const CommandOutcome Outcome = RunIngest(Args);
     CHECK_NUM_EQ(Outcome.ExitCode, kExitOk);
     const std::vector<std::string> Recorded = RecordedArguments(Fake);
-    CHECK(Recorded.size() > 2 && Recorded[2] == Hex(PathToUtf8(Fake.Script)));
+    CHECK(Recorded.size() > kScriptIndex && Recorded[kScriptIndex] == Hex(PathToUtf8(Fake.Script)));
     CHECK(ArgumentAfter(Recorded, Hex("--ida-dir")) == Hex(PathToUtf8(Fake.IdaDir)));
     CHECK(Recorded.back() == Hex("--no-pdb"));  // neither flag: no PDB is the default
     for (const char* Name : {"DSIG_PYTHON", "DSIG_IDADIR", "DSIG_DIAPHORA_DIR", "DSIG_EXPORT_SCRIPT"}) {
@@ -603,6 +870,8 @@ void TestFakeExports(const std::string& Scratch) {
     CHECK(Contains(Outcome.Message, Each.Text));
     CHECK(Contains(Outcome.Message, "fake failure " + std::to_string(Each.ToolExit)));
     CHECK(Contains(Outcome.Message, "(dsig_export.py exit " + std::to_string(Each.ToolExit) + ")"));
+    // F46: the advice names what works through dsigmatcher, not the script-only flag
+    CHECK(Contains(Outcome.Message, "DSIG_EXPORT_ALLOW_NO_DECOMPILER=1") == (Each.ToolExit == kToolHexRays));
   }
   SetEnv("DSIG_TEST_CHILD_EXIT", std::nullopt);
 
@@ -702,6 +971,131 @@ void TestValidationAndMissingTools(const std::string& Scratch) {
   CHECK_NUM_EQ(Outcome.ExitCode, kExitUnsupported);
   CHECK(Contains(Outcome.Message, "export script not found: --export-script '"));
 
+#ifdef _WIN32
+  // F15: a batch or script shim as the interpreter is refused before anything starts; the shim would
+  // create the marker if cmd.exe ever ran it.
+  {
+    const fs::path Marker = Fake.Root / "shim ran";
+    const std::string Body = "@echo off\r\nmkdir \"" + PathToUtf8(Marker) + "\"\r\n";
+    WriteFile(Fake.Root / "python.bat", Body);
+    WriteFile(Fake.Root / "python.CMD", Body);
+    WriteFile(Fake.Root / "python", "#!/bin/sh\nexec python3 \"$@\"\n");
+    for (const std::string& Shim : {PathToUtf8(Fake.Root / "python.bat"), PathToUtf8(Fake.Root / "python.bat") + ".",
+                                    PathToUtf8(Fake.Root / "python")}) {
+      Outcome = Ingest([&](IngestArgs& A) { A.Tools.Python = Shim; });
+      CHECK_NUM_EQ(Outcome.ExitCode, kExitUnsupported);
+      CHECK(Contains(Outcome.Message, "Python not found: --python '" + Shim + "'"));
+      CHECK(Contains(Outcome.Message, "point --python at python.exe itself"));
+    }
+    SetEnv("DSIG_PYTHON", PathToUtf8(Fake.Root / "python.CMD"));
+    Outcome = Ingest([&](IngestArgs& A) { A.Tools.Python.clear(); });
+    CHECK_NUM_EQ(Outcome.ExitCode, kExitUnsupported);
+    CHECK(Contains(Outcome.Message, "Python not found: DSIG_PYTHON '") && Contains(Outcome.Message, "batch file"));
+    SetEnv("DSIG_PYTHON", std::nullopt);
+    // A bare name means name.exe on Windows; a shim of that name on PATH is not picked up.
+    const std::optional<std::string> SavedPath = GetEnvUtf8("PATH");
+    WriteFile(Fake.Root / "dsigshim.bat", Body);
+    WriteFile(Fake.Root / "dsigshim", "not a program");
+    SetEnv("PATH", PathToUtf8(Fake.Root) + ";" + SavedPath.value_or(""));
+    Outcome = Ingest([&](IngestArgs& A) { A.Tools.Python = "dsigshim"; });
+    SetEnv("PATH", SavedPath);
+    CHECK_NUM_EQ(Outcome.ExitCode, kExitUnsupported);
+    CHECK(Contains(Outcome.Message, "is not on PATH"));
+    CHECK(!fs::exists(Marker));
+    CHECK(!fs::exists(Fake.Record));
+  }
+#endif
+
+  // F02: nothing the script writes, replaces or moves aside may be the input or the PDB. Each refusal
+  // is exit 2 before anything starts, and the protected file keeps its bytes.
+  {
+    const fs::path Dir = Fake.Root / "aliases";
+    std::error_code Error;
+    fs::create_directories(Dir, Error);
+    const fs::path Out = Dir / "out.sqlite";
+    const auto Refused = [&](const std::function<void(IngestArgs&)>& Change, const fs::path& Protected,
+                             const char* What) {
+      ClearRecord(Fake);
+      const std::string Before = ReadFile(Protected);
+      IngestArgs Args;
+      Args.Input = PathToUtf8(Fake.Input);
+      Args.Output = PathToUtf8(Out);
+      Args.Tools = FakeOptions(Fake);
+      Change(Args);
+      const CommandOutcome Result = RunIngest(Args);
+      CHECK_NUM_EQ(Result.ExitCode, kExitUsage);
+      CHECK(ReadFile(Protected) == Before && !Before.empty());
+      CHECK(!fs::exists(Fake.Record));
+      if (Result.ExitCode != kExitUsage) {
+        Test::Note(std::string(What) + ": " + Result.Message);
+      }
+      return Result.Message;
+    };
+    const auto Place = [&](const char* Name, const fs::path& From) {
+      fs::copy_file(From, Dir / PathFromUtf8(Name), fs::copy_options::overwrite_existing, Error);
+      return Dir / PathFromUtf8(Name);
+    };
+    // the audit's repro (a): -o <pdb> --pdb <pdb>
+    const fs::path Pdb = Place("cryptbase.pdb", Fake.Pdb);
+    std::string Message = Refused([&](IngestArgs& A) { A.Output = PathToUtf8(Pdb); A.Pdb = PathToUtf8(Pdb); }, Pdb,
+                                  "-o pdb --pdb pdb");
+    CHECK(Contains(Message, ".pdb"));
+    // the audit's repro (b): an input named <out>-wal, and the other names PublishOutput renames aside
+    for (const char* Suffix : {"-wal", "-shm", "-journal", "-crash"}) {
+      const fs::path Input = Place((std::string("out.sqlite") + Suffix).c_str(), Fake.Input);
+      Message = Refused([&](IngestArgs& A) { A.Input = PathToUtf8(Input); A.NoPdb = true; }, Input, Suffix);
+      CHECK(Contains(Message, std::string("the output's ") + Suffix + " file"));
+      CHECK(Contains(Message, "refusing to overwrite an input (nothing was changed)"));
+      fs::rename(Input, Dir / "moved.pdb", Error);
+      const fs::path AsPdb = Dir / PathFromUtf8(std::string("out.sqlite") + Suffix);
+      fs::rename(Dir / "moved.pdb", AsPdb, Error);
+      Message = Refused([&](IngestArgs& A) { A.Pdb = PathToUtf8(AsPdb); }, AsPdb, "--pdb <out>-wal");
+      CHECK(Contains(Message, "the PDB"));
+      fs::remove(AsPdb, Error);
+    }
+    for (const char* Name : {"out.export.json", "out.sqlite.dsig-tmp-4242", "out.sqlite-shm.dsig-old-4242",
+                             "out.export.json.tmp-4242"}) {
+      const fs::path Input = Place(Name, Fake.Input);
+      Refused([&](IngestArgs& A) { A.Input = PathToUtf8(Input); }, Input, Name);
+      fs::remove(Input, Error);
+    }
+#if defined(_WIN32)
+    {
+      const fs::path Input = Place("OUT.SQLITE-JOURNAL", Fake.Input);
+      Refused([&](IngestArgs& A) { A.Input = PathToUtf8(Input); }, Input, "case variant");
+      fs::remove(Input, Error);
+      const fs::path WalPdb = Place("cb.sqlite-wal", Fake.Pdb);
+      Refused([&](IngestArgs& A) { A.Output = PathToUtf8(Dir / "CB.SQLITE"); A.Pdb = PathToUtf8(WalPdb); }, WalPdb,
+              "a PDB at the output's -wal name under another case");
+      fs::remove(WalPdb, Error);
+    }
+#endif
+    // a hard link of the input as the output is the input
+    fs::create_hard_link(Fake.Input, Dir / "linked.sqlite", Error);
+    if (!Error) {
+      Message = Refused([&](IngestArgs& A) { A.Output = PathToUtf8(Dir / "linked.sqlite"); }, Fake.Input, "hard link");
+      CHECK(Contains(Message, "the output is the input"));
+      fs::remove(Dir / "linked.sqlite", Error);
+    }
+    // control: a name that only looks similar is accepted (and runs the fake export)
+    {
+      ClearRecord(Fake);
+      const fs::path Input = Place("out.sqlite-walrus.dll", Fake.Input);
+      IngestArgs Args;
+      Args.Input = PathToUtf8(Input);
+      Args.Output = PathToUtf8(Out);
+      Args.Tools = FakeOptions(Fake);
+      SetEnv("DSIG_TEST_CHILD_MODE", "fake-export");
+      SetEnv("DSIG_TEST_CHILD_RECORD", PathToUtf8(Fake.Record));
+      CHECK_NUM_EQ(RunIngest(Args).ExitCode, kExitOk);
+      SetEnv("DSIG_TEST_CHILD_MODE", std::nullopt);
+      SetEnv("DSIG_TEST_CHILD_RECORD", std::nullopt);
+      fs::remove(Input, Error);
+      fs::remove(Out, Error);
+      fs::remove(SidecarPathFor(Out), Error);
+    }
+  }
+
   // all at once: every missing tool is named in one message
   Outcome = Ingest([&](IngestArgs& A) {
     A.Tools.Python = PathToUtf8(Nowhere / "python");
@@ -750,6 +1144,125 @@ void TestValidationAndMissingTools(const std::string& Scratch) {
   Outcome = Extract([&](ExtractArgs& A) { A.Output.clear(); });
   CHECK_NUM_EQ(Outcome.ExitCode, kExitUsage);
   CHECK(!fs::exists(Fake.Output));  // nothing was launched by any of the above
+}
+
+// F45 and F57 c: a release binary finds dsig_export.py only beside itself or in share/, never in an
+// ancestor's tools/export/; the error lists the places it looked.
+void TestScriptDiscovery(const std::string& Scratch) {
+  Test::Suite("export script discovery (F45, F57 c)");
+  const fs::path Exe = PathFromUtf8("some prefix") / "bin" / "dsigmatcher";
+  const std::vector<fs::path> Candidates = ExportScriptCandidates(Exe);
+  CHECK_NUM_EQ(Candidates.size(), 3);
+  if (Candidates.size() == 3) {
+    CHECK(Candidates[0] == Exe.parent_path() / "dsig_export.py");
+    CHECK(Candidates[1] == Exe.parent_path() / "share" / "dsigmatcher" / "tools" / "export" / "dsig_export.py");
+    CHECK(Candidates[2] == PathFromUtf8("some prefix") / "share" / "dsigmatcher" / "tools" / "export" / "dsig_export.py");
+  }
+  CHECK(ExportScriptCandidates(fs::path()).empty());
+
+  // The audit's repro: the executable deep below a directory holding a planted tools/export/dsig_export.py.
+  const fs::path Deep = PathFromUtf8(Scratch) / "deep";
+  const fs::path Bin = Deep / "x" / "y" / "bin";
+  std::error_code Error;
+  fs::create_directories(Bin, Error);
+  const fs::path Self = SelfExecutablePath();
+  const fs::path Copy = Bin / Self.filename();
+  fs::copy_file(Self, Copy, fs::copy_options::overwrite_existing, Error);
+  CHECK(!Error);
+  for (const fs::path& Ancestor : {Deep, Deep / "x", Deep / "x" / "y", Bin}) {
+    fs::create_directories(Ancestor / "tools" / "export", Error);
+    WriteFile(Ancestor / "tools" / "export" / "dsig_export.py", "print('PLANTED SCRIPT RAN')\n");
+  }
+  const std::vector<std::pair<std::string, std::string>> Child = {{"DSIG_TEST_CHILD_MODE", "find-script"},
+                                                                  {"DSIG_EXPORT_SCRIPT", ""}};
+  ProcessResult Run = RunProcess({PathToUtf8(Copy)}, Child, 60, nullptr);
+  CHECK(Run.Started && Run.ExitCode == 0);
+  CHECK(!Contains(Run.Tail, "SCRIPT "));
+  CHECK(Contains(Run.Tail, "ERROR export script not found: no dsig_export.py at '" + PathToUtf8(Bin / "dsig_export.py")));
+  CHECK(Contains(Run.Tail, PathToUtf8(Bin.parent_path() / "share" / "dsigmatcher" / "tools" / "export" / "dsig_export.py")));
+  CHECK(Contains(Run.Tail, "(pass --export-script <path> or set DSIG_EXPORT_SCRIPT)"));
+  // The install layout is still found: <prefix>/share/dsigmatcher/tools/export beside bin/.
+  const fs::path Shared = Bin.parent_path() / "share" / "dsigmatcher" / "tools" / "export" / "dsig_export.py";
+  fs::create_directories(Shared.parent_path(), Error);
+  WriteFile(Shared, "# the installed script\n");
+  Run = RunProcess({PathToUtf8(Copy)}, Child, 60, nullptr);
+  CHECK(Contains(Run.Tail, "SCRIPT " + Hex(PathToUtf8(Shared))));
+  // And beside the executable wins.
+  WriteFile(Bin / "dsig_export.py", "# beside\n");
+  Run = RunProcess({PathToUtf8(Copy)}, Child, 60, nullptr);
+  CHECK(Contains(Run.Tail, "SCRIPT " + Hex(PathToUtf8(Bin / "dsig_export.py"))));
+}
+
+// With a real Python: dsig_export.py's selftest (the script-side regressions) and the real script under
+// a PYTHONPATH whose sitecustomize kills any interpreter that loads it (F66).
+void TestWithRealPython(const std::string& Scratch, const std::optional<std::string>& PythonHint) {
+  const Located Python = FindPython(PythonHint.value_or(std::string()));
+  const fs::path Tools = PathFromUtf8(Test::TestDataDir()).parent_path().parent_path() / "tools" / "export";
+  if (!Python.Ok() || Python.Path.empty()) {
+    Test::Skip("dsig_export.py with a real Python", "no Python (set DSIG_PYTHON or put python on PATH)");
+    return;
+  }
+  if (Test::TestDataDir().empty() || !fs::is_regular_file(Tools / "dsig_export.py")) {
+    Test::Skip("dsig_export.py with a real Python", "the source tree's tools/export is not available");
+    return;
+  }
+  Test::Suite("dsig_export.py selftest with a real Python");
+  const ProcessResult Selftest =
+      RunProcess({PathToUtf8(Python.Path), "-B", PathToUtf8(Tools / "selftest_dsig_export.py")}, {}, 900, nullptr);
+  CHECK(Selftest.Started);
+  CHECK_NUM_EQ(Selftest.ExitCode, 0);
+  CHECK(Contains(Selftest.Tail, " checks, 0 failed"));
+  if (Selftest.ExitCode != 0) {
+    const size_t Keep = 4000;
+    Test::Note(Selftest.Tail.size() > Keep ? Selftest.Tail.substr(Selftest.Tail.size() - Keep) : Selftest.Tail);
+  }
+
+  Test::Suite("the real dsig_export.py ignores the caller's PYTHONPATH (F66)");
+  const FakeTools Fake = MakeFakeTools(Scratch);
+  const fs::path Poison = Fake.Root / "poison path";
+  std::error_code Error;
+  fs::create_directories(Poison, Error);
+  WriteFile(Poison / "sitecustomize.py", "import os\nos._exit(42)\n");
+  const std::optional<std::string> Saved = GetEnvUtf8("PYTHONPATH");
+  const std::optional<std::string> SavedIdaUsr = GetEnvUtf8("IDAUSR");
+  fs::create_directories(Fake.Root / "empty idausr", Error);
+  SetEnv("IDAUSR", PathToUtf8(Fake.Root / "empty idausr"));  // the user's IDA directory is not read
+  SetEnv("PYTHONPATH", PathToUtf8(Poison));
+#ifdef _WIN32
+  // As under cmd.exe and ctest: critical-error dialogs on. The worker's idapro then loads the
+  // placeholder idalib; that must fail, not block the run behind a modal "Bad Image" dialog.
+  const UINT SavedMode = GetErrorMode();
+  SetErrorMode(0);
+#endif
+  IngestArgs Args;
+  Args.Input = PathToUtf8(Fake.Input);
+  Args.Output = PathToUtf8(Fake.Output);
+  Args.NoPdb = true;
+  Args.Tools.Python = PathToUtf8(Python.Path);
+  Args.Tools.ExportScript = PathToUtf8(Tools / "dsig_export.py");
+  Args.Tools.IdaDir = PathToUtf8(Fake.IdaDir);  // a placeholder idalib: the worker stops at "IDA not usable"
+  Args.Tools.DiaphoraDir = PathToUtf8(Fake.DiaphoraDir);
+  Args.Tools.TempDir = PathToUtf8(Fake.TempDir);
+  Args.Tools.TimeoutSeconds = 180;  // a regression fails the suite instead of hanging it
+  const CommandOutcome Outcome = RunIngest(Args);
+#ifdef _WIN32
+  SetErrorMode(SavedMode);
+#endif
+  SetEnv("PYTHONPATH", Saved);
+  SetEnv("IDAUSR", SavedIdaUsr);
+  CHECK(!Contains(Outcome.Message, "exit 42"));
+  CHECK_NUM_EQ(Outcome.ExitCode, kExitUnsupported);
+  CHECK(Contains(Outcome.Message, "IDA not found or not usable (dsig_export.py exit 11)"));
+  CHECK(!fs::exists(Fake.Output));
+  if (Outcome.ExitCode != kExitUnsupported) {
+    Test::Note("message: " + Outcome.Message);
+  }
+  // The killed-or-finished run left no work directory behind.
+  bool Leftover = false;
+  for (const auto& Entry : fs::directory_iterator(Fake.TempDir, Error)) {
+    Leftover = Leftover || PathToUtf8(Entry.path().filename()).rfind("dsig-export-", 0) == 0;
+  }
+  CHECK(!Leftover);
 }
 
 // ------------------------------------------------------------------------------------------------ real exports
@@ -1072,7 +1585,15 @@ int main(int Argc, char** Argv) {
   if (const auto Mode = GetEnvUtf8("DSIG_TEST_CHILD_MODE")) {
     return RunChild(*Mode, Argc, Argv);
   }
+  // This executable plays the child processes. Started as a child without a mode (a test that forgot to
+  // set one), it must not run the whole suite again, which would start itself again, and so on.
+  if (GetEnvUtf8("DSIG_TEST_SUITE_ACTIVE")) {
+    std::printf("cli_export_bridge started as a child without DSIG_TEST_CHILD_MODE\n");
+    return 97;
+  }
+  SetEnv("DSIG_TEST_SUITE_ACTIVE", "1");
   const RealConfig Real = ReadRealConfig();  // before the tool variables are cleared for the unit tests
+  const std::optional<std::string> PythonHint = GetEnvUtf8("DSIG_PYTHON");
   ClearToolEnvironment();
   const std::string Scratch = Test::ScratchDir("cli_export_bridge");
 
@@ -1080,9 +1601,15 @@ int main(int Argc, char** Argv) {
   TestUtf8();
   TestSidecarName();
   TestExitMapping();
-  TestRunProcess();
+  TestToolErrorLine();
+  TestSameFile(Scratch);
+  TestRunProcess(Scratch);
+  TestBatchRefusal(Scratch);
+  TestProcessGroup(Scratch);
   TestFakeExports(Scratch);
   TestValidationAndMissingTools(Scratch);
+  TestScriptDiscovery(Scratch);
+  TestWithRealPython(Scratch, PythonHint);
   TestRealExports(Real, Scratch);
 
   Test::RemoveScratchDir(Scratch);

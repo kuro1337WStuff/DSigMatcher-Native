@@ -5,6 +5,7 @@
 // tests/cli/export_bridge_tests.cpp can check the pieces (argument quoting, process launch, discovery,
 // exit-code mapping) on their own. Every string here is UTF-8.
 
+#include <cstdint>
 #include <cstdio>
 #include <filesystem>
 #include <optional>
@@ -31,6 +32,13 @@ inline constexpr int kToolOutput = 19;
 inline constexpr int kToolInternal = 20;
 inline constexpr int kToolInterrupted = 130;
 
+// The longest --timeout the bridge accepts (30 days). dsig_export.py enforces the same cap: Python's
+// subprocess wait cannot take much more than 2^32 ms on Windows, and the backstop (timeout + 120 s)
+// must not wrap (audit F42).
+inline constexpr int kMaxTimeoutSeconds = 30 * 24 * 3600;
+// The backstop the bridge adds to --timeout before it kills the script's whole process tree.
+inline constexpr int kBackstopGraceSeconds = 120;
+
 struct ToolExit {
   int ExitCode;      // DSig::Cli::kExit*
   const char* What;  // one-line explanation
@@ -55,6 +63,27 @@ std::filesystem::path SelfExecutablePath();                // empty when the pla
 // <output stem>.export.json, the rule of dsig_export.py DefaultSidecar (out.sqlite -> out.export.json).
 std::filesystem::path SidecarPathFor(const std::filesystem::path& Output);
 std::optional<std::string> FileSha256(const std::filesystem::path& Path);
+// The last "dsig_export: error: ..." line (at the start of a line) in Tail, without the prefix; empty
+// when there is none.
+std::string ToolErrorLine(const std::string& Tail);
+
+// True when A and B name one file: std::filesystem::equivalent when both exist (hard links, 8.3 short
+// names, case variants), else the weakly canonical paths compared as the platform's file system
+// compares names (case-insensitively on Windows and macOS).
+bool SameFile(const std::filesystem::path& A, const std::filesystem::path& B);
+// Every file an export run writes, replaces or renames aside must not be the input or the PDB (audit
+// F02): the output, its -wal/-shm/-journal/-crash files, the sidecar, and the names that carry the
+// script's pid (<output>.dsig-tmp-<pid>, <output><suffix>.dsig-old-<pid>, <sidecar>.tmp-<pid>).
+// Protected holds (role, existing path) pairs. Returns a refusal message, or nullopt.
+std::optional<std::string> WrittenPathAlias(const std::filesystem::path& Output, const std::filesystem::path& Sidecar,
+                                            const std::vector<std::pair<std::string, std::filesystem::path>>& Protected);
+
+// Why Path cannot be used as the Python interpreter, or empty when it can. Windows: a batch or script
+// shim (.bat/.cmd/.btm, trailing dots and spaces ignored) or a readable file without an "MZ" header is
+// refused, because CreateProcess hands such a file to cmd.exe, which re-parses the arguments ('&', '%';
+// audit F15). A file that cannot be read (the Store's app-execution alias) is accepted only with an
+// .exe or .com name. POSIX: always empty (posix_spawn with an argv involves no shell).
+std::string InterpreterProblem(const std::filesystem::path& Path);
 
 struct Located {
   std::filesystem::path Path;  // empty with an empty Error: not configured
@@ -64,6 +93,11 @@ struct Located {
 };
 Located FindPython(const std::string& Flag);        // --python, DSIG_PYTHON, then PATH
 Located FindExportScript(const std::string& Flag);  // --export-script, DSIG_EXPORT_SCRIPT, then beside the exe
+// Where FindExportScript looks without a flag or DSIG_EXPORT_SCRIPT, in order: <exe dir>/dsig_export.py,
+// <exe dir>/share/dsigmatcher/tools/export/, <exe dir>/../share/dsigmatcher/tools/export/. Never the
+// executable's ancestors: a release binary in a deep directory would otherwise run whatever
+// tools/export/dsig_export.py someone planted above it, such as <drive>/tools/export/ (audit F45).
+std::vector<std::filesystem::path> ExportScriptCandidates(const std::filesystem::path& Executable);
 Located FindIdaDir(const std::string& Flag);        // --ida-dir, DSIG_IDADIR; none: the tool discovers
 Located FindDiaphoraDir(const std::string& Flag);   // --diaphora-dir, DSIG_DIAPHORA_DIR; required
 
@@ -76,11 +110,20 @@ struct ProcessResult {
 };
 // Runs Arguments[0] (a path, not searched) with Arguments[1..]. The child gets this process's
 // environment plus Overrides, stdin from the null device, and one pipe for stdout and stderr, which is
-// forwarded to Forward (when not null) as it arrives. Windows: CreateProcessW with a quoted UTF-16
-// command line, only the pipe and the null device inherited, and a kill-on-close job object so the
-// whole tree dies on timeout or when this process exits. POSIX: posix_spawn. TimeoutSeconds 0: none.
+// forwarded to Forward (when not null) as it arrives. TimeoutSeconds <= 0: none; any positive value is
+// honoured in full (waits are chunked, nothing is narrowed to 32 bits).
+//   Windows: CreateProcessW with a quoted UTF-16 command line in WorkingDirectory (when not empty),
+//   only the pipe and the null device inherited, and a kill-on-close job object so the whole tree dies
+//   on timeout or when this process exits. The child starts with SEM_FAILCRITICALERRORS and
+//   SEM_NOOPENFILEERRORBOX added to the inherited error mode, so a failed DLL load in it fails instead of
+//   blocking the run behind a modal "Bad Image" dialog.
+//   POSIX: posix_spawn into a new process group, so a timeout (SIGTERM, then SIGKILL after 30 s) reaches
+//   the script and its IDA worker together; SIGINT/SIGTERM/SIGHUP received meanwhile are forwarded to
+//   that group; stragglers in the group are killed once the script has exited (audit F44).
+//   WorkingDirectory is not applied on POSIX, where the current directory is never searched for
+//   programs.
 ProcessResult RunProcess(const std::vector<std::string>& Arguments,
-                         const std::vector<std::pair<std::string, std::string>>& Overrides, int TimeoutSeconds,
-                         std::FILE* Forward);
+                         const std::vector<std::pair<std::string, std::string>>& Overrides, int64_t TimeoutSeconds,
+                         std::FILE* Forward, const std::filesystem::path& WorkingDirectory = {});
 
 }
