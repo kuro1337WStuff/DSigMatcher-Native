@@ -618,6 +618,71 @@ that accidentally relies on recursive mutex behaviour is silently non-portable. 
   ascending `Index1`), which `stable_sort` exploits: 5.66 ms as-is versus 25.40 ms shuffled.
   Correctness does not depend on this, only speed, and the shuffled case still improves 4.59x.
 
+### Realistic corpus: the synthetic benchmark was 6x too optimistic
+
+`src/Synth.cpp` now generates text columns sized like real Diaphora exports — `clean_assembly` and
+`clean_microcode` scale with instruction count (~29 B/instruction), `clean_pseudo` with pseudocode
+line count (~41 B/line), `mnemonics` with instruction count. `TextBytesPerInstruction = 0` restores the
+old short-token behaviour, and `dsigmatcher_bench --legacy-text` selects it, so the two regimes can be
+compared reproducibly instead of by memory.
+
+Same corpus (19,000 functions per side, 18,000 paired), only text scale changed:
+
+| | Legacy (~36 B keys) | Realistic (KB keys) | Change |
+|---|---|---|---|
+| Interned text per side | 5.50 MiB | 73.32 MiB | 13.3x |
+| Sum of heuristics | 24.91 ms | 151.36 ms | **6.08x** |
+| Cascade wall, 1 thread | 27.80 ms | 166.92 ms | **6.00x** |
+| Resolve, forced 1 thread | 1.62 ms | 1.66 ms | unchanged |
+| Corpus generation | 76.7 ms | 1208.5 ms | 15.8x |
+
+Thread scaling under realistic text (best of 3):
+
+| threads | 1 | 2 | 4 | 8 | 16 | 24 | 32 |
+|---|---|---|---|---|---|---|---|
+| wall ms | 160.70 | 102.10 | 61.47 | 52.98 | 52.87 | 53.13 | 52.75 |
+| speedup | 1.00x | 1.57x | 2.61x | 3.03x | 3.04x | 3.02x | **3.05x** |
+| efficiency | 100% | 78.7% | 65.4% | 37.9% | 19.0% | 12.6% | 9.5% |
+
+Precision 0.9322, recall 0.9322, 18,000 resolved identically at every thread count.
+
+Three conclusions, one of which reverses a previous priority:
+
+1. **`Resolve` is no longer the bottleneck.** It is 1.66 ms of a 160.70 ms serial total — about **1%**.
+   The Amdahl argument that capped speedup near 5.6x was built on the legacy corpus, where Resolve was
+   ~18% of the total. On realistic data that ceiling is irrelevant. Further work on parallelising
+   Resolve is not where the remaining time is.
+2. **The binding constraint is the heuristic count.** Speedup saturates at 3.05x with 8 heuristics, and
+   efficiency at 8 threads is 37.9% because one wave of 8 items is bounded by the slowest. Implementing
+   the 38 remaining Diaphora heuristics raises the scheduling ceiling from 8 to 46 and should improve
+   scaling more than any scheduler tuning. **Priority inverted: more heuristics before more threading.**
+3. **All of the 6x cost increase is in the text-keyed joins.** Resolve, which never touches text, is
+   unchanged. That confirms fusion and integer-key precomputation target precisely the right code, and
+   that the earlier 3.2x fusion figure was measured in the regime that actually matters.
+
+### The regression guard earned its keep
+
+Making the corpus realistic silently destroyed the ambiguity fixture and precision snapped back to
+`1.0000` — the exact meaningless value the guard was written to prevent. `CHECK(Precision < 0.999)`
+failed the build immediately.
+
+Cause: `MakeListing` derives output length from `Item.Instructions`, which was randomised per function.
+Members of an "ambiguous" group therefore shared a seed but produced different-length strings, so they
+were no longer identical and each matched uniquely. The legacy short tokens were length-independent,
+which is why the bug did not exist before. Fixed by deriving `Instructions`, `Nodes` and `PseudoLines`
+for ambiguous functions from the **group index** rather than the individual function, so group members
+are genuinely indistinguishable.
+
+After the fix: precision 0.9314 with 247 false positives at 3,800 functions, 0.9322 with 1,221 false
+positives at 19,000 — consistent, and consistent with the analytical expectation for a 10% ambiguous
+bucket at group size 6.
+
+This is the third time in this session that a fixture quietly leaked or lost the property a test was
+supposed to exercise. The pattern is worth stating: **a test that asserts a number derived from the
+same generator it is testing can pass for the wrong reason in both directions** — too perfect, or too
+imperfect. Assertions that bound the *shape* of the result (`precision < 0.999`) catch what assertions
+on the value alone do not.
+
 ### Not yet done
 
 - 38 remaining heuristics (`Partial`, `Unreliable` categories)
