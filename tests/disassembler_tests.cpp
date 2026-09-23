@@ -5,6 +5,8 @@
 
 #include "dsigmatcher/Disassembler.h"
 
+#include "NoErrorDialogs.h"
+
 namespace {
 
 using namespace DSig;
@@ -231,6 +233,7 @@ void TestLinearWalk() {
 }
 
 int main() {
+  DSig::Test::DisableErrorDialogs();  // first: no loader, crash or missing-file dialog (Windows)
   TestBackendBasics();
   TestDisplacementExtraction();
   TestGetterFamilyIsDistinguishedByOffset();

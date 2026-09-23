@@ -22,6 +22,8 @@
 #include "dsigmatcher/Provenance.h"
 #include "dsigmatcher/Sha256.h"
 
+#include "NoErrorDialogs.h"
+
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -676,11 +678,7 @@ void TestUnicodePort() {
 }
 
 int main() {
-#ifdef _WIN32
-  // Before anything else: no loader, crash or missing-file dialog can block this suite (ctest and
-  // cmd.exe leave them on).
-  SetErrorMode(GetErrorMode() | SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
-#endif
+  DSig::Test::DisableErrorDialogs();  // first: no loader, crash or missing-file dialog (Windows)
   TestSha256();
   TestMd5();
   TestBigUIntBasics();

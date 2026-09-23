@@ -130,12 +130,13 @@ std::wstring Quote(const std::wstring& Argument) {
   return Out;
 }
 
-// Runs the CLI with UTF-8 arguments as a wide command line; stdout and stderr go to separate files. A
-// run still going after WaitMs is killed and reported as TimedOut. The child inherits this process's
-// error mode (no CREATE_DEFAULT_ERROR_MODE).
-CliRun Run(const std::vector<std::string>& Arguments, unsigned WaitMs = 300000) {
+// Runs the CLI (or ExePath) with UTF-8 arguments as a wide command line; stdout and stderr go to separate
+// files. A run still going after WaitMs is killed and reported as TimedOut. The child inherits this
+// process's error mode (no CREATE_DEFAULT_ERROR_MODE).
+CliRun Run(const std::vector<std::string>& Arguments, unsigned WaitMs = 300000,
+           const std::string& ExePath = DSIG_CLI_PATH) {
   CliRun Result;
-  std::wstring Exe = Widen(DSIG_CLI_PATH);
+  std::wstring Exe = Widen(ExePath);
   for (wchar_t& Ch : Exe) {
     if (Ch == L'/') {
       Ch = L'\\';
@@ -939,6 +940,57 @@ void TestNoDialogs() {
 #endif
 }
 
+// Every test executable ctest runs turns the error dialogs off itself as the first thing it does
+// (tests/NoErrorDialogs.h), so a crash in any of them fails the run instead of raising a Windows Error
+// Reporting or loader dialog. Each one is started from the build directory with this process's error
+// mode cleared to 0 and DSIG_TEST_REPORT_ERROR_MODE set: it prints the mode it ended up with and exits.
+void TestEveryTestExecutableDisablesDialogs() {
+#ifndef _WIN32
+  DSig::Test::Skip("no dialogs: every test executable", "Windows only");
+#else
+  DSig::Test::Suite("no dialogs: every test executable sets the error mode first, from a parent with mode 0");
+  const std::filesystem::path BinDir = Utf8ToPath(DSIG_CLI_PATH).parent_path();
+  const UINT Saved = GetErrorMode();
+  SetEnv("DSIG_TEST_REPORT_ERROR_MODE", "1");
+  SetEnv("DSIG_TEST_KEEP_ERROR_MODE", std::nullopt);
+  SetErrorMode(0);
+  std::vector<std::string> Missing;
+  for (const char* Name : {"dsigmatcher_tests", "dsig_sqlite_info", "dsigmatcher_disasm_tests", "dsigmatcher_pe_tests",
+                           "dsigmatcher_cfg_tests", "diff_foundation", "diff_state", "diff_ratio", "diff_textdiff",
+                           "diff_writer", "diff_early", "diff_tiers", "diff_callee", "diff_related", "diff_parity",
+                           "cli_export_bridge", "cli_port_results", "cli_update", "cli_commands"}) {
+    const std::string Exe = PathToUtf8(BinDir / (std::string(Name) + ".exe"));
+    if (!Exists(Exe)) {
+      Missing.push_back(Name);
+      continue;
+    }
+    const CliRun R = Run({}, 60000, Exe);
+    const std::string Text = NoCr(R.Out);
+    unsigned Mode = 0;
+    const bool Reported = Text.rfind("ERRORMODE ", 0) == 0;
+    if (Reported) {
+      Mode = static_cast<unsigned>(std::strtoul(Text.c_str() + 10, nullptr, 10));
+    }
+    const unsigned Wanted = DSig::Test::kNoErrorDialogsMode;
+    const bool Ok = !R.TimedOut && R.Code == 0 && Reported && (Mode & Wanted) == Wanted;
+    CHECK(Ok);
+    if (!Ok) {
+      DSig::Test::Note(std::string(Name) + ": exit " + std::to_string(R.Code) + ", stdout: " + R.Out);
+    }
+  }
+  SetErrorMode(Saved);
+  SetEnv("DSIG_TEST_REPORT_ERROR_MODE", std::nullopt);
+  CHECK_NUM_EQ(GetErrorMode(), Saved);
+  if (!Missing.empty()) {
+    std::string List;
+    for (const std::string& Name : Missing) {
+      List += (List.empty() ? "" : ", ") + Name;
+    }
+    DSig::Test::Skip("no dialogs: some test executables", "not built beside " + PathToUtf8(BinDir) + ": " + List);
+  }
+#endif
+}
+
 void TestGuard() {
   DSig::Test::Suite("RunGuarded: an escaping exception is exit 70, never an abort (F38)");
   CHECK_NUM_EQ(Cli::RunGuarded([] { return 3; }), 3);
@@ -994,7 +1046,8 @@ int main(int Argc, char** Argv) {
   }
   SetEnv("DSIG_TEST_SUITE_ACTIVE", "1");
   for (const char* Name : {"DSIG_TEST_CHILD_RECORD", "DSIG_TEST_CHILD_EXIT", "DSIG_TEST_CHILD_COPY_FROM",
-                           "DSIG_TEST_KEEP_ERROR_MODE", "DSIG_EXPORT_SCRIPT", "DSIG_EXPORT_ALLOW_NO_DECOMPILER"}) {
+                           "DSIG_TEST_KEEP_ERROR_MODE", "DSIG_TEST_REPORT_ERROR_MODE", "DSIG_EXPORT_SCRIPT",
+                           "DSIG_EXPORT_ALLOW_NO_DECOMPILER"}) {
     SetEnv(Name, std::nullopt);
   }
   gScratch = DSig::Test::ScratchDir("cli_commands");
@@ -1013,6 +1066,7 @@ int main(int Argc, char** Argv) {
     TestUncCli(F);
   }
   TestNoDialogs();
+  TestEveryTestExecutableDisablesDialogs();
   DSig::Test::RemoveScratchDir(gScratch);
   return DSig::Test::Finish();
 }

@@ -9,35 +9,11 @@
 #include <string>
 #include <string_view>
 
-#if defined(_WIN32)
-// Declared here rather than through <windows.h>, whose macros would reach every suite.
-extern "C" {
-__declspec(dllimport) unsigned int __stdcall SetErrorMode(unsigned int Mode);
-__declspec(dllimport) unsigned int __stdcall GetErrorMode(void);
-__declspec(dllimport) unsigned long __stdcall GetEnvironmentVariableW(const wchar_t* Name, wchar_t* Buffer,
-                                                                      unsigned long Size);
-}
-#endif
+#include "../NoErrorDialogs.h"
 
 namespace DSig::Test {
 
-// Every suite starts with Windows' error dialogs off (SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX |
-// SEM_NOOPENFILEERRORBOX), before main(): ctest and cmd.exe leave them on, and a suite, or a child it
-// starts (the CLI, Python, IDA; the mode is inherited), must fail rather than block behind a "Bad
-// Image" or crash dialog. A child that has to report the mode it inherited sets
-// DSIG_TEST_KEEP_ERROR_MODE to keep it. Elsewhere nothing happens.
-inline bool DisableErrorDialogs() {
-#if defined(_WIN32)
-  if (GetEnvironmentVariableW(L"DSIG_TEST_KEEP_ERROR_MODE", nullptr, 0) != 0) {
-    return false;
-  }
-  SetErrorMode(GetErrorMode() | 0x0001u | 0x0002u | 0x8000u);
-  return true;
-#else
-  return false;
-#endif
-}
-
+// Every suite starts with Windows' error dialogs off, before main() (tests/NoErrorDialogs.h).
 [[maybe_unused]] static const bool kErrorDialogsDisabled = DisableErrorDialogs();
 
 inline int ChecksRun = 0;
