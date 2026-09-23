@@ -1,5 +1,7 @@
-# cli_install_layout (lane F1): the export script beside the built executable, the install layout, and
-# export-script discovery by an installed executable that lives outside the source tree.
+# cli_install_layout (lane F1): the export script beside the built executable, the install layout (the
+# executable, the export script, and LICENSE, NOTICE, THIRD_PARTY_NOTICES.md and README.md in
+# share/doc/dsigmatcher), and export-script discovery by an installed executable that lives outside the
+# source tree.
 #
 #   cmake -DBUILD_DIR=<build> -DSOURCE_DIR=<source> -DCONFIG=<config> -DEXE_NAME=<dsigmatcher[.exe]>
 #         -DBUILT_EXE=<build>/.../dsigmatcher[.exe] [-DCONFIGURE_CMAKE_VERSION=<x.y.z>]
@@ -90,6 +92,30 @@ foreach(Other include lib)
   endif()
 endforeach()
 Pass()
+# 2a. the licence, the notices and the README travel with the tool: <prefix>/share/doc/dsigmatcher holds
+#     byte copies of the source tree's, and nothing else
+set(DocNames LICENSE NOTICE THIRD_PARTY_NOTICES.md README.md)
+function(CheckDocs DocDir)
+  foreach(Doc IN LISTS DocNames)
+    if(NOT EXISTS "${DocDir}/${Doc}")
+      Fail("the install has no ${DocDir}/${Doc}")
+    endif()
+    file(SHA256 "${SOURCE_DIR}/${Doc}" SourceSha)
+    file(SHA256 "${DocDir}/${Doc}" InstalledDocSha)
+    if(NOT SourceSha STREQUAL InstalledDocSha)
+      Fail("the installed ${DocDir}/${Doc} differs from ${SOURCE_DIR}/${Doc}")
+    endif()
+  endforeach()
+  file(GLOB Installed RELATIVE "${DocDir}" "${DocDir}/*")
+  list(SORT Installed)
+  set(Expected ${DocNames})
+  list(SORT Expected)
+  if(NOT Installed STREQUAL Expected)
+    Fail("${DocDir} holds '${Installed}', want exactly '${Expected}'")
+  endif()
+endfunction()
+CheckDocs("${Prefix}/share/doc/dsigmatcher")
+Pass()
 # 2b. CMake 3.28+ adds Zydis and Zycore EXCLUDE_FROM_ALL (no install rules), so a plain install without
 #     --component installs the same clean layout
 if(DEFINED CONFIGURE_CMAKE_VERSION AND CONFIGURE_CMAKE_VERSION VERSION_GREATER_EQUAL 3.28)
@@ -104,6 +130,7 @@ if(DEFINED CONFIGURE_CMAKE_VERSION AND CONFIGURE_CMAKE_VERSION VERSION_GREATER_E
   if(NOT EXISTS "${PlainPrefix}/bin/${EXE_NAME}")
     Fail("the plain install has no bin/${EXE_NAME}")
   endif()
+  CheckDocs("${PlainPrefix}/share/doc/dsigmatcher")
   foreach(Other include lib)
     if(EXISTS "${PlainPrefix}/${Other}")
       Fail("the plain install created ${PlainPrefix}/${Other} (third-party development files)")

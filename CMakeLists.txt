@@ -234,10 +234,18 @@ set_property(TARGET dsigmatcher APPEND PROPERTY LINK_DEPENDS "${DSIG_EXPORT_SCRI
 
 # `cmake --install <build> --prefix <prefix> [--component dsigmatcher]`: <prefix>/bin/dsigmatcher and
 # <prefix>/share/dsigmatcher/tools/export/dsig_export.py, the two places FindExportScript pairs
-# (literal paths, not GNUInstallDirs variables, because the bridge searches exactly these). On Windows
-# the staged sqlite3.dll (system SQLite only) goes beside the executable as well.
+# (literal paths, not GNUInstallDirs variables, because the bridge searches exactly these), and the
+# licence, notices and README in <prefix>/share/doc/dsigmatcher (the AGPL and the third-party licences
+# travel with every installed copy). On Windows the staged sqlite3.dll (system SQLite only) goes beside
+# the executable as well.
 install(TARGETS dsigmatcher RUNTIME DESTINATION bin COMPONENT dsigmatcher)
 install(FILES "${DSIG_EXPORT_SCRIPT}" DESTINATION share/dsigmatcher/tools/export COMPONENT dsigmatcher)
+install(FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"
+    "${CMAKE_CURRENT_SOURCE_DIR}/NOTICE"
+    "${CMAKE_CURRENT_SOURCE_DIR}/THIRD_PARTY_NOTICES.md"
+    "${CMAKE_CURRENT_SOURCE_DIR}/README.md"
+  DESTINATION share/doc/dsigmatcher COMPONENT dsigmatcher)
 if(WIN32 AND DSIG_SQLITE_DLL)
   install(FILES "${DSIG_SQLITE_DLL}" DESTINATION bin COMPONENT dsigmatcher)
 endif()
