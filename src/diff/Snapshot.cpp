@@ -1,5 +1,5 @@
-// Snapshot JSON I/O (docs/parity/00-plan.md §2.2, Appendix B). The reference for every convention is
-// the oracle instrumentation, tools/parity/oracle_trace.py + snapshot.py (lane L0b), because long
+// Snapshot JSON I/O (schema: tools/parity/README.md). The reference for every convention is
+// the oracle instrumentation, tools/parity/oracle_trace.py + snapshot.py, because long
 // oracle captures already exist in its format: keys in its order (Instrument.BuildSnapshot), compact
 // json.dumps(ensure_ascii=False, separators=(",", ":")) text plus one newline (snapshot.py DumpJson /
 // WriteJsonAtomic), file names "%05d_%s.json" % (seq, re.sub(r"[^A-Za-z0-9._-]", "_", point))
@@ -74,7 +74,7 @@ uint64_t ParseRatioBits(std::string_view Hex) {
 std::string SanitisePointName(std::string_view Point) {
   // snapshot.py SanitisePoint: re.sub(r"[^A-Za-z0-9._-]", "_", point) over a Python str, so each CODE
   // POINT outside the class becomes one '_' (a well-formed UTF-8 sequence is one code point; any other
-  // byte counts alone). Appendix B point names are ASCII, where this is byte-wise.
+  // byte counts alone). The snapshot point names are ASCII, where this is byte-wise.
   std::string Result;
   Result.reserve(Point.size());
   size_t Index = 0;
@@ -513,7 +513,7 @@ struct StepNameEntry {
   std::string_view Name;
 };
 
-// The names are the stage names of the snapshot points (Appendix B); the two loop cleanups are named by
+// The names are the stage names of the snapshot points; the two loop cleanups are named by
 // their call site.
 constexpr StepNameEntry kStepNames[] = {
     {PipelineStep::None, "none"},

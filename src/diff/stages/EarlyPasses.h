@@ -1,9 +1,9 @@
 #pragma once
 
-// Private to lane L5 (src/diff/stages/Preflight.cpp, EqualMatches.cpp, DirtyHeuristics.cpp,
-// SameName.cpp, RemainingFunctions.cpp, PatchDiffHook.cpp); not part of the frozen API.
+// Private to the pre-loop passes (src/diff/stages/Preflight.cpp, EqualMatches.cpp, DirtyHeuristics.cpp,
+// SameName.cpp, RemainingFunctions.cpp, PatchDiffHook.cpp); not part of the public API.
 //
-// Session state of the pre-loop passes, kept in DiffSession::Ext<T>() (Pipeline.h) so that no frozen
+// Session state of the pre-loop passes, kept in DiffSession::Ext<T>() (Pipeline.h) so that no public
 // header changes:
 //   * PatchDiffHookState: the `dones` set of the loaded patch-diff hook object
 //     (scripts/patch_diff_vulns.py:67, :211-214);

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Records what real Diaphora does with the `early` fixtures (lane L5, docs/parity/00-plan.md §4 L5).
+"""Records what real Diaphora does with the `early` fixtures (pre-loop passes, patch-diff mode; 05 §19).
 
     python -B tests/diff/fixtures/early/gen_early.py [--diaphora-dir <dir>] [--python <exe>]
                                                      [--only <name> ...] [--skip-captures]
@@ -10,7 +10,7 @@ Run it after tools/parity/make_fixture.py has (re)built the scenario directories
   <scenario>/capture/{index.json, trace.jsonl, snapshots/*.json}
       An instrumented run of each scenario with tools/parity/oracle_trace.py's Instrument (every point,
       row events, ratios_cache at before:find_*). Modes S and P run to the end; mode N stops at
-      after:find_same_name (the later passes belong to lanes L6-L8).
+      after:find_same_name (the later passes have their own fixtures: tiers, callee, related).
   vectors.json
       Mutation vectors: a scenario's two databases, rebuilt exactly as tests/diff/FixtureDb.h rebuilds
       them, then changed by SQL statements run on the finished files (sqlite3 executescript here,
@@ -24,7 +24,7 @@ The Diaphora checkout is imported and run read-only (python -B, PYTHONDONTWRITEB
 the databases; its `git describe` and `git status` are checked unchanged afterwards. No DIAPHORA_*
 variable reaches it and PYTHONHASHSEED is fixed (make_fixture.CleanEnv).
 
-Paths come from flags or the environment only (plan §7.1 D9):
+Paths come from flags or the environment only:
   --diaphora-dir  (env DSIG_DIAPHORA_DIR)   the unmodified Diaphora checkout
   --python        (env DSIG_PYTHON)         the Python that runs Diaphora (default: this one)
 """

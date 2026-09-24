@@ -1,4 +1,4 @@
-// final_pass (lane L1): D:2937-2948 = cleanup_matches (D:2945), find_multimatches (D:2887-2914) with
+// final_pass: D:2937-2948 = cleanup_matches (D:2945), find_multimatches (D:2887-2914) with
 // find_unresolved_multimatches (D:2839-2885) and add_multimatches_to_chooser (D:2732-2747), then
 // add_final_chooser_items (D:2916-2935). Spec: 01 §9-§10.2, 02 §16, 06 §12-§15, 07 §10.12.
 // D: = diaphora.py at 3.4.2-4-g621ec26.
@@ -6,8 +6,8 @@
 // Unlike cleanup (keyed by NAME), this pass is keyed by ADDRESS text (item[0] / item[2]) and uses the
 // raw item ratios; the same-name fake plays no part (02 §16). The chooser lists of S.Final() receive
 // the items in CChooser.add_item order; the "%05lu" line numbers, "%08x" addresses and "%.7f"
-// ratios are the writer's (L4), except that the int() of each address is evaluated here, where
-// add_item evaluates it (D:286, D:288), so a Python ValueError is raised at the same point.
+// ratios are the writer's (ResultsWriter.cpp), except that the int() of each address is evaluated
+// here, where add_item evaluates it (D:286, D:288), so a Python ValueError is raised at the same point.
 
 #include <string>
 #include <unordered_map>

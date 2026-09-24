@@ -1,9 +1,9 @@
 #pragma once
 
-// Readers for the committed artefacts tools/parity/make_fixture.py writes (plan §2.5, §2.6):
+// Readers for the committed artefacts tools/parity/make_fixture.py writes:
 // expected_results.tsv / expected_unmatched.tsv (the .diaphora rows real Diaphora wrote, in rowid
-// order) and the after_final_pass.json / after_find_unmatched.json chooser dumps (Appendix B
-// snapshots). Used by diff_writer and diff_parity (lane L4).
+// order) and the after_final_pass.json / after_find_unmatched.json chooser dumps (state snapshots,
+// tools/parity/README.md). Used by diff_writer and diff_parity.
 //
 // TSV: a header line, then one line per row; `\N` is NULL; `\\`, `\t`, `\n`, `\r` escape a
 // backslash, TAB, LF and CR inside a value.
@@ -167,8 +167,8 @@ inline ResultsFile ReadExpectedFixture(const std::string& Dir) {
   return File;
 }
 
-// FinalResults from the after:final_pass chooser dump and the after:find_unmatched dump (Appendix B),
-// interned into Ids. Items keep their add_item order.
+// FinalResults from the after:final_pass chooser dump and the after:find_unmatched dump (snapshot schema of
+// tools/parity/README.md), interned into Ids. Items keep their add_item order.
 inline Diff::Item ItemFromSnap(Diff::Interners& Ids, const Diff::SnapItem& In) {
   Diff::Item Out;
   Out.Ea1 = Ids.Addr(In.Ea1);

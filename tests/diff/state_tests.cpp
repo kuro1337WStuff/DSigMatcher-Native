@@ -1,4 +1,5 @@
-// diff_state: MatchState, the row consumers, final_pass and find_unmatched (docs/parity/00-plan.md §4 L1).
+// diff_state: MatchState, the row consumers, final_pass and find_unmatched (01 §8-§10.3; 02 §6-§16;
+// 06 §12-§15).
 //
 //   * unit tests: every documented probe (02 Appendix A probes 1, 6 and 10; 01 E2; the 01 §9.4 KeyError
 //     analysis), Python int() of address texts, the trace events, snapshot round trips;
@@ -7,7 +8,7 @@
 //   * corpus replays (skip without DSIG_CORPUS_ROOT): for every oracle capture under
 //     <corpus>/oracle/traces/<pair>/, every before:cleanup:<site>:<n> -> Cleanup -> after:cleanup:<site>:<n>,
 //     before:final_pass -> final pass -> after:final_pass (chooser dumps included) and after:final_pass ->
-//     find_unmatched -> after:find_unmatched, compared at S-L2 (plan §1.3). Oracle files are only read:
+//     find_unmatched -> after:find_unmatched, compared at S-L2. Oracle files are only read:
 //     snapshots through the shared-delete reader, exports through immutable=1 connections.
 
 #include <sqlite3.h>
@@ -1312,7 +1313,7 @@ void TestUnmatchedFetch(const std::string& Scratch) {
 namespace {
 
 // ---------------------------------------------------------------------------------------------
-// Corpus replays on the oracle captures (plan §4 L1 "Acceptance on the oracle (S-L2)")
+// Corpus replays on the oracle captures (S-L2)
 
 // The export ids of a pair name "<ref>_vs_<target>", where the target may omit the ref's library
 // prefix ("userenv-9168-pdb_vs_9278-nopdb" -> userenv-9278-nopdb).

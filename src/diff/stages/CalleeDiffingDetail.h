@@ -1,6 +1,6 @@
 #pragma once
 
-// Internal helpers of lane L7 (stages/CalleeDiffing.cpp). Private to src/diff; not part of the frozen
+// Internal helpers of stages/CalleeDiffing.cpp. Private to src/diff; not part of the public
 // API. The diff_callee suite includes this header to test the diff walk on its own and to read the
 // per-session call counts.
 

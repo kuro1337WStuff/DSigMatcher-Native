@@ -1,6 +1,6 @@
 #pragma once
 
-// Text splitting, the callee-name scanner and a literal port of CPython 3.13.12 difflib (L3).
+// Text splitting, the callee-name scanner and a literal port of CPython 3.13.12 difflib.
 // Spec: 03b §4.3.1, §4.3.3, §5; 06 §6.1-§6.4 and Appendix A; 07 §10.11.1.
 
 #include <cstddef>

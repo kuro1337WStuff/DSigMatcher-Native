@@ -1,4 +1,4 @@
-// Export bridge: `dsigmatcher extract` and `dsigmatcher ingest` (docs/parity/00-plan.md §7.1 D7, §7.2 L10).
+// Export bridge: `dsigmatcher extract` and `dsigmatcher ingest`.
 //
 // Both commands launch tools/export/dsig_export.py, which runs IDA idalib and the UNMODIFIED Diaphora
 // exporter (diaphora_ida._diff_or_export(use_ui=False, file_out=...)). The exporter's feature
@@ -11,7 +11,7 @@
 //     the current directory, streams its output to stderr, and enforces a backstop timeout on the whole
 //     process tree;
 //   * checks, independently of the script, that the input's sha256 did not change;
-//   * maps the script's exit codes to the CLI's (Commands.h, plan §2.1) with a clear message, and
+//   * maps the script's exit codes to the CLI's (Commands.h) with a clear message, and
 //     reads the <output stem>.export.json sidecar for the summary.
 // Every behavioural decision of the export itself lives in dsig_export.py, which cites the Diaphora
 // lines it relies on.

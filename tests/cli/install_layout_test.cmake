@@ -1,4 +1,4 @@
-# cli_install_layout (lane F1): the export script beside the built executable, the install layout (the
+# cli_install_layout: the export script beside the built executable, the install layout (the
 # executable, the export script, and LICENSE, NOTICE, THIRD_PARTY_NOTICES.md and README.md in
 # share/doc/dsigmatcher), and export-script discovery by an installed executable that lives outside the
 # source tree.

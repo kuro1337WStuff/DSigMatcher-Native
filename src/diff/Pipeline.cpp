@@ -1,4 +1,4 @@
-// The diff driver (docs/parity/00-plan.md §2.1, §2.4, §3.6): DiffSession, the literal port of
+// The diff driver (01 §5): DiffSession, the literal port of
 // CBinDiff.diff() (D:3568-3701), stage replay and RunDiff, the exception boundary.
 
 #include "dsigmatcher/diff/Pipeline.h"
@@ -66,7 +66,8 @@ DiffSession::DiffSession(DiffConfig Config) : Impl_(std::make_unique<Impl>()) {
 }
 
 DiffSession::~DiffSession() {
-  // The lane objects may refer to the session while they are destroyed; drop them first.
+  // The ratio engine and the match state may refer to the session while they are destroyed; drop
+  // them first.
   Impl_->Engine.reset();
   Impl_->State.reset();
 }
@@ -664,7 +665,7 @@ char DiffSession::Mode() const {
 
 namespace {
 
-// One stage of the convergence loop between its "before:"/"after:" points (Appendix B).
+// One stage of the convergence loop between its "before:"/"after:" points.
 void LoopStage(DiffSession& S, const char* Name, int Iteration, void (*Fn)(DiffSession&, int)) {
   const std::string Base = std::string(Name) + ":" + std::to_string(Iteration);
   S.Point("before:" + Base);
@@ -717,7 +718,7 @@ bool RunPipeline(DiffSession& S, PipelineCheckpointing* Checkpointing) {
     }
     // D:3603-3605 check_callgraph (validation; may raise)
     StageCheckCallgraph(S);
-    // D:3607-3610: project_script is None in the parity configuration (§1.1), so no load_hooks.
+    // D:3607-3610: project_script is None in the parity configuration (01 §3), so no load_hooks.
 
     // D:3613-3614 find_equal_matches (also sets total_functions1/2, D:1411-1422)
     {
@@ -736,7 +737,7 @@ bool RunPipeline(DiffSession& S, PipelineCheckpointing* Checkpointing) {
   bool SkipOthers = Cursor.SkipOthers;  // D:3616
   if (!Done(PipelineStep::DirtyHeuristics)) {
     S.Flags().IsSameProcessor = StageSameProcessor(S);  // D:3617
-    S.Engine().Prepare();                               // plan §3.6: after IsSameProcessor
+    S.Engine().Prepare();                               // after IsSameProcessor (D:3617)
     if (S.Config().Experimental) {                      // D:3618-3621
       {
         ContextScope Scope(S, "apply_dirty_heuristics");
@@ -789,8 +790,8 @@ bool RunPipeline(DiffSession& S, PipelineCheckpointing* Checkpointing) {
       StageFindPartialMatchesSmallDifferences(S);
       Save(PipelineStep::SmallDifferences);
     }
-    // D:3636 apply_machine_learning: use_trained_model is False (§1.1), a no-op.
-    // D:3638-3651: unreliable is False (§1.1), so neither unreliable nor experimental matches run.
+    // D:3636 apply_machine_learning: use_trained_model is False (01 §3), a no-op.
+    // D:3638-3651: unreliable is False (01 §2.2), so neither unreliable nor experimental matches run.
 
     if (!Done(PipelineStep::FinalPass)) {
       int Iteration = 0;                                   // D:3653
@@ -1005,7 +1006,7 @@ StateSnapshot RunReplay(DiffSession& S, const StateSnapshot& Before, std::string
     }
     After = "after:" + Label;
   } else {
-    throw UnsupportedInput("replay: stage '" + std::string(Stage) + "' is not replayable (Appendix B)");
+    throw UnsupportedInput("replay: stage '" + std::string(Stage) + "' is not replayable");
   }
   StateSnapshot Result = S.Snapshot(After, Before.RatiosCache.has_value());
   Result.Seq = Before.Seq + 1;
@@ -1248,11 +1249,11 @@ DiffOutcome RunDiff(const DiffArgs& Args) {
   try {
     if (!Args.Config.Supported()) {
       Outcome.Status = DiffStatus::Unsupported;
-      Outcome.Message = "configuration not supported by the parity engine (only the defaults of plan §1.1, "
+      Outcome.Message = "configuration not supported by the parity engine (only Diaphora's defaults, "
                         "optionally with --ignore-small-functions)";
       return Outcome;
     }
-    // Plan §7.1 D2: warn and continue on another SQLite; --strict-sqlite refuses with exit 5.
+    // Design decision: warn and continue on another SQLite; --strict-sqlite refuses with exit 5.
     if (!DiffDatabase::IsOracleSqlite()) {
       if (Args.StrictSqlite) {
         Outcome.Status = DiffStatus::SqliteMismatch;
@@ -1260,7 +1261,7 @@ DiffOutcome RunDiff(const DiffArgs& Args) {
                           std::string(DiffDatabase::kOracleSqliteVersion) + " (--strict-sqlite)";
         return Outcome;
       }
-      // Design decision (lane R0 (c)): --quiet silences only Diaphora's summary lines, never
+      // Design decision: --quiet silences only Diaphora's summary lines, never
       // this warning; --allow-sqlite-mismatch is the explicit way to acknowledge it.
       if (!Args.AllowSqliteMismatch) {
         std::fprintf(stderr, "%s\n", SqliteMismatchWarning(Outcome.SqliteVersion).c_str());
@@ -1305,7 +1306,7 @@ DiffOutcome RunDiff(const DiffArgs& Args) {
     }
 
     // Every check on the paths runs before any file is opened or written (audit F01, F25, F29).
-    RefusePathAliases(Args, Out, Replay);  // plan §2.1: an output that aliases an input is refused
+    RefusePathAliases(Args, Out, Replay);  // an output that aliases an input is refused
     if (!CheckpointDir.empty()) {
       RefuseCheckpointAliases(Args, Out, CheckpointDir);
       RefuseOracleCapture(Detail::PathFromUtf8(CheckpointDir), CheckpointDir);
@@ -1477,9 +1478,9 @@ DiffOutcome RunDiff(const DiffArgs& Args) {
     Outcome.Unreliable = S.Final().Unreliable.size();
     Outcome.Multimatch = S.Final().Multimatch.size();
     if (!Outcome.DiffReturned) {
-      // Audit F06 (a product decision over plan §2.1 / §3.10): the file is Diaphora's empty results
-      // file, byte for byte, but the process says that db2 was not a usable export, so a caller that
-      // goes by the exit code never takes an empty result for "nothing matched".
+      // Audit F06 (a product decision; Diaphora itself exits 0 here, 01 §5.1): the file is Diaphora's
+      // empty results file, byte for byte, but the process says that db2 was not a usable export, so a
+      // caller that goes by the exit code never takes an empty result for "nothing matched".
       Outcome.Status = DiffStatus::Unsupported;
       Outcome.Message = "db2 '" + Args.Db2 +
                         "' is not a usable Diaphora export (diff.version is missing or empty); Diaphora's "

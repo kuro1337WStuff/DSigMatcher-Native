@@ -1,4 +1,5 @@
-// Suite cli_export_bridge: `dsigmatcher extract` / `ingest` (plan §7.1 D7, §7.2 lane L10).
+// Suite cli_export_bridge: `dsigmatcher extract` / `ingest`, the bridge to tools/export/dsig_export.py
+// (IDA idalib plus the unmodified Diaphora exporter).
 //
 // Three kinds of test:
 //   * unit tests of the bridge's pieces: Windows argument quoting (round-tripped through

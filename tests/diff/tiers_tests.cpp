@@ -1,4 +1,4 @@
-// diff_tiers (lane L6): the SQL heuristic tiers and search_small_differences.
+// diff_tiers: the SQL heuristic tiers and search_small_differences.
 //
 //   * unit tests: the run_heuristics_for_category list build (flags, categories, the build-time
 //     all_functions_matched break), reverse execution order, dispatch by ratio type and chooser pair,
@@ -9,11 +9,11 @@
 //     fixtures/tiers/gen_tiers_fixtures.py): 02 probe 3 / 01 E1 (reverse order labels every pair
 //     `Equal assembly`; forward order gives `Same order and hash`), 02 probe 5 (the UNION tie) and
 //     the different-CPU list (5 Best / 26 Partial);
-//   * corpus replays on the oracle captures (plan §4 L6 "Acceptance on the oracle"): every
+//   * corpus replays on the oracle captures: every
 //     before:heuristic:<id> -> StageRunSingleHeuristic -> after:heuristic:<id> (S-L2 and the trace
 //     events), the category replays, before:search_small_differences -> S-L2, and one chained run
 //     from after:find_same_name through after:search_small_differences compared event by event.
-// Corpus tests skip without DSIG_CORPUS_ROOT; row-order checks need SQLite 3.51.1 (plan §2.6).
+// Corpus tests skip without DSIG_CORPUS_ROOT; row-order checks need SQLite 3.51.1 (02 §18.3).
 
 #include <sqlite3.h>
 
@@ -156,7 +156,7 @@ bool CheckEvents(const std::string& What, const std::vector<JsonValue>& Oracle, 
 }
 
 // ---------------------------------------------------------------------------------------------
-// Corpus replays (plan §4 L6 "Acceptance on the oracle")
+// Corpus replays on the oracle captures
 
 // The export ids of a pair name "<ref>_vs_<target>", where the target may omit the ref's library
 // prefix ("userenv-9168-pdb_vs_9278-nopdb" -> userenv-9278-nopdb).
@@ -269,7 +269,7 @@ StateSnapshot Replay(DiffSession& S, const StateSnapshot& Before, const std::str
   return RunReplay(S, Before, Stage);
 }
 
-// Every L6 replay of one capture (an oracle capture of a corpus pair or a fixture capture):
+// Every heuristic-tier replay of one capture (an oracle capture of a corpus pair or a fixture capture):
 //   (1) each before:heuristic:<id> -> RunReplay("heuristic:<id>") -> after:heuristic:<id> (S-L2) plus
 //       the heuristic's row / add_match trace events against the oracle's (ctx "heuristic:<id>");
 //   (2) after:find_same_name -> run_heuristics_for_category:Best and
@@ -443,7 +443,7 @@ PairCounts ReplayCapture(const std::string& Label, const std::string& Pair, cons
 
 // The sechost captures take about 11 minutes (the constants joins of HEURISTICS 15, 20 and 21 run three
 // times: alone, per category and chained), so they run only with DSIG_PARITY=long (the diff_parity
-// convention, plan §2.6) or when DSIG_TIERS_PAIRS names them. userenv's take about 20 s.
+// convention) or when DSIG_TIERS_PAIRS names them. userenv's take about 20 s.
 bool LongCapture(const std::string& Pair) { return Pair.rfind("sechost-", 0) == 0; }
 
 std::string Summary(const std::string& Name, const PairCounts& C) {
@@ -481,7 +481,7 @@ void TestCorpusReplays(const std::string& Scratch) {
     return;
   }
   if (!DSig::Test::OracleSqlite()) {
-    // Path A row order is the oracle's only under SQLite 3.51.1 (plan §2.6, §5 R1).
+    // Path A row order is the oracle's only under SQLite 3.51.1 (02 §18.3, 04a §6.4).
     DSig::Test::Skip("corpus replays", "SQLite " + DiffDatabase::LibVersion() + " is not the oracle's 3.51.1");
     return;
   }
@@ -883,7 +883,7 @@ void TestDispatch(const std::string& Scratch) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Unit tests: worker-thread truncation (plan §3.11, 02 §5.5, 07 §10.3) and the reverse order
+// Unit tests: worker-thread truncation (02 §5.5, 07 §10.3) and the reverse order
 
 void TestTruncation(const std::string& Scratch) {
   DSig::Test::Suite("per-heuristic truncation and reverse execution order (threads.py:40, D:1967-1973, D:2080)");
@@ -1112,7 +1112,7 @@ void TestSmallDifferences(const std::string& Scratch) {
 // result_iter: fetchmany(1000) (D:139-146). One main function against 2100 diff functions with equal
 // nodes / edges / mnemonics / complexity and names, so every row reaches check_match (the scripted
 // provider counts the rows consumed). A row that fails decides how many rows were consumed; the
-// expected counts are the ones the lane's probe measured on the oracle's Python 3.13.12 / SQLite
+// expected counts are the ones a probe measured on the oracle's Python 3.13.12 / SQLite
 // 3.51.1 (SmallDifferences.cpp ResultIter).
 void TestResultIterBatches(const std::string& Scratch) {
   DSig::Test::Suite("result_iter fetchmany(1000) batching of search_small_differences (D:139-146, D:2110)");
@@ -1175,7 +1175,7 @@ void TestResultIterBatches(const std::string& Scratch) {
   }
   // invalid UTF-8 in a SELECT_FIELDS column of the row at fetch position P (1-based): Python decodes a
   // row when it fetches it, so earlier batches are consumed and the failing batch is not. The expected
-  // counts are Python 3.13.12's on a 2100-row cursor (the lane's probe): 5 -> 0, 1000 -> 0,
+  // counts are Python 3.13.12's on a 2100-row cursor (measured): 5 -> 0, 1000 -> 0,
   // 1001 -> 1000, 2001 -> 2000, 2100 -> 2000.
   for (const auto& [P, Expected] : {std::pair<int, int>{5, 0}, {1000, 0}, {1001, 1000}, {2001, 2000}, {2100, 2000}}) {
     const std::string Tag = "batch_utf8_" + std::to_string(P);
@@ -1186,7 +1186,7 @@ void TestResultIterBatches(const std::string& Scratch) {
     CHECK_TEXT_EQ(Site, "fetch");
   }
   // a step error positioning row P: Python steps to row P while it fetches row P - 1, so the batch
-  // holding row P - 1 is lost too. Python 3.13.12 (the lane's probe): 5 -> 0, 1000 -> 0, 1001 -> 0,
+  // holding row P - 1 is lost too. Python 3.13.12 (measured): 5 -> 0, 1000 -> 0, 1001 -> 0,
   // 1002 -> 1000, 2001 -> 1000, 2100 -> 2000.
   for (const auto& [P, Expected] :
        {std::pair<int, int>{5, 0}, {1000, 0}, {1001, 0}, {1002, 1000}, {2001, 1000}, {2100, 2000}}) {

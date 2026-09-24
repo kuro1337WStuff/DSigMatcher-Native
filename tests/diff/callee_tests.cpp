@@ -1,6 +1,6 @@
-// diff_callee: callee diffing, "Callee found diffing matches assembly / pseudo-code" (docs/parity/00-plan.md
-// §4 L7; find_matches_diffing D:3211-3229, find_matches_diffing_internal D:3150-3193, find_one_match_diffing
-// D:3033-3131; spec 03b §4.3, 06 §4-§6, 07 §10.11.1, 02 §3).
+// diff_callee: callee diffing, "Callee found diffing matches assembly / pseudo-code" (find_matches_diffing
+// D:3211-3229, find_matches_diffing_internal D:3150-3193, find_one_match_diffing D:3033-3131;
+// spec 03b §4.3, 06 §4-§6, 07 §10.11.1, 02 §3).
 //
 //   * unit tests: the documented diff-walk examples (03b §4.3.2 quirks 1-4, §4.3.3, 06 §6.3-§6.4 and V2)
 //     on Detail::CalleeCandidatePairs; the chooser / bonus / gate rules of D:3084-3110 with a scripted
@@ -191,7 +191,7 @@ std::map<std::string, int64_t> CallsOfIteration(const JsonValue& Counts, int K) 
 }
 
 // Runs one replay of find_matches_diffing:<K> in a fresh session on (MainDb, DiffDb): the RunReplay entry
-// point (plan §2.4) with the trace written to TracePath.
+// point, with the trace written to TracePath.
 struct Replay {
   std::optional<StateSnapshot> After;
   std::vector<std::string> Events;
@@ -454,7 +454,7 @@ std::optional<ScenarioRun> ReplayScenario(const std::string& Name, const std::st
         DSig::Test::Report(false, (Label + ": no after snapshot").c_str(), __FILE__, __LINE__);
       }
     } else {
-      // Diaphora raised inside this stage: the native engine raises at the same site (plan §3.11).
+      // Diaphora raised inside this stage: the native engine raises at the same site (07 §10.15).
       CHECK(LastIteration && !Exception.IsNull());
       if (!Exception.IsNull()) {
         const std::string Site =
@@ -873,7 +873,8 @@ void TestRaiseAndRefuse(const std::string& Scratch) {
     CHECK(R.Unsupported.has_value() && R.Unsupported->find("nodes") != std::string::npos);
   }
   // Hooks (patch-diff mode only, where the loop never runs): the candidate goes through
-  // PatchDiffHookOnMatch (lane L5), which returns (True, ratio), so the state is unchanged by it.
+  // PatchDiffHookOnMatch (stages/PatchDiffHook.cpp), which returns (True, ratio), so the state is
+  // unchanged by it.
   if (auto Dbs = BuildScenario("churn_gates", Scratch)) {
     const RulesRun Plain = RunRules(*Dbs, 0.5, false, Trace);
     const RulesRun Hooked = RunRules(*Dbs, 0.5, false, Trace, [](DiffSession& S) {

@@ -5,8 +5,8 @@ Outputs (paths relative to the repository root):
 
   src/diff/RegistrySql.inc                  the 50 HEURISTICS entries (name, category, ratio type,
                                             min, flags, source lines, verbatim final `sql`)
-  src/diff/StageSql.inc                     the non-registry stage SQL of docs/parity/00-plan.md
-                                            Appendix A, rendered exactly as diaphora.py builds it
+  src/diff/StageSql.inc                     the non-registry stage SQL of the default diff, rendered
+                                            exactly as diaphora.py builds it
   tests/diff/generated/registry_expected.inc  counts and the sha256 of every SQL string
 
 Sources are imported or parsed READ-ONLY from an unmodified Diaphora checkout:

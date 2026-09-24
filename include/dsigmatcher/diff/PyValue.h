@@ -1,6 +1,6 @@
 #pragma once
 
-// Python value semantics the diff depends on (L2; 03a §6.4, §7.1; 03b §4.1-§4.2):
+// Python value semantics the diff depends on (03a §6.4, §7.1; 03b §4.1-§4.2):
 //   * json.loads of `constants` / `names` columns, with exact big integers, NaN/Infinity literals and
 //     strict control characters;
 //   * set(...) membership and intersection with Python equality (1 == 1.0 == True, int/float compare
@@ -61,7 +61,7 @@ private:
 
 PySet PySetFromList(const std::vector<PyValue>& Items);  // set(list)
 // Main ∩ Diff in first-appearance order of Main. CPython iterates the smaller set in hash order; the
-// native order is a documented deviation (plan §5 R3).
+// native order is a documented deviation (06 §8.3, 06 V6).
 std::vector<PyValue> PySetIntersection(const PySet& Main, const PySet& Diff);
 size_t PySetIntersectionSize(const PySet& A, const PySet& B);
 

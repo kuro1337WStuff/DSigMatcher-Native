@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Record the lane L6 fixtures (tests/diff/fixtures/tiers/<scenario>/) from real Diaphora.
+"""Record the heuristic-tier fixtures (tests/diff/fixtures/tiers/<scenario>/) from real Diaphora.
 
     python -B gen_tiers_fixtures.py [--only probe3,probe5,...] [--diaphora-dir <dir>] [--python <exe>]
 
@@ -12,7 +12,7 @@ For every scenario directory next to this script (<scenario>/scenario.py, synthe
    tools/parity/oracle_trace.py's Instrument (every point, ratios_cache at every before: point, row
    events), under the fixture's PYTHONHASHSEED and with no DIAPHORA_* variable. The capture goes to
    <scenario>/capture/: index.json, snapshots/*.json and trace.jsonl, cut after the point
-   after:search_small_differences (the end of lane L6's stages; like an oracle_trace.py --stop-at
+   after:search_small_differences (the end of the heuristic tiers; like an oracle_trace.py --stop-at
    capture). run.json and progress.log hold local paths and timings and are not kept.
 3. Scenarios listed in FORWARD also get <scenario>/capture_forward/: the same instrumented run with
    threads_apply replaced, in memory, by a verbatim copy of jkutils/threads.py:27-71 that pops the
@@ -20,8 +20,8 @@ For every scenario directory next to this script (<scenario>/scenario.py, synthe
    control of 02 probe 3 only; it is never an oracle.
 
 The checkout is imported read-only (-B, PYTHONDONTWRITEBYTECODE=1) and make_fixture.py checks that its
-`git describe` / `git status` are unchanged. Paths come from flags or the environment only
-(plan §7.1 D9): --diaphora-dir (DSIG_DIAPHORA_DIR), --python (DSIG_PYTHON).
+`git describe` / `git status` are unchanged. Paths come from flags or the environment only:
+--diaphora-dir (DSIG_DIAPHORA_DIR), --python (DSIG_PYTHON).
 """
 
 import sys

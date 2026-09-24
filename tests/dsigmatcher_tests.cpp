@@ -66,7 +66,7 @@ std::string Utf8Of(const std::filesystem::path& Path) {
   return std::string(Text.begin(), Text.end());
 }
 
-// A scratch directory of this process only (several worktrees may run the suite at once), removed at
+// A scratch directory of this process only (several builds may run the suite at once), removed at
 // the end of main().
 const std::filesystem::path& ScratchDirectory() {
   static const std::filesystem::path Directory = [] {

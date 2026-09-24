@@ -1,4 +1,4 @@
-// Lane L5: find_equal_matches (D:1404-1442). Spec: 01 §5.5, 05 §5, 07 §10.7.
+// find_equal_matches (D:1404-1442). Spec: 01 §5.5, 05 §5, 07 §10.7.
 // D: = diaphora.py at 3.4.2-4-g621ec26.
 //
 // Both queries run through Path A (kSqlTotals, kSqlEqualMatches). The INTERSECT query has no ORDER BY:

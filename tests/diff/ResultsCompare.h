@@ -1,6 +1,6 @@
 #pragma once
 
-// Result and snapshot comparison for C++ tests (plan §1.3):
+// Result and snapshot comparison for C++ tests (the levels of docs/parity/README.md):
 //   L1   results as a multiset of (type, address, address2, name, name2, ratio, nodes1, nodes2,
 //        description) and unmatched as a multiset of (type, address, name);
 //   L2   L1 plus identical `line` values and stored row order (`order by rowid`) in both tables;

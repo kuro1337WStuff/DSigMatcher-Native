@@ -5,11 +5,11 @@
                     [--out <dir>] [--port-arg=<arg> ...]
 
 For each oracle pair whose run<n> finished validly (run.json exit code 0, the .diaphora exists, the log
-says "Diffing results saved in file" and logs no timeout or traceback; plan §1.6):
+says "Diffing results saved in file" and logs no timeout or traceback):
   1. `dsigmatcher port <ref> <target> -o <out>/<pair>/ported.sqlite --results <oracle .diaphora>`
      (best + partial, the default; extra port flags via --port-arg);
   2. the sha256 of both exports and of the results file is checked unchanged;
-  3. score_ground_truth.py against the target's truth: the O1 ground-truth TSV for a no-PDB target,
+  3. score_ground_truth.py against the target's truth: the oracle ground-truth TSV for a no-PDB target,
      the target export itself for a -pdb target, and the target's own names for the ELF ls sample
      ('self': those two exports have symbols on both sides, so this measures whether each match pairs
      same-named functions). PDB aliases come from pdb_aliases.py (cached under

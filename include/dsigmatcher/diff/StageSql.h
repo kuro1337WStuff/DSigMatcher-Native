@@ -1,9 +1,9 @@
 #pragma once
 
-// Every non-registry SQL string the default diff runs (docs/parity/00-plan.md Appendix A), rendered
-// by tools/parity/gen_registry.py exactly as diaphora.py builds it (get_query_fields from
-// diaphora_heuristics, f-strings / .format / .replace applied as at the cited D: lines) into
-// src/diff/StageSql.inc. Run them only through Path A (Database.h / Candidates.h), never rewritten.
+// Every non-registry SQL string the default diff runs, rendered by tools/parity/gen_registry.py
+// exactly as diaphora.py builds it (get_query_fields from diaphora_heuristics, f-strings / .format /
+// .replace applied as at the cited D: lines) into src/diff/StageSql.inc. Run them only through Path A
+// (Database.h / Candidates.h), never rewritten.
 
 #include <span>
 #include <string_view>

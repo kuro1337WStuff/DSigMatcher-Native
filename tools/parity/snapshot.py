@@ -2,10 +2,10 @@
 
 """Read, write and diff the parity trace and snapshot formats.
 
-This is the Python side of `docs/parity/00-plan.md` Appendix B. The native
-engine (`src/diff/Snapshot.cpp`, `src/diff/Trace.cpp`) writes the same field
-names, so every tool here parses JSON and compares values; it never compares
-bytes.
+This is the Python side of the trace and snapshot schema described below and in
+`tools/parity/README.md` ("Schema details"). The native engine
+(`src/diff/Snapshot.cpp`, `src/diff/Trace.cpp`) writes the same field names, so
+every tool here parses JSON and compares values; it never compares bytes.
 
 Snapshot file (`snapshots/NNNNN_<sanitised point>.json`, one per point):
 
@@ -46,7 +46,7 @@ LISTS = ("best", "partial", "unreliable")
 CHOOSERS = ("best", "partial", "unreliable", "multimatch")
 UNMATCHED = ("primary", "secondary")
 
-# Every point name Appendix B defines. Used to reject typos in --stop-at and to
+# Every point name the schema defines. Used to reject typos in --stop-at and to
 # label points in reports.
 POINT_PATTERNS = [
     r"after:find_equal_matches",
@@ -76,7 +76,7 @@ def IsPointName(Point):
 # ----------------------------------------------------------------------------- values
 
 def RatioBits(Value):
-    """IEEE-754 bits of float(Value) as 16 lowercase hex digits (Appendix B).
+    """IEEE-754 bits of float(Value) as 16 lowercase hex digits (`ratio_bits`).
 
     Python's int 1 and 0 become 1.0 and 0.0, which is exact because Diaphora
     only ever compares them with == / < / > and formats them with "%.7f"."""
@@ -103,7 +103,7 @@ def MatchesAny(Point, Globs):
 # ----------------------------------------------------------------------------- I/O
 
 def DumpJson(Obj):
-    """Compact UTF-8 JSON text, keys in insertion order (the Appendix B order)."""
+    """Compact UTF-8 JSON text, keys in insertion order (the schema's key order)."""
     return json.dumps(Obj, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
 
 
@@ -221,7 +221,7 @@ def _CompareMap(Field, A, B, Limit):
 
 
 def CompareSnapshots(A, B, Ignore=DEFAULT_IGNORE, Limit=10):
-    """S-L2 comparison of two snapshot objects (plan §1.3).
+    """S-L2 comparison of two snapshot objects.
 
     `all_matches`, `choosers` and `unmatched` are ordered lists compared item by
     item; `matched_primary`, `matched_secondary` and `ratios_cache` are maps.

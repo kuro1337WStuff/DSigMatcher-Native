@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Ratio vectors on the 0.99 clamp boundary (lane F1; spec docs/parity/03a-ratio.md §6.3, §13).
+"""Ratio vectors on the 0.99 clamp boundary (spec docs/parity/03a-ratio.md §6.3, §13).
 
 check_ratio ends with (D:1766-1771):
 

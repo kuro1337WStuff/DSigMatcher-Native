@@ -9,11 +9,11 @@ The census is what `diff_foundation` checks the native ingest and Path A against
     count plus the sha256 of its cell stream in `order by id` order (see CELL ENCODING);
     also the sha256 of `cast(md_index as real)` and `cast(address as real)` in the same order;
   * per oracle pair: for every default-run heuristic (Best and Partial, without the UNRELIABLE flag,
-    %POSTFIX% replaced by "") and every Appendix A stage query that needs no bindings, the number of
+    %POSTFIX% replaced by "") and every StageSql.inc stage query that needs no bindings, the number of
     rows and the sha256 of the row stream exactly as Python's sqlite3 returns it (ROW ENCODING);
   * the EXPLAIN QUERY PLAN detail rows of `find_same_name` per pair.
 
-Only counts and hashes are written: no function names or other export contents (plan §7.1 D9).
+Only counts and hashes are written: no function names or other export contents.
 
 CELL ENCODING (shared with tests/diff/foundation_tests.cpp): per value
     NULL -> "N";  INTEGER -> "I" + decimal;  REAL -> "R" + 16 lowercase hex digits of the IEEE bits;
@@ -67,9 +67,9 @@ TABLES = ["functions", "program", "program_data", "version", "instructions", "ba
           "bb_instructions", "function_bblocks", "callgraph", "constants", "compilation_units",
           "compilation_unit_functions", "sqlite_stat1"]
 # sequences slower than this under Python are flagged Long: diff_foundation runs them only with
-# DSIG_CENSUS_LONG=1 so every lane's ctest stays fast (sechost H15/H20/H21 take about a minute each)
+# DSIG_CENSUS_LONG=1 so a default ctest run stays fast (sechost H15/H20/H21 take about a minute each)
 LONG_SECONDS = 5.0
-# Appendix A queries that need no bindings, in StageSql.inc order
+# The stage queries that need no bindings, in StageSql.inc order
 STAGE_NO_BIND = ["kSqlVersion", "kSqlEqualDbMd5", "kSqlEqualDbExcept", "kSqlCallgraph", "kSqlTotals",
                  "kSqlEqualMatches", "kSqlSameProcessor", "kSqlStrippedCount", "kSqlStrippedRows",
                  "kSqlPatchCount", "kSqlSameName", "kSqlSmallDifferences", "kSqlUnmatchedUnion",

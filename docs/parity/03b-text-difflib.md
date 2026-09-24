@@ -112,7 +112,7 @@ The same rule applies to every other `get_value_for` call in `CBinDiff.__init__`
 
 > **Runs by default at diff time? No.** The only callers are in `diaphora_ida.py` (export), per §2. The diff reads the stored columns (§4). Implement this section only for a native exporter that must emit Diaphora-compatible `clean_assembly`, `clean_pseudo` and `clean_microcode`.
 >
-> **Current DSigMatcher code (checked in this worktree).** Nothing in `src/` writes these columns:
+> **Current DSigMatcher code (checked in the repository at the time).** Nothing in `src/` writes these columns:
 >
 > - `src/ExportDatabase.cpp` opens the export with `SQLITE_OPEN_READONLY` and only lists `clean_assembly`/`clean_pseudo`/`clean_microcode` as read fields (lines 64-66).
 > - The SQL inserts in `src/` go only to the tool's own tables: `matches` and `symbols_to_port` (`src/main.cpp:207-209`), and `dsig_provenance` and `dsig_name_origin` (`src/Provenance.cpp:127-128, 396`).
@@ -225,7 +225,7 @@ Steps, in this exact order, each a full left-to-right pass producing a new strin
    - If the conditions fail, advance one char and retry. Only a single `_` segment is consumed, so `aBc_1d_22` becomes `aXXXd_22`.
 9. `#0` followed by `x|X` and a maximal run of ≥1 `ALNUM` becomes `"0xXXX"`.
 
-`None` in gives `None` out; `""` in gives `""` out. The hand matcher above was fuzzed against the real function on 120,000 random strings over a hostile alphabet (all prefixes, `ptr` forms, `h+`, `..`, `#0x`, `;`, ` # `, `\t\r\n`, the 4 special code points) with 0 mismatches. The script is scratchpad `spec03b/hand.py`.
+`None` in gives `None` out; `""` in gives `""` out. The hand matcher above was fuzzed against the real function on 120,000 random strings over a hostile alphabet (all prefixes, `ptr` forms, `h+`, `..`, `#0x`, `;`, ` # `, `\t\r\n`, the 4 special code points) with 0 mismatches. The script is `<scratch>\spec03b\hand.py`.
 
 ### 3.4 `get_cmp_asm_lines` (diaphora.py:1037-1047)
 
@@ -1266,7 +1266,7 @@ def _calculate_ratio(matches, length):
 
 - `spec03b/port.py` is a clean-room reimplementation of `__chain_b`, `find_longest_match`, recursive `get_matching_blocks`, `get_opcodes`, `get_grouped_opcodes`, `unified_diff(lineterm="")`, `ratio`, `quick_ratio` and `real_quick_ratio`, written as the C++ should be. It was compared with stdlib outputs for equality of matching blocks, full unified-diff row lists and all three ratios. **6,000 random cases over 2 seeds, 0 mismatches.** The cases covered lengths from 0 to about 1,000, the 199/200/201 boundaries, small alphabets and deliberately popular elements.
 - `spec03b/hand.py` holds the regex-free matchers for `get_cmp_asm`, `get_cmp_asm_lines`, `get_cmp_pseudo_lines` and `CPP_NAMES_RE`, checked against Diaphora's own methods: **120,000 random strings over 3 seeds, 0 mismatches.**
-- The scratch scripts are in `<scratch>\spec03b\` (`port.py`, `hand.py`, `t1.py`-`t6.py`, `vec.py`, `tc.cpp`). They are session scratch, not part of the repo, and may be deleted. Each one can be rebuilt from this document.
+- The scratch scripts are in `<scratch>\spec03b\` (`port.py`, `hand.py`, `t1.py`-`t6.py`, `vec.py`, `tc.cpp`). They are scratch files, not part of the repo, and may be deleted. Each one can be rebuilt from this document.
 
 ---
 
@@ -1456,7 +1456,7 @@ Called only from `check_ratio` when `self.relaxed_ratio`, `ast1 is not None`, `a
 
 ---
 
-## 8. Side findings for sibling specs (verified while tracing call sites)
+## 8. Side findings for the other specs (verified while tracing call sites)
 
 1. **Experimental heuristics do not run by default.** `find_experimental_matches()` sits **inside** `if self.unreliable:` (diaphora.py:3638-3651, all spaces, 12-column indent), and `DIFFING_ENABLE_UNRELIABLE = False`. So `run_heuristics_for_category("Experimental")` (diaphora.py:2307-2311) is **skipped** in a default standalone diff, whatever `DIFFING_ENABLE_EXPERIMENTAL = True` says. That flag only gates `apply_dirty_heuristics` (diaphora.py:3618-3621).
 2. **The description of the diffing-matches heuristic carries the inner iteration number 1..3** (§4.3.4), not the outer loop counter. In the default config it is always `#1` (§4.3.2 quirk 5).
@@ -1468,7 +1468,7 @@ Called only from `check_ratio` when `self.relaxed_ratio`, `ast1 is not None`, `a
 
    Verified by calling it on `[0x401000,"foo",0x402000,"bar","Some heuristic",0.8765,7,9]`, which gave `description='Some heuristic', ratio=0.8765, nodes1=7, nodes2=9` (scratch `v03b/item.py`). `find_matches_diffing_internal` uses only `vfname`/`vfname2` anyway. The only way this path can raise is `int(item[6])`/`int(item[7])` on a non-integer node value.
 4. `get_function_row(name)` (diaphora.py:2445-2460) is `select * ... where name = ?` + `fetchone()`, with no `ORDER BY`. For duplicate names, which row wins is decided by SQLite's plan. NOT DETERMINED FROM SOURCE beyond "first row returned".
-5. **`MIN_FUNCTIONS_TO_DISABLE_SLOW = 4001` has no effect in standalone mode.** Its only reader is the IDA options dialog default, `"slow", total_functions <= config.MIN_FUNCTIONS_TO_DISABLE_SLOW` (diaphora_ida.py:3798-3800), which is copied into `bd.slow_heuristics` at diaphora_ida.py:3714. `python diaphora.py db1 db2` uses `self.slow_heuristics = get_value_for("slow_heuristics", DIFFING_ENABLE_SLOW_HEURISTICS)` (diaphora.py:409-411), which is **True whatever the function count**. Sibling specs and the oracle harness must not auto-disable slow heuristics at 4,001 functions.
+5. **`MIN_FUNCTIONS_TO_DISABLE_SLOW = 4001` has no effect in standalone mode.** Its only reader is the IDA options dialog default, `"slow", total_functions <= config.MIN_FUNCTIONS_TO_DISABLE_SLOW` (diaphora_ida.py:3798-3800), which is copied into `bd.slow_heuristics` at diaphora_ida.py:3714. `python diaphora.py db1 db2` uses `self.slow_heuristics = get_value_for("slow_heuristics", DIFFING_ENABLE_SLOW_HEURISTICS)` (diaphora.py:409-411), which is **True whatever the function count**. The other specs and the oracle harness must not auto-disable slow heuristics at 4,001 functions.
 
 ---
 
@@ -1513,7 +1513,7 @@ Called only from `check_ratio` when `self.relaxed_ratio`, `ast1 is not None`, `a
 
 This is an independent re-check of every behavioural claim, quoted excerpt and line number in this file. It was checked against Diaphora `621ec26` (`3.4.2-4-g621ec26`, working tree clean) and against `<conda>\Lib\difflib.py` (md5 `60d095550edf66222f142d8bbb9feff5`, 2056 lines) on Python 3.13.12.
 
-The experiments ran on a `git archive HEAD` copy of Diaphora under scratch `v03b/dref/`, with `python -B`, so `<diaphora-ref>` was not modified by this review. Note that `diaphora-ref` already contains git-ignored `__pycache__/` directories, with timestamps 00:04 and 00:07 from earlier agents' imports. They were left untouched.
+The experiments ran on a `git archive HEAD` copy of Diaphora under scratch `v03b/dref/`, with `python -B`, so `<diaphora-ref>` was not modified by this review. Note that `diaphora-ref` already contains git-ignored `__pycache__/` directories, with timestamps 00:04 and 00:07 from earlier imports. They were left untouched.
 
 Scratch directory: `<scratch>\v03b\`.
 
@@ -1594,7 +1594,7 @@ Scratch directory: `<scratch>\v03b\`.
 - **§4.3.4 and §7.1.** Exact propagation path and "no output file / stale file survives" behaviour.
 - **§3 box.** Current DSigMatcher `src/` never writes `clean_*`; this resolves the factual part of Open question 1. Added a note that `CLEANING_CMP_REPS`'s other reader, `is_auto_generated`, is IDA-import only.
 - **§6.** Instruction order within a block depends on the query plan (UI only).
-- **§8.5 (for sibling specs and the orchestrator).** `MIN_FUNCTIONS_TO_DISABLE_SLOW = 4001` is read only by the IDA options dialog (diaphora_ida.py:3798-3800). In standalone mode, slow heuristics stay **on** at any function count. This contradicts the task brief's "auto-disabled at 4001".
+- **§8.5 (for the other specs).** `MIN_FUNCTIONS_TO_DISABLE_SLOW = 4001` is read only by the IDA options dialog (diaphora_ida.py:3798-3800). In standalone mode, slow heuristics stay **on** at any function count. This contradicts an earlier summary's "auto-disabled at 4001".
 - **Open question 4.** Exact exception text and type, verified.
 
 ### Still not determined

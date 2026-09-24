@@ -1,9 +1,9 @@
 #pragma once
 
-// Side-table facts of one export (docs/parity/00-plan.md §3.3). The contents of `constants`,
+// Side-table facts of one export (08 §7-§8). The contents of `constants`,
 // `compilation_units`, `compilation_unit_functions`, `instructions` and `bb_instructions` are only
 // ever read through Path A SQL; ingest records their presence and row counts. The `program` rows and
-// the `version` rows are loaded because preflight (L5) needs them.
+// the `version` rows are loaded because preflight (stages/Preflight.cpp) needs them.
 
 #include <cstdint>
 #include <string>

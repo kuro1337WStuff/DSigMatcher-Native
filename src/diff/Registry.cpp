@@ -1,5 +1,5 @@
 // The heuristic registry and the stage SQL table, both generated verbatim from Diaphora by
-// tools/parity/gen_registry.py (docs/parity/00-plan.md §3.5).
+// tools/parity/gen_registry.py.
 
 #include "dsigmatcher/diff/Registry.h"
 

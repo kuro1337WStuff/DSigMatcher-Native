@@ -1,4 +1,4 @@
-// Lane L3: line splitting, the callee-name scanner and a literal port of CPython 3.13.12 difflib.
+// Line splitting, the callee-name scanner and a literal port of CPython 3.13.12 difflib.
 //
 // Reference: <python>/Lib/difflib.py, 2056 lines, md5 60d095550edf66222f142d8bbb9feff5 (03b §1).
 // "difflib.py:N" below cites that file; "D:N" cites diaphora.py at 3.4.2-4-g621ec26.
@@ -43,7 +43,7 @@ std::vector<std::string_view> PySplitNewline(std::string_view S) {
 // ---------------------------------------------------------------------------------------------
 // str.splitlines(keepends=False): D:3040-3041. The line-break set on Python 3.13.12 is exactly
 // U+000A, U+000B, U+000C, U+000D, U+001C, U+001D, U+001E, U+0085, U+2028, U+2029 (03b §4.3.1, enumerated
-// over all code points; re-checked for this lane). "\r\n" is one separator and a trailing separator
+// over all code points; re-checked for this port). "\r\n" is one separator and a trailing separator
 // yields no trailing empty element; "" gives [].
 //
 // The structure follows CPython's stringlib splitlines: find the next break, append [j, eol), consume
@@ -121,7 +121,7 @@ std::vector<std::string_view> PySplitLines(std::string_view Utf8) {
 //   the start: "0x401000" gives "x401000".
 // Under re.IGNORECASE with a str pattern, [a-zA-Z] and [a-zA-Z0-9_] also match exactly four non-ASCII
 // code points: U+0130, U+0131, U+017F, U+212A (enumerated over all code points in 06 §6.4 / 07 §10.11.1,
-// re-checked for this lane). Every other non-ASCII code point is a non-word char. "{3,}" counts code
+// re-checked for this port). Every other non-ASCII code point is a non-word char. "{3,}" counts code
 // points; since every word char is either ASCII or one of those four, a run length in code points is
 // the number of word chars scanned.
 //

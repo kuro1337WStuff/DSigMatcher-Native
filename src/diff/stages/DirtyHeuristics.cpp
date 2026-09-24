@@ -1,10 +1,10 @@
-// Lane L5: apply_dirty_heuristics (D:2629-2637) = search_just_stripped_binaries (D:2540-2585), then
+// apply_dirty_heuristics (D:2629-2637) = search_just_stripped_binaries (D:2540-2585), then
 // search_patchdiff_with_symbols (D:2587-2627). Spec: 01 §5.7, 05 §6-§8, 07 §10.8, 03b §4.4.
 // D: = diaphora.py at 3.4.2-4-g621ec26, C: = diaphora_config.py.
 //
 // Every query runs through Path A (kSqlStrippedCount, kSqlStrippedRows, kSqlPatchCount). The stripped
 // rows go through AddMatchesFromQueryRatio on the main thread, so a raise inside it aborts the run
-// (D:1967-1973 re-raise; the SystemExit timeout of D:1965-1966 is not emulated, plan §0.8).
+// (D:1967-1973 re-raise; the SystemExit timeout of D:1965-1966 is not emulated, 02 §5.4).
 
 #include <cstdint>
 #include <string>
@@ -95,7 +95,7 @@ bool SearchPatchdiffWithSymbols(DiffSession& S) {
   }
   Facts.Fired = true;
   S.Flags().IsPatchDiff = true;                             // D:2614
-  // D:2615-2619: project_script is None in the parity configuration (plan §1.1: DIAPHORA_PROJECT_SCRIPT
+  // D:2615-2619: project_script is None in the parity configuration (01 §3: DIAPHORA_PROJECT_SCRIPT
   // unset, D:421) and RUN_DEFAULT_SCRIPTS is True (C:186), so config.DEFAULT_SCRIPT_PATCH_DIFF
   // (scripts/patch_diff_vulns.py) is loaded as the hooks: a new CVulnerabilityPatches object, whose
   // `dones` set starts empty (:67). load_hooks' return value is ignored (D:2619).

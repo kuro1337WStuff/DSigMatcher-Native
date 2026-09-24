@@ -1,14 +1,14 @@
-// Lane L8: find_related_matches (D:3462-3494) and find_related_constants (D:3362-3393), the
-// "Same constants related matches" heuristic of the convergence loop (plan §4 L8; spec 06 §7-§8,
-// 07 §10.11.2, 02 §18.2, 08 H-4, H-8). D: = diaphora.py at 3.4.2-4-g621ec26, C: = diaphora_config.py.
+// find_related_matches (D:3462-3494) and find_related_constants (D:3362-3393), the
+// "Same constants related matches" heuristic of the convergence loop (spec 06 §7-§8, 07 §10.11.2,
+// 02 §18.2, 08 H-4, H-8). D: = diaphora.py at 3.4.2-4-g621ec26, C: = diaphora_config.py.
 //
 // All SQL is Diaphora's own, run through Path A: the function rows by name (get_function_row, D:2453)
 // and the per-constant join (D:3375-3387). `abs(mc.constant) == 0` is therefore evaluated by SQLite
 // itself (08 H-4), so only constants without a nonzero numeric prefix produce rows (06 §8.3).
 //
-// Documented deviation (plan §5 R3): `for constant in inter_consts` (D:3389) iterates a CPython set,
+// Documented deviation (06 §8.3, 06 V6): `for constant in inter_consts` (D:3389) iterates a CPython set,
 // whose order for str elements depends on PYTHONHASHSEED. The native engine iterates the intersection
-// in first-appearance order of the main function's JSON list (PySetIntersection, L2). Every other
+// in first-appearance order of the main function's JSON list (PySetIntersection). Every other
 // step, including which set's key objects the intersection keeps, is exact.
 
 #include <algorithm>
@@ -69,7 +69,7 @@ bool ConstantsCountPositive(const FunctionTable& T, uint32_t Row, const char* Si
 }
 
 // set(json.loads(row["constants"])) (D:3370-3371): json.loads(None) raises TypeError; invalid JSON, a
-// non-iterable value or an unhashable element raise inside PyJsonLoadsList / PySetFromList (L2). A
+// non-iterable value or an unhashable element raise inside PyJsonLoadsList / PySetFromList. A
 // BLOB cell would go through json.loads(bytes) with encoding detection, which is not ported.
 PySet ConstantsSet(const FunctionTable& T, uint32_t Row, const char* Site) {
   const TextColumn& Column = T.Constants;
@@ -106,7 +106,7 @@ void FindRelatedConstants(DiffSession& S, uint32_t MainRow, uint32_t DiffRow) {
   const PySet MainConsts = ConstantsSet(Main, MainRow, "D:3370 set(json.loads(main constants))");
   const PySet DiffConsts = ConstantsSet(Diff, DiffRow, "D:3371 set(json.loads(diff constants))");
   // D:3373 main_consts.intersection(diff_consts): the key objects of the iterated (smaller) set, the
-  // order is the documented deviation (plan §5 R3).
+  // order is the documented deviation (top of this file).
   const std::vector<PyValue> InterConsts = PySetIntersection(MainConsts, DiffConsts);
   if (InterConsts.empty()) {  // D:3374
     return;

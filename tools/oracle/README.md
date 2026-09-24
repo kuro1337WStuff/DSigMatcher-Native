@@ -11,7 +11,7 @@ outside the repo.
 
 | Script | Runs under | Purpose |
 |---|---|---|
-| `build_oracle.py` | any Python 3 | Orchestrator. Stages `exports`, `validate`, `diffs`, `summary`, or `all`. |
+| `build_oracle.py` | any Python 3 | Driver. Stages `exports`, `validate`, `diffs`, `summary`, or `all`. |
 | `diaphora_export.py` | Python that can `import idapro` (IDA 9.x idalib) | Analyse one binary and export it with Diaphora's own exporter (`diaphora_ida._diff_or_export(use_ui=False)`). Writes a JSON sidecar describing the run. |
 | `compare_exports.py` | any Python 3 | Table-by-table comparison of two exports (ignores `functions.export_time`). |
 | `pdb_proof.py` | Python with `pefile` | Classifies every exported function name (sub_* / PE export / other) to prove whether a PDB was applied. |

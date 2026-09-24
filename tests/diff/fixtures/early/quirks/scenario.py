@@ -1,4 +1,4 @@
-# Scenario `quirks` of lane L5 (05 §19 scenario E, rebuilt and extended): the corner cases of
+# Scenario `quirks` of the `early` fixtures (05 §19 scenario E, rebuilt and extended): the corner cases of
 # find_same_name (D:2152-2210). Synthetic data only.
 #
 # Regenerate:
@@ -18,9 +18,9 @@
 #   stored with the fake 1.0 of a same-name match (D:1350-1351), and blocks the identical one through
 #   has_best_match (05 H2);
 # - `lowA` / `lowB`: same shape, names and mnemonics, unrelated code: a low-ratio partial left to the
-#   heuristic tiers (lane L6). Real Diaphora gives "Mnemonics and names" 0.5030000 here; 05 §19
+#   heuristic tiers. Real Diaphora gives "Mnemonics and names" 0.5030000 here; 05 §19
 #   scenario E reported 0.003 for its own data, whose scripts were not kept.
-# The full expected output needs every lane; lane L5 checks the early points (gen_early.py capture).
+# The full expected output needs every pass; diff_early checks the early points (gen_early.py capture).
 
 BASE = 0x40A000
 SHIFT = 0x4000

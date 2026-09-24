@@ -605,8 +605,8 @@ def PublishOutput(Source, Output):
     The copy is staged beside the destination and moved over it with os.replace. The previous output's
     sidecars must not outlive the replace, but they are only renamed aside until the replace has
     succeeded and are renamed back when it fails, so a failed publish leaves the previous output and
-    its -wal (which may hold committed transactions) exactly as they were (lane F1: they used to be
-    deleted before the replace was even attempted)."""
+    its -wal (which may hold committed transactions) exactly as they were (they used to be deleted
+    before the replace was even attempted)."""
     Staging = "%s.dsig-tmp-%d" % (Output, os.getpid())
     try:
         shutil.copyfile(Source, Staging)
@@ -1277,7 +1277,7 @@ def ImportDiaphora(Directory):
 
     A directory whose files carry Diaphora's names but that is not Diaphora is "Diaphora not usable"
     (EXIT_DIAPHORA, which the C++ bridge reports with exit 4), not an export failure: the attribute
-    accesses below used to happen outside the import check and surfaced as EXIT_EXPORT (lane F1)."""
+    accesses below used to happen outside the import check and surfaced as EXIT_EXPORT."""
     sys.path.insert(0, Directory)
     try:
         import diaphora_config

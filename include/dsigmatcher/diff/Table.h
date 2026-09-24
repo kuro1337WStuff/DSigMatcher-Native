@@ -1,6 +1,6 @@
 #pragma once
 
-// In-memory `functions` table of one export (docs/parity/00-plan.md §3.3; 07 §4.3; 08 §9).
+// In-memory `functions` table of one export (07 §4.3, §5; 08 §9).
 //
 // Loaded with `select f.*, cast(f.md_index as real), cast(f.address as real) from <schema>.functions f
 // order by f.id`. Every cell's storage class is read with sqlite3_column_type before extraction:

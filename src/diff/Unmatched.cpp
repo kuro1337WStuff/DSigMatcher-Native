@@ -1,4 +1,4 @@
-// find_unmatched (lane L1): D:2323-2356. Spec: 01 §10.1-§10.3, 02 §16, 07 §10.13.
+// find_unmatched: D:2323-2356. Spec: 01 §10.1-§10.3, 02 §16, 07 §10.13.
 // D: = diaphora.py at 3.4.2-4-g621ec26.
 //
 // The labels are swapped in Diaphora: the main-database functions go into the chooser titled

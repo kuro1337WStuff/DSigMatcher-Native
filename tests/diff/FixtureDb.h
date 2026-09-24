@@ -1,6 +1,6 @@
 #pragma once
 
-// Builds SQLite files from committed text fixtures (plan §2.6). A fixture is SQL text such as Python's
+// Builds SQLite files from committed text fixtures. A fixture is SQL text such as Python's
 // sqlite3 iterdump() of a Diaphora-schema export built by tools/parity/make_fixture.py: schema.py
 // TABLES, every INDICES entry, rows, and the sqlite_stat1 rows `analyze` produced (iterdump writes
 // `ANALYZE "sqlite_master";` followed by `INSERT INTO "sqlite_stat1" ...`). The planner reads

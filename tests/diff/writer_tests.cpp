@@ -1,5 +1,5 @@
-// diff_writer: the .diaphora results writer (plan §4 L4, §3.10; 01 §10.2-§11; 09 "Results database
-// schema"; 02 §16; 06 §16).
+// diff_writer: the .diaphora results writer (01 §10.2-§11; 09 "Results database schema"; 02 §16;
+// 06 §16).
 //
 // 1. Formatting: FormatLine05, FormatAddr08x (Python int() of the address text, then "%08x"),
 //    FormatRatio7 ("%.7f", ties to even) against the 03a tie table and Python-generated strings, and
@@ -100,7 +100,7 @@ void TestFormatLine05() {
   CHECK_TEXT_EQ(FormatLine05(7), "00007");
   CHECK_TEXT_EQ(FormatLine05(1234), "01234");
   CHECK_TEXT_EQ(FormatLine05(12345), "12345");
-  CHECK_TEXT_EQ(FormatLine05(123456), "123456");  // plan §4 L4
+  CHECK_TEXT_EQ(FormatLine05(123456), "123456");  // 01 §10.2
   CHECK_TEXT_EQ(FormatLine05(std::numeric_limits<uint64_t>::max()), "18446744073709551615");
 }
 
@@ -108,7 +108,7 @@ void TestFormatAddr08x() {
   Test::Suite("FormatAddr08x: \"%08x\" % int(ea) (D:280, D:286, D:288; 01 §10.2)");
   // Expected strings from CPython 3.13.12: '%08x' % int(s).
   CHECK_TEXT_EQ(FormatAddr08x("4096"), "00001000");
-  CHECK_TEXT_EQ(FormatAddr08x("4294967296"), "100000000");  // plan §4 L4, 01 E2
+  CHECK_TEXT_EQ(FormatAddr08x("4294967296"), "100000000");  // 01 §10.2, E2
   CHECK_TEXT_EQ(FormatAddr08x("6442455040"), "180001000");
   CHECK_TEXT_EQ(FormatAddr08x("0"), "00000000");
   CHECK_TEXT_EQ(FormatAddr08x("-0"), "00000000");

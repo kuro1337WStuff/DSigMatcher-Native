@@ -1,10 +1,11 @@
-# End-to-end tools: port on results, ground truth, chain (lane L11)
+# End-to-end tools: port on results, ground truth, chain
 
-Plan: `docs/parity/00-plan.md` §7.1 D6 (port redesigned around results files), D8 (ground truth),
-§7.2 "L11". The C++ side is `dsigmatcher port` (`src/cli/PortResults.cpp`, engine
-`DSig::PortLabels` in `src/Provenance.cpp`) and `dsigmatcher update` (`src/cli/Update.cpp`); the
-Python here drives them, scores them and chains them. `ctest` never runs these scripts; the C++
-suites are `cli_port_results`, `cli_update` and `cli_commands`.
+These tools check the label pipeline end to end: `port` applies a results file (`.diaphora`) to a
+target database, and the result is scored against the PDB ground truth of the target build. The
+C++ side is `dsigmatcher port` (`src/cli/PortResults.cpp`, engine `DSig::PortLabels` in
+`src/Provenance.cpp`) and `dsigmatcher update` (`src/cli/Update.cpp`); the Python here drives
+them, scores them and chains them. `ctest` never runs these scripts; the C++ suites are
+`cli_port_results`, `cli_update` and `cli_commands`.
 
 | File | Does |
 |---|---|
@@ -17,7 +18,7 @@ suites are `cli_port_results`, `cli_update` and `cli_commands`.
 
 ## Paths
 
-Nothing is hard-coded (plan §7.1 D9). Flags win over the environment:
+Nothing is hard-coded. Flags win over the environment:
 
 | Flag | Environment | Meaning |
 |---|---|---|
@@ -117,16 +118,16 @@ two `results_*_db` columns as the results file's `config` row has them).
 Inputs are read through `file:...?mode=ro&immutable=1` when they are WAL-mode files with no
 committed `-wal` frames, so a port never creates `-wal`/`-shm` files beside an oracle export.
 
-## Ground truth (D8)
+## Ground truth
 
 `score_ground_truth.py` joins on the function start address.
 
-- **Truth.** An O1 ground-truth TSV (`<corpus>/oracle/ground_truth/<nopdb id>.tsv`), or a Diaphora
-  export of the same build made with its PDB. Truth rows without a real name are not scored
-  (`truth_unnamed`).
+- **Truth.** An oracle ground-truth TSV (`<corpus>/oracle/ground_truth/<nopdb id>.tsv`, made by
+  `tools/oracle/ground_truth.py`), or a Diaphora export of the same build made with its PDB. Truth
+  rows without a real name are not scored (`truth_unnamed`).
 - **Function starts the analyses disagree on** are reported apart and never scored:
-  `truth_only` (O1's `pdb_only` when the ported DB is a no-PDB analysis) and `ported_only`
-  (O1's `nopdb_only`).
+  `truth_only` (the ground-truth TSV's `pdb_only` when the ported DB is a no-PDB analysis) and
+  `ported_only` (its `nopdb_only`).
 - **Aliases.** A label is correct when it names any PDB symbol at the address: the truth row's
   `name`/`mangled_function`, or a symbol of the alias TSV. dbghelp strips one leading underscore
   from public names and returns C++ names undecorated, so a label is also looked up, among the
@@ -140,7 +141,7 @@ committed `-wal` frames, so a port never creates `-wal`/`-shm` files beside an o
   Diaphora's own results this is Diaphora's baseline, independent of what the port was allowed
   to write.
 
-## Commands (acceptance, plan §7.2 L11)
+## Commands
 
 ```
 set DSIG_CORPUS_ROOT=<corpus>

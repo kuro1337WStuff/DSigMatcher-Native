@@ -1,5 +1,5 @@
-// Lane L8: find_locally_affine_functions (D:3315-3360) and find_functions_between (D:3231-3313), the
-// "Local affinity" heuristic of the convergence loop (plan §4 L8; spec 06 §10-§11, 07 §10.11.4, 08 H-1).
+// find_locally_affine_functions (D:3315-3360) and find_functions_between (D:3231-3313), the
+// "Local affinity" heuristic of the convergence loop (spec 06 §10-§11, 07 §10.11.4, 08 H-1).
 // D: = diaphora.py at 3.4.2-4-g621ec26, C: = diaphora_config.py.
 //
 // Three orderings of the same address column meet here (06 Hard parts 4): the matches are sorted by
@@ -33,8 +33,8 @@ namespace {
 constexpr std::string_view kLocalAffinity = "Local affinity";  // D:3242 heur_text
 
 // Python int() of an address text as a comparable value: sign and the decimal digits without leading
-// zeros or '_' separators. Detail::RequirePyInt (L1) raises first where int() raises (None: TypeError;
-// text int() rejects: ValueError; non-ASCII text is refused).
+// zeros or '_' separators. Detail::RequirePyInt (StateDetail.h) raises first where int() raises
+// (None: TypeError; text int() rejects: ValueError; non-ASCII text is refused).
 struct PyIntKey {
   bool Negative = false;
   std::string Digits;  // no leading zeros; "" is zero
@@ -157,7 +157,7 @@ std::vector<uint32_t> GapRows(DiffSession& S, Side Which, AddrId Low, AddrId Hig
 // default path returns (True, r). Kept literal for a replay that restores hooks_loaded = true: the
 // hook object is scripts/patch_diff_vulns.py, which has on_match; the dictionaries it receives carry
 // the MAIN name as d2["name"] (D:3013, a Diaphora bug 06 §2.11 says to keep), and int(nodes) runs
-// on both rows first (D:3020-3021). The hook's only effect is to raise (L5, PatchDiffHookOnMatch).
+// on both rows first (D:3020-3021). The hook's only effect is to raise (PatchDiffHookOnMatch).
 double CallOnMatchHook(DiffSession& S, uint32_t MainRow, uint32_t DiffRow, double R) {
   if (!S.Flags().HooksLoaded) {
     return R;

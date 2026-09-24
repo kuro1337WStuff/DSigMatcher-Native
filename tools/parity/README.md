@@ -1,9 +1,9 @@
 # Parity tools (Python)
 
-Python tools for the Diaphora-parity work planned in `docs/parity/00-plan.md`. They run
-**unmodified** Diaphora, record what it does, compare the native engine with it, and regenerate
-the test data committed under `tests/diff/`. None of them computes a diff result for the product,
-and `ctest` never runs Python (plan §0.6, §2.7). They are not needed to use `dsigmatcher`.
+Python tools for Diaphora parity. They run **unmodified** Diaphora, record what it does, compare
+the native engine with it, and regenerate the test data committed under `tests/diff/`. None of
+them computes a diff result for the product, and `ctest` never runs Python. They are not needed to
+use `dsigmatcher`.
 
 There are three groups:
 
@@ -21,9 +21,9 @@ There are three groups:
 | `run_parity.py` | Runs `dsigmatcher diff` on every valid oracle pair and compares it with Diaphora's output at L0/L1/L2; with `--score`, also ports both result sets and scores them against the PDB ground truth. Produces the parity evidence quoted in the top-level README. See [`run_parity.py`](#run_paritypy-the-release-evidence) below. |
 | `compare_results.py` | Compares two `.diaphora` files at L0, L1 and L2, with a per-heuristic agreement table. Has a `--self-test`. |
 | `make_fixture.py` | Builds a synthetic Diaphora-schema database pair from a scenario file, has real Diaphora diff it twice, and writes the pair and Diaphora's expected results as committed test fixtures. |
-| `oracle_trace.py` | Instrumented Diaphora run of one oracle pair (`run`), the lane self-test (`selftest`), and a list of captures (`status`). Plan §2.3. |
-| `snapshot.py` | Library for the trace and snapshot schema of plan Appendix B: writing, reading, S-L2 comparison, and rebuilding `.diaphora` rows from the chooser dumps. |
-| `compare_traces.py` | First divergence between two traces, or first differing point between two captures. Plan §2.5. Has a planted-divergence `--self-test`. |
+| `oracle_trace.py` | Instrumented Diaphora run of one oracle pair (`run`), the self-test (`selftest`), and a list of captures (`status`). |
+| `snapshot.py` | Library for the trace and snapshot schema (see [Schema details](#schema-details)): writing, reading, S-L2 comparison, and rebuilding `.diaphora` rows from the chooser dumps. |
+| `compare_traces.py` | First divergence between two traces, or first differing point between two captures. Has a planted-divergence `--self-test`. |
 | `gen_registry.py` | Generates the verbatim Diaphora SQL the engine embeds (`src/diff/RegistrySql.inc`, `src/diff/StageSql.inc`) and its checksums (`tests/diff/generated/registry_expected.inc`). `--check` verifies the committed files instead. |
 | `gen_corpus_census.py` | Generates `tests/diff/generated/corpus_census.inc`: counts and hashes (never names) of every oracle export and of every default query's row stream per pair. Needs the corpus. |
 | `gen_foundation_fixture.py` | Generates `tests/diff/fixtures/foundation/{main,diff}.sql`, the synthetic pair of `diff_foundation`. |
@@ -62,13 +62,13 @@ Run them with the oracle's Python (CPython 3.13.12, `sqlite3` 3.51.1, no
 `cdifflib`). `run.json` records all three.
 
 The native side needs the same SQLite, because Diaphora's results follow the
-row order of SQLite's query planner (plan §5 R1). The default build bundles
-SQLite 3.51.1 compiled with the oracle's options (`cmake/VendoredSqlite.cmake`;
-`build/dsig_sqlite_info` prints the version and compile options), so native
-results compare at L2 (exact order, `line`, ratios) on every platform. A build
-with `-DDSIG_VENDORED_SQLITE=OFF` uses the system SQLite: unless that is also
-3.51.1, `dsigmatcher diff` warns and only L1 (same rows, any order) is
-meaningful.
+row order of SQLite's query planner (docs/parity/02-matching.md §18.3). The
+default build bundles SQLite 3.51.1 compiled with the oracle's options
+(`cmake/VendoredSqlite.cmake`; `build/dsig_sqlite_info` prints the version and
+compile options), so native results compare at L2 (exact order, `line`,
+ratios) on every platform. A build with `-DDSIG_VENDORED_SQLITE=OFF` uses the
+system SQLite: unless that is also 3.51.1, `dsigmatcher diff` warns and only
+L1 (same rows, any order) is meaningful.
 
 ## `run_parity.py`: the release evidence
 
@@ -87,7 +87,7 @@ python -B tools/parity/run_parity.py --corpus <corpus> --dsigmatcher <build>/dsi
 
 For every pair in `<corpus>/oracle/manifest.json` (or `--pairs`), in manifest order:
 
-1. **Oracle status** (plan §1.6). `PENDING` when the oracle run has not finished;
+1. **Oracle status.** `PENDING` when the oracle run has not finished;
    `SKIPPED_LONG` for a pair whose oracle run took more than an hour, unless `--long`;
    `ORACLE_INVALID` when the oracle run fails a validity rule (non-zero exit, missing output or
    log lines, a heuristic that hit Diaphora's 300 s timeout, changed export hashes, `cdifflib`
@@ -102,7 +102,7 @@ For every pair in `<corpus>/oracle/manifest.json` (or `--pairs`), in manifest or
    build, so parity and ground truth appear side by side. `--generate-aliases` lets
    `tools/e2e/pdb_aliases.py` build missing alias lists.
 
-The levels (plan §1.3): **L0**, the detected mode and Diaphora's `Final results` counts agree;
+The levels: **L0**, the detected mode and Diaphora's `Final results` counts agree;
 **L1**, `results` and `unmatched` are equal as multisets; **L2**, L1 plus identical `line` values
 and stored row order. L2 is the parity gate.
 
@@ -130,7 +130,7 @@ L0 needs both logs; without them it is reported as not evaluated. Rows are paire
 (type, description) group by their `(address, address2)` key, and each group counts matched
 rows, rows found in only one file, and differences in ratio, category, description, names,
 nodes, `line` and order. Differences confined to "Same constants related matches" rows, which
-depend on Python's set order (plan §5 R3), are reported as the separate tolerated class
+depend on Python's set order (`D:3389`; 06 §8.3), are reported as the separate tolerated class
 `r3_only`; the L1/L2 verdicts are never relaxed for them. Both files are opened read-only with
 `immutable=1`. Exit status: 0 when L2 holds and the DDL is equal, 1 otherwise, 2 on a usage or
 read error.
@@ -211,9 +211,9 @@ What it does, in order:
    `bd = CBinDiff(db1); bd.ignore_all_names = False; bd.db = sqlite3_connect(db1); bd.diff(db2); bd.save_results(out)`.
    Before `diff`, it wraps methods of `bd` (see below).
 5. Afterwards it re-hashes the exports, re-checks the checkout, and applies
-   the log rules of plan §1.6. For a full run it compares the output with
-   oracle `run1` (the plan §2.3 self-check) and rebuilds the rows from the
-   chooser dumps. The work copies are then deleted.
+   the oracle validity rules to the log (as `run_parity.py` does). For a full
+   run it compares the output with oracle `run1` (the self-check) and rebuilds
+   the rows from the chooser dumps. The work copies are then deleted.
 
 Exit codes: 0 means OK. 1 means the self-check failed, or the checkout or an
 export changed. 3 means Diaphora itself aborted: an exception, or a main-thread
@@ -252,8 +252,8 @@ Options:
   and `check_ratio`) and writes one `row` event per call.
 - `--force-const-order sorted|rsorted` swaps in a copy of
   `find_related_constants` (`D:3362-3393`) that is verbatim except for the
-  iteration order of the constant set. It is for measurement only (06 V4, plan
-  §5 R3). `run.json` then says `oracle_valid_config: false`.
+  iteration order of the constant set. It is for measurement only (06 V4).
+  `run.json` then says `oracle_valid_config: false`.
 - `--hash-seed <n>` re-runs the process under `PYTHONHASHSEED=<n>` and records
   the seed. See "Hash seed" below.
 - `--detach` starts the same command as a process that outlives the launching
@@ -277,15 +277,39 @@ choosers at run time. No file in the checkout is touched.
 | `add_match` (`D:1340`) | `add_match` event |
 | `cleanup_matches` (`D:1554`) | `before:`/`after:cleanup:<site>:<n>` points and a `cleanup` event. The site is the caller's line, `sys._getframe(1).f_lineno`. |
 | the four `add_matches_from_*` (`D:1950`/`1977`/`2002`/`2039`) | `before:`/`after:heuristic:<id>`, only on a heuristic worker thread. The thread name is the heuristic name (`threads_apply`), mapped to its `HEURISTICS` index. |
-| stage methods (plan Appendix B) | their `before:`/`after:` points |
+| stage methods (`POINT_PATTERNS` in `snapshot.py` lists every point) | their `before:`/`after:` points |
 | `CChooser.add_item` (`D:275`) | the raw chooser dumps in `after:final_pass` and `after:find_unmatched` |
 | `find_one_match_diffing` (`D:3033`) | a call count per field and iteration in `run.json` (06 V3) |
 | `check_match`, `add_matches_internal`, `check_ratio` | `row` events, only with `--rows` |
 
-## Schema details (plan Appendix B, with the choices it leaves open)
+## Schema details
 
-The field names are exactly those of Appendix B. Compare by parsed JSON, never
-by bytes. The files are compact UTF-8 JSON (`ensure_ascii=False`).
+The native engine (`src/diff/Snapshot.cpp`, `src/diff/Trace.cpp`) and these tools
+write the same field names. Compare by parsed JSON, never by bytes. The files
+are compact UTF-8 JSON (`ensure_ascii=False`).
+
+A snapshot (`snapshots/NNNNN_<sanitised point>.json`), shown indented:
+
+```json
+{"schema": "dsig-parity-snapshot/1", "producer": "diaphora-3.4.2-4-g621ec26",
+ "pair": "ls-old_vs_ls", "seq": 17, "point": "before:find_matches_diffing:0", "iteration": 0,
+ "flags": {"is_same_processor": true, "is_patch_diff": false, "is_symbols_stripped": false,
+           "hooks_loaded": false, "total_functions1": 304, "total_functions2": 318},
+ "all_matches": {"best": [["4198400", "foo", "4202496", "foo", "Perfect match, same name",
+                           "3ff0000000000000", 5, 5]],
+                 "partial": [], "unreliable": []},
+ "matched_primary": [["foo", "foo", "3ff0000000000000"]],
+ "matched_secondary": [["foo", "foo", "3ff0000000000000"]],
+ "ratios_cache": [["4198400-4202496", "3fee666666666666"]]}
+```
+
+and a trace line:
+
+```json
+{"ev":"add_match","seq":1234,"ctx":"heuristic:41","name1":"foo","name2":"bar","ea1":"4198400",
+ "ea2":"4202496","desc":"Loop count","ratio_bits":"3fe8000000000000","chooser":"partial",
+ "result":"appended"}
+```
 
 - **Items** are `[ea1, name1, ea2, name2, desc, ratio_bits, nodes1, nodes2]`.
   `ea` values keep their Python type (the address TEXT from SQLite, so a JSON
@@ -337,7 +361,7 @@ by bytes. The files are compact UTF-8 JSON (`ensure_ascii=False`).
   - `ratio_bits` is the ratio `check_match` computed. It is `null` when none was
     computed (`nullsub`, `has_best`).
   - In patch-diff mode, a row that the `on_match` hook rejected would be
-    labelled `has_better`. The default hook never rejects (plan §4 L5).
+    labelled `has_better`. The default hook never rejects (01 §5.4).
 
 ### Point order (mode N, abridged)
 
@@ -354,7 +378,7 @@ before:final_pass, cleanup:2945, after:final_pass, after:find_unmatched
 In modes S and P, `before`/`after:find_remaining_functions` replaces the
 heuristic tiers and the loop.
 
-## Hash seed (plan §5 R3)
+## Hash seed
 
 `find_related_constants` iterates a Python `set` (`D:3389`). Its order follows
 the string hash seed, which Python picks at random for every process. In the
@@ -435,7 +459,7 @@ python -B compare_traces.py --self-test [--trace <trace.jsonl>] [--snapshots <ca
   copy of a capture. It checks that each one is reported at the planted place.
 - **Exit codes**: 0 equal, 1 different, 2 usage.
 
-## Long-pair prefix captures (plan §4.1)
+## Long-pair prefix captures
 
 One detached capture per long pair goes to `traces/<pair>/`, with
 `--stop-at after:find_related_compilation_unit:0 --hash-seed 12345` and

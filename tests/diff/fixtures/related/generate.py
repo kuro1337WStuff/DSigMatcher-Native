@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Expected vectors of the diff_related suite, recorded from REAL Diaphora (plan §2.6, §4 L8).
+"""Expected vectors of the diff_related suite, recorded from REAL Diaphora (spec 06 §7-§11).
 
     python -B generate.py fixtures  --diaphora-dir <diaphora-ref>
     python -B generate.py set-order --diaphora-dir <diaphora-ref> --corpus <corpus> --capture <name> [...]
@@ -11,11 +11,11 @@
   2. For every case below it rebuilds the pair like tests/diff/FixtureDb.h does, on COPIES, imports the
      unmodified Diaphora checkout read-only, restores the case's starting state with Diaphora's own
      add_match (D:1340-1374), runs ONE stage method (find_related_matches, find_related_compilation_unit
-     or find_locally_affine_functions, D:3462 / D:3395 / D:3315) and records the state after it (plan
-     Appendix B), every add_match call (with the oracle's result inference, tools/parity/README.md) and the
+     or find_locally_affine_functions, D:3462 / D:3395 / D:3315) and records the state after it (as a
+     snapshot), every add_match call (with the oracle's result inference, tools/parity/README.md) and the
      (ea, ea2) of every check_match call, i.e. the rows of every cursor the stage consumed. When Diaphora
      raises, the exception type and message are recorded instead of the after state.
-  3. find_related_constants iterates a CPython set (D:3389, plan §5 R3). The cases run it through a copy
+  3. find_related_constants iterates a CPython set (D:3389, 06 §8.3). The cases run it through a copy
      that is verbatim except that the set is iterated in first appearance order of the main function's
      JSON list: the native engine's documented order. `forced_const_order` says so in cases.json.
   Output: cases.json.
@@ -30,7 +30,7 @@ lets diff_related replay the capture's constant order exactly (src/diff/stages/R
 Only finished captures (run.json "complete" / "stopped", or a capture whose writer is gone) may be
 named: this script reads their snapshots and exports and writes nothing next to them.
 
-Paths come from flags or the environment only (plan §7.1 D9): --diaphora-dir (DSIG_DIAPHORA_DIR),
+Paths come from flags or the environment only: --diaphora-dir (DSIG_DIAPHORA_DIR),
 --corpus (DSIG_CORPUS_ROOT). Exports are opened read-only with immutable=1.
 """
 
@@ -302,7 +302,7 @@ CASES = [
 # ----------------------------------------------------------------------------- running one case
 
 def FirstAppearanceOrder(MainList, InterConsts):
-    """The native engine's documented order (plan §5 R3): the intersection's own key objects, in first
+    """The native engine's documented order (06 §8.3): the intersection's own key objects, in first
     appearance order of the main JSON list."""
     Rep = {C: C for C in InterConsts}
     Out = []

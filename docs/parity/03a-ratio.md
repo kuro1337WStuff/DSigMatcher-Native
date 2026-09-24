@@ -53,7 +53,7 @@ Quirk: for a bool default, `isinstance(<str>, bool)` is False. So when `DIAPHORA
 
 `self.is_same_processor` starts as `False` (`diaphora.py:436`). It is set at `diaphora.py:3617`, `self.is_same_processor = self.same_processor_both_databases()`. That happens **after** `check_callgraph()`, `find_equal_matches()` and `equal_db()`. I checked all three (`diaphora.py:661-687, 1288-1338, 1404-1442`), and none of them calls `check_ratio`. So every `check_ratio` call sees the final value. `same_processor_both_databases` (`diaphora.py:2950-2967`) returns True iff `select 1 from main.program mp, diff.program dp where mp.processor = dp.processor` returns a row. That is SQL `=`, so a `NULL` processor never matches.
 
-Correction to the orchestrator brief: `MIN_FUNCTIONS_TO_DISABLE_SLOW` (`diaphora_config.py:71`) is referenced **only** in `diaphora_ida.py:3799` (`"slow", total_functions <= config.MIN_FUNCTIONS_TO_DISABLE_SLOW`), the IDA GUI options. Standalone `diaphora.py` never reads it. `self.slow_heuristics` is plainly `config.DIFFING_ENABLE_SLOW_HEURISTICS` (True, `diaphora.py:409-411`), whatever the function count. In standalone mode, slow heuristics are **not** auto-disabled at 4001 functions.
+Correction: `MIN_FUNCTIONS_TO_DISABLE_SLOW` (`diaphora_config.py:71`) is referenced **only** in `diaphora_ida.py:3799` (`"slow", total_functions <= config.MIN_FUNCTIONS_TO_DISABLE_SLOW`), the IDA GUI options. Standalone `diaphora.py` never reads it. `self.slow_heuristics` is plainly `config.DIFFING_ENABLE_SLOW_HEURISTICS` (True, `diaphora.py:409-411`), whatever the function count. In standalone mode, slow heuristics are **not** auto-disabled at 4001 functions.
 
 Standalone mode also has `IS_IDA = False` (`diaphora.py:82-87`), which forces `self.cpu_count = 1` (`diaphora.py:489-491`), and sets `bd.ignore_all_names = False` (`diaphora.py:3759-3760`).
 
@@ -527,7 +527,7 @@ Python `float()` also accepts `_` digit separators and `"infinity"`. `std::from_
 
 **Port.** At load time store both `md_sqlite` (read with `sqlite3_column_double`) and `md_py` (`std::from_chars` of the TEXT) per function. `sqlite3_column_double` and `CAST(... AS REAL)` share one converter: in the SQLite 3.53.0 amalgamation, `sqlite3VdbeMemRealify` does `pMem->u.r = sqlite3VdbeRealValue(pMem)`, and `sqlite3_value_double` returns `sqlite3VdbeRealValue((Mem*)pVal)`. Both reach `sqlite3AtoF`. I read this in the 3.53.0 amalgamation (`sqlite3.c`: `sqlite3VdbeMemCast` case `SQLITE_AFF_REAL` gives `sqlite3VdbeMemRealify` at 86361-86385, `sqlite3VdbeMemRealify` at 86284-86292, `sqlite3VdbeRealValue` at 86205-86219, `sqlite3_column_double` gives `sqlite3_value_double` at 94904 and 93704-93706). **Verified empirically on 3.51.1 as well.** Through ctypes against `miniconda3/Library/bin/sqlite3.dll` (3.51.1, the same library Python's `_sqlite3` reports), I read 200,001 md strings stored in a TEXT column. `sqlite3_column_double(md_index)` and `CAST(md_index AS REAL)` were bit-identical for all of them; the 3.53.0 amalgamation, built here with MSVC, gave the same result. Use `md_sqlite` for SQL-heuristic callers and `md_py` for `compare_function_rows` callers. Because of the cache (§8), the first call for a pair wins.
 
-**SQLite version dependence (measured).** I ran `CAST(? AS REAL)` over the same 200,000 synthetic 28-digit `str(Decimal)` strings with every 64-bit SQLite DLL on this PC (script `scratchpad/v03a/onedll.py`):
+**SQLite version dependence (measured).** I ran `CAST(? AS REAL)` over the same 200,000 synthetic 28-digit `str(Decimal)` strings with every 64-bit SQLite DLL on this PC (script `<scratch>\v03a\onedll.py`):
 
 | SQLite build (all Windows DLLs) | result vs 3.51.1 | differs from Python `float()` |
 |---|---|---|
@@ -561,13 +561,13 @@ v5 = 0; if micro both non-NULL: v5 = R(fr(cm1,cm2)); if v5 == 1 return 1.0
 then the same max / md guard / deep_ratio / 0.99 clamp as default
 ```
 
-Verified against Diaphora with `bd.relaxed_ratio = True`. The functions rows at the probed address are **deep_ratio-neutral**: indegree, outdegree and cc are 0, switches and constants are `"[]"`, and source_file and primes are NULL, so `deep_ratio` returns 0. Script: `scratchpad/v03a/relaxed2.py`.
+Verified against Diaphora with `bd.relaxed_ratio = True`. The functions rows at the probed address are **deep_ratio-neutral**: indegree, outdegree and cc are 0, switches and constants are `"[]"`, and source_file and primes are NULL, so `deep_ratio` returns 0. Script: `<scratch>\v03a\relaxed2.py`.
 - primes `"1234567890123456789"` vs `"9876543210987654321"` give `1.0`;
 - primes `"30"` vs `"210"`, with 3-line vs 4-line assembly, give `0.9`;
 - md `"12.5"` on both sides gives `1.0`;
 - md `"3.5"` on both sides with assembly `a\nb\nc` vs `a\nb\nd` gives `0.7333333333333333`, where v2 is the unrounded quick_ratio `2/3`.
 
-These are the ratios **before** any deep_ratio bonus. The older `scratchpad/relaxed.py` points `ea` at arbitrary harness rows, so it prints `0.901` and `0.7343333333333333`: deep_ratio adds +0.001 there.
+These are the ratios **before** any deep_ratio bonus. The older `<scratch>\relaxed.py` points `ea` at arbitrary harness rows, so it prints `0.901` and `0.7343333333333333`: deep_ratio adds +0.001 there.
 
 **Runs by default?** `check_ratio`: **yes**. Its default-reachable callers are:
 - (via `check_match`) rows of the Best/Partial SQL heuristics that pass the flag filters (§0);
@@ -933,7 +933,7 @@ A C++ unit suite should embed these as fixtures: the tie table in §5, the §6.5
      - (a) accept the risk;
      - (b) vendor and pin the SQLite amalgamation, at 3.46+ to match the 3.51.1 oracle;
      - (c) compute `md_sqlite` with an in-tree port of 3.53.0 `sqlite3AtoF`/`sqlite3Fp10Convert2`, which matches 3.46-3.53 on this sample, independent of the linked library.
-2. **cdifflib. RESOLVED FROM SOURCE for cdifflib 1.2.9, the current PyPI release.** I downloaded the sdist to `scratchpad/v03a/cdl/`; it is not installed.
+2. **cdifflib. RESOLVED FROM SOURCE for cdifflib 1.2.9, the current PyPI release.** I downloaded the sdist to `<scratch>\v03a\cdl\`; it is not installed.
    - `CSequenceMatcher` subclasses `difflib.SequenceMatcher`. It overrides only `__init__`, `find_longest_match`, `set_seq1`, `set_seq2` (which resets `self.fullbcount = None`) and `get_matching_blocks` (`cdifflib.py:21-79`).
    - It does **not** override `quick_ratio` or `real_quick_ratio`, so both are the inherited stdlib code in §2/§3, run on the same lists. The result is identical.
    - Older cdifflib versions: NOT DETERMINED.
@@ -943,7 +943,7 @@ A C++ unit suite should embed these as fixtures: the tie table in §5, the §6.5
    - `constants` is always a JSON list: it starts as `[]` at 3081 and is `json.dumps`'d at `diaphora.py:936-939`.
    - `indegree` is always an int (3072).
    - `address` is `int(ea)` (3207), so it is canonical decimal text.
-   - None of these is ever NULL, **unless** an `after_export_function` hook rewrites the row (`diaphora_ida.py:3099-3107`) or a non-IDA exporter produced the DB. Whether real exports use such hooks: NOT DETERMINED (HANDOFF blocker 1).
+   - None of these is ever NULL, **unless** an `after_export_function` hook rewrites the row (`diaphora_ida.py:3099-3107`) or a non-IDA exporter produced the DB. Whether real exports use such hooks: NOT DETERMINED (no real export existed when this was written).
 4. **Heuristic execution order** (outside this spec). VERIFIED: `threads_apply` takes work with `targets.pop()` (`jkutils/threads.py:40`), so heuristics of one category run in **reverse** list order; `cpu_count` is 1 standalone, so there is one thread at a time. Ratios are cache-pure, so this does not affect `check_ratio` values. It does affect `add_match`/`has_better_match` outcomes, so the chooser/ordering spec must account for it.
 5. **Bug-for-bug error handling** (§12). This is a product decision; source cannot settle it. The facts are in §12: the worker-thread heuristic is truncated, NO_FPS heuristics stop silently, main-thread callers abort with no output file, and a timeout in main-thread callers exits with no output file. "Reject the DB at load" diverges from all of these on malformed input.
 

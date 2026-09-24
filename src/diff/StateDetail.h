@@ -1,7 +1,7 @@
 #pragma once
 
-// Internal helpers of lane L1 (MatchState.cpp, Consumer.cpp, FinalPass.cpp, Unmatched.cpp). Private to
-// src/diff; not part of the frozen API.
+// Internal helpers of MatchState.cpp, Consumer.cpp, FinalPass.cpp and Unmatched.cpp. Private to
+// src/diff; not part of the public API.
 
 #include <cstddef>
 #include <string>

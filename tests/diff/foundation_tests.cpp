@@ -1,24 +1,24 @@
-// diff_foundation: the L0 foundation of the parity engine (docs/parity/00-plan.md §2.6, §4 L0).
+// diff_foundation: the foundation of the parity engine (07 §4-§5, §11-§12; 08 §9; 01 §1, §5, §11).
 //
 //   * registry and stage SQL against tests/diff/generated/registry_expected.inc;
 //   * JSON, snapshot, trace and interner units;
 //   * FixtureDb, ingest and Path A on the committed synthetic fixture (tests/diff/fixtures/foundation);
-//   * the pipeline end to end: exit codes, Diaphora's DDL, the mode-N points (G0);
+//   * the pipeline end to end: exit codes, Diaphora's DDL, the mode-N points;
 //   * corpus (skipped without DSIG_CORPUS_ROOT): ingest census of the 7 exports, the diff of
 //     ls-old vs ls against the oracle file's DDL, results comparison self-checks;
 //   * SQLite 3.51.1 only: the Path A row-sequence census on the 5 oracle pairs and the
 //     find_same_name EXPLAIN QUERY PLAN (02 Appendix C). Sequences Python needed more than 5 s for run
 //     only with DSIG_CENSUS_LONG=1.
-//   * lane R0 (reconciliation): the trace/snapshot conventions of tools/parity/oracle_trace.py, checked
-//     byte for byte against a finished oracle capture (skipped without it); the final-results log
+//   * reconciliation with the oracle: the trace/snapshot conventions of tools/parity/oracle_trace.py,
+//     checked byte for byte against a finished oracle capture (skipped without it); the final-results log
 //     order (D:3689 before D:3690); the SQLite warning under --quiet (skipped on the oracle's SQLite);
 //     missing side tables refused with exit 4; Unicode and UNC paths, in process and through the CLI.
-//   * lane F1: reading an input creates no -wal/-shm beside it (immutable=1 when no committed -wal
+//   * input files: reading an input creates no -wal/-shm beside it (immutable=1 when no committed -wal
 //     frame or hot -journal waits), committed -wal frames are still read, a hot -journal is refused;
 //     non-ASCII and UNC paths through the immutable URI.
-//   * lane P1 (ResilienceTests.inc): checkpoints and --resume after a kill at every checkpoint, and the
-//     break-the-app tests (checkpoint directory problems, a full disk, corrupt / truncated / locked
-//     inputs, damaged checkpoints, internal errors).
+//   * crash resilience (ResilienceTests.inc): checkpoints and --resume after a kill at every checkpoint,
+//     and the break-the-app tests (checkpoint directory problems, a full disk, corrupt / truncated /
+//     locked inputs, damaged checkpoints, internal errors).
 
 #include <algorithm>
 #include <cctype>
@@ -128,7 +128,7 @@ bool Exists(const std::string& Utf8Path) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Registry (plan §4 L0 unit tests; 04a §2; 07 §10.14)
+// Registry (04a §2; 07 §10.14)
 
 void TestRegistry() {
   DSig::Test::Suite("registry");
@@ -172,7 +172,7 @@ void TestRegistry() {
     CHECK_NUM_EQ(CountOf(Spec.Sql, "%POSTFIX%"), Spec.Id == 10 ? 2 : 1);
     CHECK(Spec.SourceLineBegin > 0 && Spec.SourceLineEnd > Spec.SourceLineBegin);
   }
-  // categories 12/30/8 and types 5/22/22/1 (plan §4 L0; H:1262 asserts the type counter)
+  // categories 12/30/8 and types 5/22/22/1 (H:1262 asserts the type counter)
   CHECK_NUM_EQ(Best, 12);
   CHECK_NUM_EQ(Partial, 30);
   CHECK_NUM_EQ(Unreliable, 8);
@@ -186,7 +186,7 @@ void TestRegistry() {
   CHECK_NUM_EQ(Trusted, 1);
   CHECK_NUM_EQ(NoFps, DSIG_EXPECTED_NOFPS);
   CHECK_NUM_EQ(Trusted, DSIG_EXPECTED_TRUSTED);
-  // flags enumerated from HEURISTICS (plan §4 L0)
+  // flags enumerated from HEURISTICS (H:89-1177)
   CHECK((FlagUnreliable == std::set<int>{36, 37, 38}));
   CHECK((FlagSlow == std::set<int>{14, 21, 36, 37, 38, 41, 43, 44, 45, 46, 47, 48}));
   CHECK((FlagSameCpu == std::set<int>{0, 1, 2, 3, 5, 6, 9, 39}));
@@ -233,7 +233,7 @@ void TestRegistry() {
   CHECK_TEXT_EQ(std::string(CategoryName(HeurCategory::Partial)), "Partial");
   CHECK_TEXT_EQ(std::string(HeurTypeName(HeurType::RatioMaxTrusted)), "RATIO_MAX_TRUSTED");
 
-  // Stage SQL (Appendix A)
+  // Stage SQL (StageSql.h)
   const auto Stages = StageSqls();
   CHECK_NUM_EQ(Stages.size(), 25);
   CHECK_NUM_EQ(Stages.size(), DSIG_EXPECTED_STAGE_SQL_COUNT);
@@ -303,7 +303,7 @@ void TestInterner() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// JSON (plan §4 L0: bigints kept as text, escapes, NaN in compat mode)
+// JSON (bigints kept as text, escapes, NaN in compat mode)
 
 void TestJson() {
   DSig::Test::Suite("json");
@@ -415,7 +415,7 @@ void TestJson() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Snapshot schema (Appendix B)
+// Snapshot schema (tools/parity/README.md, "Schema details")
 
 StateSnapshot SampleSnapshot() {
   StateSnapshot S;
@@ -457,7 +457,7 @@ void TestSnapshot() {
   DSig::Test::Suite("snapshot");
   CHECK_TEXT_EQ(RatioBitsHex(1.0), "3ff0000000000000");
   CHECK_TEXT_EQ(RatioBitsHex(0.0), "0000000000000000");
-  CHECK_TEXT_EQ(RatioBitsHex(0.95), "3fee666666666666");  // the Appendix B example value
+  CHECK_TEXT_EQ(RatioBitsHex(0.95), "3fee666666666666");  // the value in the schema example below
   CHECK(ParseRatioBits("3fee666666666666") == RatioBits(0.95));
   CHECK(RatioFromBits(RatioBits(0.123456789)) == 0.123456789);
   bool Threw = false;
@@ -504,7 +504,7 @@ void TestSnapshot() {
   CHECK(Back.Unmatched && Back.Unmatched->Primary && !Back.Unmatched->Secondary);
   CHECK(Back.Partial[0].Name1 == std::nullopt);
 
-  // the literal example of Appendix B parses (comments removed)
+  // the reference example of the snapshot schema parses (comments removed)
   const std::string Example = R"({ "schema": "dsig-parity-snapshot/1", "producer": "diaphora-3.4.2-4-g621ec26",
   "pair": "ls-old_vs_ls", "seq": 17, "point": "before:find_matches_diffing:0", "iteration": 0,
   "flags": {"is_same_processor": true, "is_patch_diff": false, "is_symbols_stripped": false,
@@ -558,7 +558,7 @@ void TestSnapshot() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Trace sink (Appendix B)
+// Trace sink (tools/parity/README.md, "Schema details")
 
 void TestTrace() {
   DSig::Test::Suite("trace");
@@ -616,7 +616,7 @@ void TestTrace() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Final results (design decision R0 (b)): D:3689 computes percent, and raises ZeroDivisionError
+// Final results: D:3689 computes percent, and raises ZeroDivisionError
 // when total_functions1 is 0, BEFORE D:3690 logs "Final results".
 
 void TestFinalResults() {
@@ -706,7 +706,7 @@ void TestConfigAndNames() {
   CHECK_TEXT_EQ(DiffDatabase::UriForPath("rel/a.sqlite"), "file:rel/a.sqlite?mode=ro");
   CHECK_TEXT_EQ(DiffDatabase::UriForPath("/x/a?b#c%d.sqlite"), "file:/x/a%3fb%23c%25d.sqlite?mode=ro");
   CHECK_TEXT_EQ(DiffDatabase::UriForPath("C:/x/a.sqlite", false), "file:/C:/x/a.sqlite");
-  // a UNC path keeps an empty URI authority: file:////server/share/... (lane R0 (f))
+  // a UNC path keeps an empty URI authority: file:////server/share/...
   CHECK_TEXT_EQ(DiffDatabase::UriForPath("//server/share/a.sqlite"), "file:////server/share/a.sqlite?mode=ro");
 #ifdef _WIN32
   CHECK_TEXT_EQ(DiffDatabase::UriForPath("\\\\server\\share\\a b.sqlite"), "file:////server/share/a b.sqlite?mode=ro");
@@ -774,7 +774,7 @@ void TestFixtureIngest() {
     CHECK(Stat.Step() && Stat.Int(0) > 0);
     const auto Plan = Db.ExplainQueryPlan(kSqlSameName);
     CHECK(!Plan.empty());
-    // both databases are read-only: the open (lane R0 (f); the immutable URI of lane F1) keeps
+    // both databases are read-only: the open (plain or immutable URI, DiffDatabase::UriForPath) keeps
     // SQLITE_OPEN_READONLY and the ATTACH inherits it (attach.c flags = db->openFlags). SQLITE_READONLY is
     // an environment failure (audit F03), never a Diaphora-parity raise a heuristic worker could swallow.
     for (const char* Sql : {"create table main.r0_probe (a)", "create table diff.r0_probe (a)",
@@ -1046,7 +1046,7 @@ void TestIngestQuirks() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// The pipeline end to end (G0) on the fixture
+// The pipeline end to end on the fixture
 
 const std::vector<DSig::Test::SchemaRow>& DiaphoraDdl() {
   // D:2387-2403 as stored in sqlite_master (01 §11.1)
@@ -1183,7 +1183,7 @@ void TestPipeline() {
     CHECK_NUM_EQ(File.Config[0][3].size(), 24);  // time.asctime()
   }
 
-  // mode-N points of Appendix B (plan §4 L0 acceptance)
+  // the mode-N snapshot points (tools/parity/README.md, "Point order")
   const std::vector<IndexRow> Index = ReadIndex(Capture);
   const std::vector<std::string> Points = ReadIndexPoints(Capture);
   const std::set<std::string> Have(Points.begin(), Points.end());
@@ -1400,7 +1400,7 @@ void TestPipeline() {
     CHECK(RunDiff(Replay).Status == DiffStatus::Usage);
   }
 
-  // exit codes (plan §2.1)
+  // exit codes (DiffStatus, Pipeline.h)
   {
     DiffArgs Bad = Args;
     Bad.SnapshotDir.clear();
@@ -1479,7 +1479,7 @@ void TestPipeline() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Missing side tables (design decision R0 (d)): refused with UnsupportedInput, exit 4, naming the
+// Missing side tables (a design decision): refused with UnsupportedInput, exit 4, naming the
 // table, never a raw "no such table" SQL error.
 
 void TestMissingSideTables() {
@@ -1529,7 +1529,7 @@ void TestMissingSideTables() {
     DSig::Test::RemoveScratchDir(Pair.Dir);
   }
   // diff.version is not required by ingest: without it Diaphora takes the empty-result path
-  // (D:3577-3591), which is the version check's decision (L5), not a refusal.
+  // (D:3577-3591), which is the version check's decision (stages/Preflight.cpp), not a refusal.
   {
     FixturePair Pair = BuildFoundationFixture("foundation-missing-version", "", "drop table version;\n");
     CHECK(Pair.Ok);
@@ -1544,7 +1544,8 @@ void TestMissingSideTables() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// The SQLite version warning is not silenced by --quiet (design decision R0 (c)).
+// The SQLite version warning is not silenced by --quiet (a design decision: --quiet silences only
+// Diaphora's summary lines, never a warning).
 
 // Runs F with file descriptor 2 redirected into `File` and returns what was written to it.
 std::string CaptureStderr(const std::string& File, const std::function<void()>& F) {
@@ -1627,7 +1628,7 @@ void TestSqliteWarning() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Unicode and UNC paths (design decision R0 (f)), in process and through the CLI binary.
+// Unicode and UNC paths (every path is UTF-8), in process and through the CLI binary.
 
 #ifdef DSIG_CLI_PATH
 #ifdef _WIN32
@@ -1858,7 +1859,7 @@ void TestUnicodePaths() {
     CHECK(Broken.Ok);
     CHECK_NUM_EQ(RunCli({"diff", Broken.Main, Broken.Diff, "-o", Join(Dir, "broken.diaphora"), "--quiet"}, Log), 4);
     CHECK(ReadFile(Log).find("main.constants: table is missing") != std::string::npos);
-    // --help documents that DIAPHORA_* variables are ignored (design decision R0 (e))
+    // --help documents that DIAPHORA_* variables are ignored (a design decision)
     CHECK_NUM_EQ(RunCli({"--help"}, Log), 0);
     CHECK(ReadFile(Log).find("DIAPHORA_* variables are deliberately ignored") != std::string::npos);
     DSig::Test::Note("CLI ran with Unicode path arguments (exit 0), a refused input (exit 4) and --help");
@@ -1882,7 +1883,7 @@ void TestUnicodePaths() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Lane F1: reading an input never creates files beside it (Database.cpp InputFileName)
+// Reading an input never creates files beside it (Database.cpp InputFileName)
 
 bool WalModeHeader(const std::string& Utf8Path) {
   const std::string Bytes = ReadFile(Utf8Path).substr(0, 20);
@@ -2049,7 +2050,7 @@ void TestReadOnlyInputs() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Corpus: ingest census (plan §4 L0), skipped without the corpus
+// Corpus: ingest census, skipped without the corpus
 
 std::string CensusCell(const IntColumn& Column, uint32_t Row, bool& Unrepresentable) {
   if (Column.Null(Row)) {
@@ -2077,7 +2078,7 @@ void TestCorpusIngestCensus() {
     return;
   }
   DSig::Test::Suite("corpus-ingest-census");
-  // The literal values of plan §4 L0, independent of the generated census.
+  // Literal values measured on the 7 oracle exports, independent of the generated census.
   struct PlanValues {
     const char* Id;
     long long Rows, NullPseudocode, NameNeMangled;
@@ -2191,7 +2192,7 @@ void TestCorpusIngestCensus() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// SQLite 3.51.1 only: the Path A row-sequence census (plan §2.6) and the find_same_name plan
+// SQLite 3.51.1 only: the Path A row-sequence census (07 §13) and the find_same_name plan
 
 std::string StatementCell(const Statement& Stmt, int Column) {
   switch (Stmt.Type(Column)) {
@@ -2219,7 +2220,7 @@ void TestRowSequenceCensus() {
     DSig::Test::Skip("row-sequence-census", "SQLite " + DiffDatabase::LibVersion() + " is not the oracle's 3.51.1");
     return;
   }
-  // Design decision R0 (a): DSIG_CORPUS_ROOT set but the exports absent is a skip, not a failure.
+  // Design decision: DSIG_CORPUS_ROOT set but the exports absent is a skip, not a failure.
   bool AnyPair = false;
   for (const CensusSequence& Seq : kCensusSequences) {
     AnyPair = AnyPair || (DSig::Test::ExportAvailable(Seq.Main) && DSig::Test::ExportAvailable(Seq.Diff));
@@ -2310,7 +2311,7 @@ void TestSameNamePlan() {
     DSig::Test::Skip("same-name-plan", "needs DSIG_CORPUS_ROOT and SQLite 3.51.1");
     return;
   }
-  // Design decision R0 (a): DSIG_CORPUS_ROOT set but the exports absent is a skip, not a failure.
+  // Design decision: DSIG_CORPUS_ROOT set but the exports absent is a skip, not a failure.
   size_t Available = 0;
   for (const CensusPlan& Plan : kCensusSameNamePlans) {
     Available += DSig::Test::ExportAvailable(Plan.Main) && DSig::Test::ExportAvailable(Plan.Diff) ? 1 : 0;
@@ -2357,7 +2358,7 @@ void TestSameNamePlan() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Corpus: `diff ls-old ls` writes Diaphora's exact DDL (G0), results comparison
+// Corpus: `diff ls-old ls` writes Diaphora's exact DDL, results comparison
 
 void TestCorpusDiffDdl() {
   if (!DSig::Test::ExportAvailable("ls-old") || !DSig::Test::ExportAvailable("ls") ||
@@ -2392,7 +2393,7 @@ void TestCorpusDiffDdl() {
     const DSig::Test::CompareReport Runs = DSig::Test::CompareResults(Oracle, Run2);
     CHECK(Runs.L2Equal);
   }
-  CHECK_NUM_EQ(Oracle.Results.size(), 278);  // 139 + 113 + 26 (plan §1.5)
+  CHECK_NUM_EQ(Oracle.Results.size(), 278);  // 139 + 113 + 26 (06 §0)
   // a planted change is classified: same multiset, different order breaks L2 only
   DSig::Test::ResultsFile Swapped = Oracle;
   std::swap(Swapped.Results[0], Swapped.Results[1]);
@@ -2405,8 +2406,8 @@ void TestCorpusDiffDdl() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Lane R0: the oracle instrumentation (tools/parity/oracle_trace.py, lane L0b) is the reference for the
-// trace and snapshot conventions, because hours-long oracle captures already exist in its format.
+// The oracle instrumentation (tools/parity/oracle_trace.py) is the reference for the trace and
+// snapshot conventions, because hours-long oracle captures already exist in its format.
 // Checked on the finished ls-old_vs_ls capture (skipped without it):
 //   * index.json and every snapshot round-trip byte for byte through the native reader and writer
 //     (and, modulo the producer string, the native writer produces the oracle's bytes);
@@ -2698,8 +2699,8 @@ void TestOracleConventions() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// v1.0.0 hardening (lane R1, audit findings F01, F03, F06, F25, F27, F28, F29, F30, F58): every case
-// here is a way to break the tool that the audit found; each check failed before its fix.
+// v1.0.0 hardening (audit findings F01, F03, F06, F25, F27, F28, F29, F30, F58): every case here is a
+// way to break the tool that the audit found; each check failed before its fix.
 
 // The snapshot file of `Point` in a capture directory ("" when absent).
 std::string CaptureSnapshotFile(const std::string& Capture, const std::string& Point) {
@@ -3392,7 +3393,7 @@ void TestReleaseHardening() {
 int main(int argc, char** argv) {
   P1SetSelfPath(argc > 0 ? argv[0] : nullptr);
   if (argc >= 2 && std::string(argv[1]) == "--p1-checkpoint-child") {
-    return P1CheckpointChildMain(argc, argv);  // a child process of the P1 kill-and-resume tests
+    return P1CheckpointChildMain(argc, argv);  // a child process of the kill-and-resume tests
   }
   TestRegistry();
   TestInterner();

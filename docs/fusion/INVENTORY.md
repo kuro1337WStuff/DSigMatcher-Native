@@ -3,24 +3,24 @@
 > **Status: planned, not started.** Fusion is a planned optimisation for after v1.0. **No fusion
 > work has started**, and nothing described below is in v1.0.0: the v1.0.0 engine runs each of
 > Diaphora's heuristic queries unchanged, one at a time, exactly as Diaphora does. This inventory
-> was produced by the pre-release audit on 2026-09-23. It measures where the ported engine spends
+> was produced by a pre-release review on 2026-09-23. It measures where the ported engine spends
 > its time on the two long reference pairs and lists what any fusion would have to preserve, above
-> all Diaphora's row order. File and line citations refer to the audited snapshot and may have
-> moved since. Measurements and scratch files it mentions were made on the auditor's machine and
+> all Diaphora's row order. File and line citations refer to the reviewed snapshot and may have
+> moved since. Measurements and scratch files it mentions were made on the review machine and
 > are not part of the repository.
 
 **What this is:** the list to come back to when fusion is approved. It is documentation only. No engine code, test, or tracked file was changed, and fusion was not started.
 
-- **Audited snapshot:** `<audit-snapshot>` (a checkout of the merged `parity` branch, before the v1.0.0 release work), using the prebuilt `build/dsigmatcher.exe` and `build/diff_tiers.exe`.
-- **Date:** 2026-09-23. Scratch: `<scratch>/fusion` (the auditor's private working directory; not published).
-- **Citations:** `D:` = diaphora.py, `H:` = diaphora_heuristics.py, `C:` = diaphora_config.py (Diaphora 3.4.2-4-g621ec26). Every other file:line is in the audit snapshot.
+- **Reviewed snapshot:** `<review-snapshot>` (a checkout of the merged `parity` branch, before the v1.0.0 release work), using the prebuilt `build/dsigmatcher.exe` and `build/diff_tiers.exe`.
+- **Date:** 2026-09-23. Scratch: `<scratch>/fusion` (a private working directory; not published).
+- **Citations:** `D:` = diaphora.py, `H:` = diaphora_heuristics.py, `C:` = diaphora_config.py (Diaphora 3.4.2-4-g621ec26). Every other file:line is in the reviewed snapshot.
 - **Abbreviations:** U = userenv-9168-pdb_vs_9278-nopdb, S = sechost-9168-pdb_vs_9444-nopdb.
 
 ---
 
 ## 0. Summary
 
-1. **"Fusion" as the earlier development notes describe it is not where the time goes.** Those notes say the three text-keyed joins take about 69% of heuristic time. That figure comes from the old legacy engine. The measured phases of the parity engine are these:
+1. **"Fusion" as the maintainer notes (not published) describe it is not where the time goes.** Those notes say the three text-keyed joins take about 69% of heuristic time. That figure comes from the old legacy engine. The measured phases of the parity engine are these:
 
    | phase | U (77.0 s wall) | S (476.2 s wall) |
    |---|---:|---:|
@@ -45,7 +45,7 @@
 5. **11 of the 50 heuristics never run in the parity engine**: H36-H38 (flag UNRELIABLE) and H42-H49 (the Unreliable tier). The engine only runs the default configuration: `Config.h:55-58`, `Pipeline.cpp:582`, `--unreliable` refused with exit 4. These heuristics need no fusion work.
 6. **Findings outside fusion** (§10):
    - Transient SQLite errors such as SQLITE_FULL become silent heuristic truncations with exit 0.
-   - Disk C: was at 54 MB to 4.3 GB free throughout this audit. The fat constants joins spill temp B-trees there, and my own sechost timing query failed with `database or disk is full`.
+   - Disk C: was at 54 MB to 4.3 GB free throughout this review. The fat constants joins spill temp B-trees there, and my own sechost timing query failed with `database or disk is full`.
    - The binary reports version 0.1.0.
 
 ---
@@ -61,9 +61,9 @@
 | projection probe (idea only) | the same SQL with the outer `SELECT_FIELDS` replaced by `f.address ea, df.address ea2`. Compares plan text and the exact `(ea, ea2)` row sequence. | `slim_check.py`, `slim-userenv.json`, `slim-sechost.json` |
 | related-CU workload | seeds from the snapshot at the D:3413 cleanup: exact for U (the `after:cleanup` snapshot), approximate for S (the `before:cleanup` snapshot). Diaphora's own CU lookup SQL, rows per seed = the product of the two range sizes. | `cu_seeds.py` |
 | constants duplicates | the raw join of H15/H20/H21 with the output cut and DISTINCT dropped, compared with the distinct `(ea, ea2)` pairs | `const_dups.py` |
-| key signatures | `build/diff_tiers.exe` output (the L6 `DataTouched` descriptor, `TiersDetail.h`, `HeuristicTiers.cpp:187-927`). 51/51 queries matched SQLite's authorizer. | `diff_tiers_out.txt` |
+| key signatures | `build/diff_tiers.exe` output (the heuristic tiers' `DataTouched` descriptor, `TiersDetail.h`, `HeuristicTiers.cpp:187-927`). 51/51 queries matched SQLite's authorizer. | `diff_tiers_out.txt` |
 
-The machine was loaded throughout: 4 long oracle Python jobs, other auditors' `dsigmatcher` runs, and 32 logical CPUs. Treat any value below about 0.3 s as noise. For example, U H1 shows 0.258 s native for 5 rows, and the snapshot gap right after it was 0.129 s. `--trace` is not usable for timing: on U it wrote a 1.76 GB JSONL file and stretched the run from 77 s to 180 s.
+The machine was loaded throughout: 4 long oracle Python jobs, other `dsigmatcher` runs, and 32 logical CPUs. Treat any value below about 0.3 s as noise. For example, U H1 shows 0.258 s native for 5 rows, and the snapshot gap right after it was 0.129 s. `--trace` is not usable for timing: on U it wrote a 1.76 GB JSONL file and stretched the run from 77 s to 180 s.
 
 ---
 
@@ -122,7 +122,7 @@ These rules apply to every group in §7. Parity is row for row, so each one is a
    - A generator must report the exact raw row index at which an error would occur.
 7. **Ratio cache: first writer wins, and the md source depends on the path.**
    - `check_ratio` from SQL rows uses `md = cast(md_index as real)` evaluated by SQLite. `compare_function_rows` (callee diffing, local affinity) uses Python `float()` of the text (`Ratio.cpp:808-822`).
-   - Both paths store into one cache keyed by `(ea1, ea2)`, and the first writer wins (`Ratio.cpp:547-557, 794-795`; plan R4).
+   - Both paths store into one cache keyed by `(ea1, ea2)`, and the first writer wins (`Ratio.cpp:547-557, 794-795`; 03a §8).
    - Computing ratios speculatively, ahead of time or in parallel, can change the cached values. Precompute only from the same path that would have stored first, or keep the value computed off-path out of the cache.
 8. **Cleanup points are fixed.**
    - The call sites are L1551 (end of each tier), L3655/L3671 (loop head and tail), L3217/L3185 (callee), L3471 (related constants), L3413 (related CU), L3340 (affinity) and L2945 (final).
@@ -130,7 +130,7 @@ These rules apply to every group in §7. Parity is row for row, so each one is a
    - A fused pass must not move work across any of these points.
 9. **Stage-local rules.**
    - Related-CU seeds are a snapshot of sorted best then partial. The loop breaks at the first ratio below 0.8, with no deduplication (`RelatedCompilationUnit.cpp:284-300`).
-   - Related constants iterate a set whose order is the documented deviation R3 (`RelatedConstants.cpp:9-12, 121-135`).
+   - Related constants iterate a set whose order is the documented set-order deviation (06 §8.3; `RelatedConstants.cpp:9-12, 121-135`).
    - Callee diffing keeps a `dones` set per call, and its snapshot sorts are taken per category (`CalleeDiffing.cpp:305-348`).
    - Local affinity sorts by Python `int()` of addresses. Its gap queries use `address desc` with a bytewise TEXT compare (`LocalAffinity.cpp:253-293, 138-153`).
 10. **Configuration.**
@@ -781,7 +781,7 @@ Each block is generated by `gen_tables.py` from the verbatim SQL, the `diff_tier
 | **find_remaining_functions** | `RemainingFunctions.cpp:57-148`; SQL `StageSql.inc:240`, `:253` | UNION of `(db, name, address)`; per pair `SELECT_FIELDS` by address | `f.address = ? AND df.address = ?` (`idx_28`) | only in modes S/P (`SkipOthers`); main name must start with `sub_`; `nodes >= 3` | **not in mode N** (did not run on U or S) | 0 / 0 (UNION: 1271 / 2861 rows) | an O(\|main unmatched sub_\| × \|diff unmatched\|) loop of single-pair queries; the lists are snapshots; `val = 0.6` |
 | **search_small_differences** | `SmallDifferences.cpp:183-235`; SQL `StageSql.inc:197` | `SELECT_FIELDS` + `f.names`, `df.names` (JSON) | `nodes, edges, mnemonics, cyclomatic_complexity` equal (same key set as H44) | `f.names != '[]'`; names-Jaccard ≥ 0.5 **before** `check_match`; `has_better_match` on the names ratio (`:212`) | yes (`SlowHeuristics = true`) | 0.07 / 0.17; 4806 / 7192 rows | `fetchmany(1000)` batch-loss semantics (`:51-160`); plan differs between pairs (U `SCAN df`, S `SCAN f`, then `idx_5`); main thread (a raise aborts) |
 | **callee diffing** (find_matches_diffing) | `CalleeDiffing.cpp:305-362`; SQL `StageSql.inc:311`, `:321`, `:331` | `select *` by name (`idx_2`); in-memory `assembly` / `pseudocode` / `nodes` | name → row (`functions_exists` UNION of both names) | min/max nodes ≥ 25%; nodes ≥ 3; ratio == 1.0 → best, > 0.3 → partial (+0.01 bonus) | yes (assembly only when same CPU) | 4.11 / 10.63 | per best-then-partial sorted snapshot; `dones` shared by match keys and callee keys; up to 3 inner rounds with cleanup L3185 after each; a unified_diff hunk flushes only at a context row |
-| **related constants** (find_related_matches) | `RelatedConstants.cpp:101-183`; SQL `StageSql.inc:374` | `functions.constants` (JSON), `constants_count`; 4-way join `f, df, mc, dc` with `mc.constant = ?` and `abs(mc.constant) == 0` | `mc.constant = dc.constant`, `mc.func_id = f.id`, `dc.func_id = df.id` (the **FG-1 join with a bound constant**) | seeds with ratio ≥ 0.8 (break per category); both `constants_count > 0` | yes | 1.26 / 1.95 | intersection iteration order is deviation R3; each constant's rows go through `add_matches_internal` (1M cap each) |
+| **related constants** (find_related_matches) | `RelatedConstants.cpp:101-183`; SQL `StageSql.inc:374` | `functions.constants` (JSON), `constants_count`; 4-way join `f, df, mc, dc` with `mc.constant = ?` and `abs(mc.constant) == 0` | `mc.constant = dc.constant`, `mc.func_id = f.id`, `dc.func_id = df.id` (the **FG-1 join with a bound constant**) | seeds with ratio ≥ 0.8 (break per category); both `constants_count > 0` | yes | 1.26 / 1.95 | intersection iteration order is the documented set-order deviation (06 §8.3); each constant's rows go through `add_matches_internal` (1M cap each) |
 | **related compilation unit** | `RelatedCompilationUnit.cpp:276-317`; SQL `StageSql.inc:417`, `:433`, `:449` | CU lookup by name (`cuf`, `cus`, `f`); native replay of `SCAN f` × `SCAN df` over `cast(address as real)` ranges | name → first CU (`start_ea`, `end_ea`) | seeds with ratio ≥ 0.8 (break of the **whole** loop); both lookups must hit | yes | **63.81 / 266.31** | per seed: f rows in range ascending by id (outer) × df rows ascending by id (inner); plan guard `SCAN f` / `SCAN df` (`:249-271`); no dedup across seeds; 1M cap per seed |
 | **local affinity** | `LocalAffinity.cpp:138-293`; SQL `StageSql.inc:346`, `:360` | gap rows `select *` by address range (`idx_28`); in-memory name, `pseudocode_lines`, `nodes` | consecutive matches by `int(ea)`; `address > ? and address < ?` (TEXT, bytewise) | ≤ 100 rows per gap (C:124); nullsub / `sub_` filters; `pseudocode_lines` 3-rule; r == 1.0 best / ≥ 0.5 partial | yes | 0.30 / 1.03 | stable sort by `int()` keys; `order by address desc`; per-gap score maps are written even when `add_match` rejects |
 | **final_pass** | `FinalPass.cpp:86-162` | in-memory items only | keyed by **address** pair text (not name) | max_main / max_diff running maxima | yes | 0.06 / 0.09 | categories best → partial → unreliable, stable sorted; multimatch dict insertion order; one shared `dones` |
@@ -920,16 +920,16 @@ These are ideas, not work items. None is implemented, and each would need its ow
   - Memoising it by `(MainRow, DiffRow, field)` cannot change the order.
   - Callee diffing costs 4.1 s on U and 10.6 s on S. How much of that is the diff was not profiled.
 - **I-4 SQLite indexes cannot be added.**
-  - The inputs are opened as they are, and plans must stay the oracle's plans (`sqlite_stat1` included, plan R1). An index added to a copy or a temp schema would change the plans, and with them the row order.
+  - The inputs are opened as they are, and plans must stay the oracle's plans (`sqlite_stat1` included; 02 §18.3). An index added to a copy or a temp schema would change the plans, and with them the row order.
   - Only native, in-memory indexes (Path B) are possible, for example over `FunctionTable` and a constants table ingested on demand.
 - **I-5 `pragma temp_store = memory`.**
-  - The DISTINCT / ORDER BY temp B-trees of the fat joins spill to `%TEMP%` on C:, which was nearly full during this audit (§10 F-2).
-  - Keeping temp data in RAM changes storage, not the sort algorithm. It must still pass the row-sequence census (plan R1: the sorter is stable only single-threaded).
+  - The DISTINCT / ORDER BY temp B-trees of the fat joins spill to `%TEMP%` on C:, which was nearly full during this review (§10 F-2).
+  - Keeping temp data in RAM changes storage, not the sort algorithm. It must still pass the row-sequence census (04a §6.4: the sorter is stable only single-threaded).
   - Mixed evidence: H20 on S took 82.6 s natively (disk temp) and 52.7 s in Python with temp in memory. Those were different processes under load, so this is not a clean comparison.
 - **I-6 Wide hashing (AVX-512).**
   - The Path B equality keys are long texts: `clean_assembly`, `clean_pseudo`, `clean_microcode`, full `pseudocode` / `assembly` for H10, and the fuzzy hashes. Hashing each once at ingest with a vectorised 64-bit hash, then confirming with `memcmp`, makes the per-column hash indexes cheap.
   - The numeric range predicates (`nodes >= 3`, `instructions > 5`, `pseudocode_lines > 5`) over the ingested integer columns can use AVX-512 compare + compress to build the driving row lists.
-  - The earlier development notes mention about 16× for hashing. That was measured on the legacy engine.
+  - The maintainer notes mention about 16× for hashing. That was measured on the legacy engine.
 - **I-7 Precompute candidates in parallel.**
   - The candidate rows of every heuristic are independent of the match state.
   - They could be generated on separate read-only connections while consumption stays serial in reverse registry order.
@@ -938,15 +938,15 @@ These are ideas, not work items. None is implemented, and each would need its ow
 
 ---
 
-## 10. Findings from this audit
+## 10. Findings from this review
 
 | # | severity | finding | evidence / reproduction | suggested fix | confidence |
 |---|---|---|---|---|---|
-| F-1 | **major** | **Environment failures of SQLite become a silent heuristic truncation with exit 0.** `Statement::Step` turns every code other than ROW/DONE into `DiaphoraWouldRaise("sqlite3_step", ...)` (`Database.cpp:84-94`). That covers SQLITE_FULL (temp spill), IOERR, NOMEM and BUSY. `StageRunSingleHeuristic` records a truncation and the category continues (`HeuristicTiers.cpp:153-163`). NO_FPS swallows it (`Consumer.cpp:229-233`). The only signal is an `Error: ...` stderr line (`HeuristicTiers.cpp:162`), which `--quiet` suppresses (`Trace.cpp:182-189`). The recorded `HeuristicTruncations` (`TiersDetail.h:36-42`) are never read by `src/cli` or `Pipeline.cpp`: `grep -rn "HeuristicTruncations\|Truncat" src/cli src/diff/Pipeline.cpp include` finds nothing. The consuming program gets fewer matches and exit 0. | Observed trigger: C: fell to 54 MB free. The same SQL through Python sqlite3 3.51.1 on the S copies then raised `OperationalError: database or disk is full` at H22 (scratch `merge_sechost.py` header; task log). The native S run happened not to hit it: its stderr has no `Error:` line. Repro recipe (not executed; needs a small temp volume): set `TMP`/`TEMP` to a nearly full volume and run `dsigmatcher diff sechost-9168-pdb.sqlite sechost-9444-nopdb.sqlite -o out.diaphora --quiet`. By the code, it exits 0 with H20/H15/H21 cut short. | Classify step errors. SQLITE_FULL, IOERR*, NOMEM, CANTOPEN, BUSY and LOCKED become an environment failure: exit 6, no output. Keep `DiaphoraWouldRaise` for data-driven errors (UTF-8, overflow, SQL logic). Also report any truncation in the outcome, as an exit-code bit or a summary line that `--quiet` does not hide. | high (code path); medium (that the native run hits it in practice) |
-| F-2 | **major (environment)** | **Disk C: was full during the audit.** Observed free space: 54 MB, 341 MB, 892 MB, 2.6-4.3 GB. The fat constants joins spill SQLite temp B-trees to `%TEMP%` on C:. A U `--trace` run writes 1.76 GB. The pending sechost oracle and every parity or release run on this machine share that disk. | `df -h /c` during the audit; Python `database or disk is full` above. I deleted my own 1.76 GB trace and ~180 MB of snapshots at once. | Before the next parity or oracle runs, free C: or point `TMP`/`TEMP` and the trace/snapshot dirs at a roomy volume. Check the pending sechost oracle's `diaphora.log` for `Error:` or `disk is full` before accepting it. | high |
+| F-1 | **major** | **Environment failures of SQLite become a silent heuristic truncation with exit 0.** `Statement::Step` turns every code other than ROW/DONE into `DiaphoraWouldRaise("sqlite3_step", ...)` (`Database.cpp:84-94`). That covers SQLITE_FULL (temp spill), IOERR, NOMEM and BUSY. `StageRunSingleHeuristic` records a truncation and the category continues (`HeuristicTiers.cpp:153-163`). NO_FPS swallows it (`Consumer.cpp:229-233`). The only signal is an `Error: ...` stderr line (`HeuristicTiers.cpp:162`), which `--quiet` suppresses (`Trace.cpp:182-189`). The recorded `HeuristicTruncations` (`TiersDetail.h:36-42`) are never read by `src/cli` or `Pipeline.cpp`: `grep -rn "HeuristicTruncations\|Truncat" src/cli src/diff/Pipeline.cpp include` finds nothing. The consuming program gets fewer matches and exit 0. | Observed trigger: C: fell to 54 MB free. The same SQL through Python sqlite3 3.51.1 on the S copies then raised `OperationalError: database or disk is full` at H22 (scratch `merge_sechost.py` header; run log). The native S run happened not to hit it: its stderr has no `Error:` line. Repro recipe (not executed; needs a small temp volume): set `TMP`/`TEMP` to a nearly full volume and run `dsigmatcher diff sechost-9168-pdb.sqlite sechost-9444-nopdb.sqlite -o out.diaphora --quiet`. By the code, it exits 0 with H20/H15/H21 cut short. | Classify step errors. SQLITE_FULL, IOERR*, NOMEM, CANTOPEN, BUSY and LOCKED become an environment failure: exit 6, no output. Keep `DiaphoraWouldRaise` for data-driven errors (UTF-8, overflow, SQL logic). Also report any truncation in the outcome, as an exit-code bit or a summary line that `--quiet` does not hide. | high (code path); medium (that the native run hits it in practice) |
+| F-2 | **major (environment)** | **Disk C: was full during the review.** Observed free space: 54 MB, 341 MB, 892 MB, 2.6-4.3 GB. The fat constants joins spill SQLite temp B-trees to `%TEMP%` on C:. A U `--trace` run writes 1.76 GB. The pending sechost oracle and every parity or release run on this machine share that disk. | `df -h /c` during the review; Python `database or disk is full` above. I deleted my own 1.76 GB trace and ~180 MB of snapshots at once. | Before the next parity or oracle runs, free C: or point `TMP`/`TEMP` and the trace/snapshot dirs at a roomy volume. Check the pending sechost oracle's `diaphora.log` for `Error:` or `disk is full` before accepting it. | high |
 | F-3 | minor | **`--trace` is very large and slow on real pairs.** U: 1.76 GB and 180 s instead of 77 s. `add_match` events dominate. S would be several times larger. Nothing warns about this. | `time_diff.py` run (points.json kept) | Document the cost in `--help`. Consider a points-only mode or a free-space check before writing. | high |
 | F-4 | minor (release) | **The version is still 0.1.0, and there is no `--version`.** `CMakeLists.txt:4` has `VERSION 0.1.0`. `diff --help` prints "dsigmatcher 0.1.0". Snapshots record `producer: dsigmatcher-0.1.0`. `dsigmatcher --version` gives "error: unknown command '--version'". | `build/dsigmatcher.exe --version` | Bump to 1.0.0 for the release. Add `--version`, which the consuming program will want to check. | high |
-| F-5 | nit (docs) | **The earlier development notes' fusion guidance is stale** (69% of time in 3 text-keyed joins, 3.2×, AVX 16×). Those are legacy-engine numbers. The parity-engine profile is §2 here. This is the specific sentence behind the known "development notes are stale" item. | §2 | Replace it with a pointer to this inventory. | high |
+| F-5 | nit (docs) | **The fusion guidance in the maintainer notes is stale** (69% of time in 3 text-keyed joins, 3.2×, AVX 16×). Those are legacy-engine numbers. The parity-engine profile is §2 here. | §2 | Replace it with a pointer to this inventory. | high |
 | F-6 | nit (docs) | **`TiersDetail.h:13-15` / `:84-86` present `JoinKeys` / `KeySignature` as "the hash keys a fused generator could build once and share".** That is true for the keys only. The row order comes from the plan, which differs between pairs even for identical keys (§3.3, §5). | §5 | Add one sentence saying that shared keys do not mean a shared order, and that a plan guard is required. | high |
 
 ---
@@ -981,4 +981,4 @@ These are ideas, not work items. None is implemented, and each would need its ow
 | `const_dups.py`, `stage_rows.py` | FG-1 duplicate counts; stage-query row counts |
 | `run-userenv/points.json`, `time_diff.py` | the `--trace`-based U run (trace file deleted: 1.76 GB) |
 | `gen_tables.py`, `table_summary.md`, `table_detail.md` | generators of §4 / §5 |
-| (deleted) `db/` | the four export copies used read-only; removed after the audit to free disk |
+| (deleted) `db/` | the four export copies used read-only; removed after the review to free disk |

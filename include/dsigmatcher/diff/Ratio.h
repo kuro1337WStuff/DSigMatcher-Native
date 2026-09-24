@@ -1,6 +1,6 @@
 #pragma once
 
-// The similarity ratio (L2): check_ratio (D:1645-1775), deep_ratio (D:2749-2837), quick_ratio
+// The similarity ratio: check_ratio (D:1645-1775), deep_ratio (D:2749-2837), quick_ratio
 // (D:150-165), the 7-decimal rounding and ratios_cache (first writer wins, keyed f"{ea1}-{ea2}",
 // D:1653). Spec: 03a in full. MdSource is declared in Consumer.h (with IRatioProvider).
 

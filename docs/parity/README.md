@@ -1,8 +1,7 @@
 # Parity design specs
 
 These documents are the porting specification DSigMatcher's diff engine was built from: a
-section-by-section reading of Diaphora 3.4.2, with every behaviour the C++ port has to reproduce,
-and the plan that organised the work.
+section-by-section reading of Diaphora 3.4.2, with every behaviour the C++ port has to reproduce.
 
 > **They are historical.** All of them were written on 2026-09-23 against an earlier revision of
 > this repository (commit `34ed418`), before the port existed, and were only lightly corrected
@@ -16,7 +15,6 @@ and the plan that organised the work.
 
 | File | Covers |
 |---|---|
-| [`00-plan.md`](00-plan.md) | The implementation plan: the parity definition and comparison levels (§1), the parity harness (§2), the architecture (§3), the work lanes (§4), risks (§5), the stage SQL inventory (Appendix A) and the trace and snapshot schema (Appendix B). |
 | [`01-driver.md`](01-driver.md) | Diaphora's diff driver: which passes run, in what order, the configuration, and the `.diaphora` results file. |
 | [`02-matching.md`](02-matching.md) | Match bookkeeping (`add_match`, `cleanup_matches`, the matched-name maps) and how heuristic SQL is executed and consumed. |
 | [`03a-ratio.md`](03a-ratio.md) | The similarity ratio (`check_ratio`, `deep_ratio`, 7-decimal rounding) and the SQLite and Python number conversions it depends on. |
@@ -38,7 +36,7 @@ and the plan that organised the work.
   3.4.2-4-g621ec26 (commit `621ec26`). `difflib.py:<line>` is CPython 3.13.12's `Lib/difflib.py`. `§` numbers refer
   to sections of the same document unless another file number is given (for example "03a §6.4").
   The C++ sources use the same citations.
-- **Comparison levels** (00-plan §1.3). **L0**: the detected mode and Diaphora's "Final results"
+- **Comparison levels.** **L0**: the detected mode and Diaphora's "Final results"
   counts agree. **L1**: the `results` and `unmatched` rows are equal as multisets. **L2**: L1 plus
   identical `line` values and stored row order; this is the parity gate. **S-L2**: the same, for
   the internal match state at one named point of the pipeline.
@@ -49,9 +47,9 @@ and the plan that organised the work.
 - **Configuration.** Everything describes Diaphora run standalone
   (`python diaphora.py db1 db2 -o out`) with its default configuration and no `DIAPHORA_*`
   variables.
-- **Internal notes.** A few passages cite the project's internal development notes (a hand-off file
-  and a working journal). Those notes are not part of the published source; the citations are kept
-  as history only, and nothing here depends on them.
+- **Maintainer notes.** A few passages cite the project's maintainer notes ("an earlier note") or
+  an earlier summary. Neither is part of the published source; the citations are kept as history
+  only, and nothing here depends on them.
 
 ## Attribution for quoted code
 

@@ -1,5 +1,5 @@
-# Scenario `patch` of lane L5 (05 §19 scenario C, rebuilt): two versions of one binary with symbols.
-# Synthetic data only.
+# Scenario `patch` of the `early` fixtures (05 §19 scenario C, rebuilt): two versions of one binary
+# with symbols. Synthetic data only.
 #
 # Regenerate:
 #   python -B tools/parity/make_fixture.py tests/diff/fixtures/early/patch/scenario.py \

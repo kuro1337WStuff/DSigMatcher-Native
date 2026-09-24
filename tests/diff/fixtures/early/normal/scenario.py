@@ -1,5 +1,5 @@
-# Scenario `normal` of lane L5 (05 §19 scenario A, rebuilt): two versions of one binary with half of
-# the names and shifted addresses. Synthetic data only.
+# Scenario `normal` of the `early` fixtures (05 §19 scenario A, rebuilt): two versions of one binary
+# with half of the names and shifted addresses. Synthetic data only.
 #
 # Regenerate:
 #   python -B tools/parity/make_fixture.py tests/diff/fixtures/early/normal/scenario.py \
@@ -8,14 +8,14 @@
 #
 # What it exercises (mode N):
 # - no address is shared (0% < 99%) and 11 of 22 mangled names have a partner (50% <= 90%): neither
-#   speed-up fires, so the SQL heuristic tiers and the convergence loop run (lanes L6-L8);
+#   speed-up fires, so the SQL heuristic tiers and the convergence loop run;
 # - find_same_name: 8 identical named functions are best, 2 modified ones partial (check_ratio +
 #   0.01), and `tiny`, whose body changed completely, is a partial with a low ratio (no floor, 05 H5);
 #   the 10 `sub_` functions are skipped (ignore_sub_names tests mangled1, D:2179) and are left to the
 #   heuristics ("Equal assembly" and friends);
 # - one pair with different names but the same shape and most `names` in common, for
-#   search_small_differences (lane L6).
-# The full expected output needs every lane; lane L5 checks the early points (gen_early.py capture).
+#   search_small_differences.
+# The full expected output needs every pass; diff_early checks the early points (gen_early.py capture).
 
 BASE = 0x180001000
 SHIFT = 0x8000

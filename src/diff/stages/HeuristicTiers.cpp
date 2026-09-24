@@ -1,6 +1,6 @@
-// Lane L6: the SQL heuristic tiers. run_heuristics_for_category (D:1461-1552) with threads_apply
+// The SQL heuristic tiers. run_heuristics_for_category (D:1461-1552) with threads_apply
 // (jkutils/threads.py:27-71), the per-heuristic worker (the add_matches_from_* wrappers, D:1950-2083,
-// ported by L1 in Consumer.cpp) and find_partial_matches (D:2212-2221). Spec: 01 §5.10-§5.12;
+// ported in Consumer.cpp) and find_partial_matches (D:2212-2221). Spec: 01 §5.10-§5.12;
 // 02 §4-§5, §10-§13; 04a §1-§5; 04b §3-§5; 07 §10.3-§10.4, §10.14. D: = diaphora.py, H: =
 // diaphora_heuristics.py, C: = diaphora_config.py (Diaphora 3.4.2-4-g621ec26).
 //
@@ -151,7 +151,7 @@ void StageRunSingleHeuristic(DiffSession& S, int Id) {
         break;
     }
   } catch (const DiaphoraWouldRaise& Error) {
-    // Plan §3.11, 02 §5.5, 07 §10.3: the RATIO* wrappers log, print the SQL and re-raise inside the
+    // 02 §5.5, 07 §10.3: the RATIO* wrappers log, print the SQL and re-raise inside the
     // worker thread (D:1967-1973, D:1992-1998, D:2018-2024). The exception ends that thread only
     // (threading.excepthook prints the traceback), threads_apply reaps it and starts the next
     // heuristic, and every match added before the failing row stays. So the heuristic is truncated
@@ -179,7 +179,7 @@ void StageFindPartialMatchesCategory(DiffSession& S) {
 }
 
 void StageFindPartialMatchesSmallDifferences(DiffSession& S) {
-  if (S.Config().SlowHeuristics) {  // D:2218 (no auto-disable outside IDA, plan §1.1)
+  if (S.Config().SlowHeuristics) {  // D:2218 (no auto-disable outside IDA, 01 §2.3)
     // D:2220 log_refresh("Finding with heuristic 'Small names difference'"): progress line only.
     S.Point("before:search_small_differences");
     {

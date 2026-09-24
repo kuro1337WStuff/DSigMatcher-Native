@@ -1,9 +1,9 @@
 #pragma once
 
-// The JSONL trace (docs/parity/00-plan.md §2.2, Appendix B) and the stderr summary-line logger.
+// The JSONL trace (schema: tools/parity/README.md) and the stderr summary-line logger.
 //
 // The reference for every convention is the oracle instrumentation, tools/parity/oracle_trace.py and
-// tools/parity/README.md (lane L0b): the native writer emits byte-identical lines (compact JSON, keys
+// tools/parity/README.md: the native writer emits byte-identical lines (compact JSON, keys
 // in this order, one event per line):
 //   {"ev":"add_match","seq":..,"ctx":"heuristic:41","name1":..,"name2":..,"ea1":..,"ea2":..,
 //    "desc":..,"ratio_bits":..,"chooser":"partial","result":"appended|duplicate|rejected_better"}
@@ -42,8 +42,8 @@ class DiffSession;
 
 enum class AddMatchResult : uint8_t { Appended, Duplicate, RejectedBetter };
 // Row decisions of tools/parity/README.md ("row event"). AcceptedUnreliable (D:1940-1946, dead under
-// the defaults) and Raised (check_match raised) never occur on the corpus; they were appended by lane
-// R0 so the native writer can emit every value the oracle can.
+// the defaults) and Raised (check_match raised) never occur on the corpus; they exist so the native
+// writer can emit every value the oracle can.
 enum class RowDecision : uint8_t {
   Nullsub,
   HasBest,
@@ -106,7 +106,7 @@ private:
   std::vector<std::string> Lines_;
 };
 
-// Session helpers the lanes call. They are no-ops when the trace is disabled.
+// Session helpers the stages call. They are no-ops when the trace is disabled.
 void TraceAddMatch(DiffSession& S, NameId N1, NameId N2, double Ratio, const Item& It,
                    std::optional<Chooser> C, AddMatchResult Result);
 void TraceRow(DiffSession& S, const HeuristicRow& Row, RowDecision Decision, std::optional<double> Ratio);
@@ -118,7 +118,7 @@ void LogShowSummary(DiffSession& S);
 // The end of diff() (D:3684-3695): the chooser item counts of S.Final(), then percent (D:3689), then
 // the "Final results: ..." (D:3690-3692) and "Matched ..." (D:3694-3695) lines. The percent comes
 // first, as in Python, so when total_functions1 is 0 it throws DiaphoraWouldRaise("D:3689
-// ZeroDivisionError") before any line is logged. Added by lane R0 so the ordering is testable;
+// ZeroDivisionError") before any line is logged. A function of its own so the ordering is testable;
 // RunPipeline calls it.
 void LogFinalResults(DiffSession& S);
 

@@ -1,4 +1,4 @@
-// Lane L5: find_same_name("partial") (D:2152-2210). Spec: 01 §5.8, 05 §9, 07 §10.9.
+// find_same_name("partial") (D:2152-2210). Spec: 01 §5.8, 05 §9, 07 §10.9.
 // D: = diaphora.py at 3.4.2-4-g621ec26, C: = diaphora_config.py.
 //
 // The query is kSqlSameName through Path A (select distinct SELECT_FIELDS 'Perfect match, same name'
@@ -119,7 +119,7 @@ void StageFindSameName(DiffSession& S) {
     const int64_t Nodes1 = *Row.Nodes1;
     const int64_t Nodes2 = *Row.Nodes2;
     // D:2196-2206. `float(ratio) == 1.0 or (self.relaxed_ratio and ...)`: relaxed_ratio is False
-    // (C:47, plan §1.1), so md1/md2 (D:2194-2195) are never compared.
+    // (C:47, 01 §2.2), so md1/md2 (D:2194-2195) are never compared.
     Chooser Target = Chooser::Best;
     Item It{Row.Ea1, Row.Name1, Row.Ea2, Row.Name2, Row.Desc, 1.0, Nodes1, Nodes2};  // D:2200: ratio int 1
     if (!(Ratio == 1.0)) {

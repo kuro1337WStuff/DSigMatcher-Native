@@ -1,6 +1,5 @@
-// Lane L8: find_related_compilation_unit (D:3395-3460) and its native cartesian replay (plan §0.3,
-// §4 L8; spec 06 §9, 07 §10.11.3, 02 §18.3). D: = diaphora.py at 3.4.2-4-g621ec26, C: =
-// diaphora_config.py.
+// find_related_compilation_unit (D:3395-3460) and its native cartesian replay (spec 06 §9,
+// 07 §10.11.3, 02 §18.3). D: = diaphora.py at 3.4.2-4-g621ec26, C: = diaphora_config.py.
 //
 // The pass, for every best-then-partial match with ratio >= 0.8, looks up the first compilation unit
 // of each function by name (Path A, fetchone) and replays
@@ -12,7 +11,7 @@
 // ascending order among the functions whose SQLite `cast(address as real)` lies in each range.
 // CuReplaySource produces exactly that sequence from the ingested tables (FunctionTable is loaded
 // `order by f.id`, and AddressSqlReal is SQLite's own cast of the same column), without
-// materialising the ~45 SELECT_FIELDS columns per row (plan §5 R8). It is used only when
+// materialising the ~45 SELECT_FIELDS columns per row (06 §9.2). It is used only when
 // EXPLAIN QUERY PLAN still says `SCAN f` / `SCAN df`; otherwise, and with --related-cu-source sql,
 // the verbatim SQL runs through SqlRowSource.
 
@@ -85,7 +84,7 @@ std::optional<CuRow> CuLookup(DiffSession& S, std::string_view Sql, NameId Name,
 // TEXT-affinity columns (db_support/schema.py:180-181), so a stored value is TEXT, BLOB or NULL:
 //   * None  -> TypeError (06 Hard parts 6);
 //   * str   -> Python float() (PyFloat: correctly rounded; ValueError where Python raises; non-ASCII
-//              text is refused by PyFloat with UnsupportedInput, as L2 decided);
+//              text is refused by PyFloat with UnsupportedInput);
 //   * bytes -> float(bytes) parses the raw bytes without the Unicode mapping of str (PyFloat_FromString,
 //              Objects/floatobject.c), so a non-ASCII byte fails with ValueError.
 // INTEGER / REAL storage needs a foreign schema: float(float) is the value itself, float(int) is exact
@@ -213,8 +212,8 @@ struct CuReplaySource::Impl {
     };
     Row.Nodes1 = Nodes(Main.Nodes, R1, "nodes1");
     Row.Nodes2 = Nodes(Diff.Nodes, R2, "nodes2");
-    // Integration requirement (L9 note): md1/md2 must be the SQL cast, as SqlRowSource reads them;
-    // left unset, check_ratio would raise float(None) where Python does not.
+    // md1/md2 must be the SQL cast, as SqlRowSource reads them; left unset, check_ratio would raise
+    // float(None) where Python does not.
     if (Main.MdSqlNull[R1] == 0) {
       Row.Md1 = Main.MdSqlReal[R1];
     }

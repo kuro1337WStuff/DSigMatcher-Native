@@ -1,4 +1,5 @@
-// diff_early: lane L5, the pre-loop passes and patch-diff mode (docs/parity/00-plan.md §4 L5).
+// diff_early: the pre-loop passes and patch-diff mode (01 §5.1-§5.9, §13; 05 §3, §5-§9, §16-§19;
+// 07 §10.7-§10.9).
 //
 // Sections:
 //  1. hook      the raising conditions of scripts/patch_diff_vulns.py on_match (P:204-236), on
@@ -14,7 +15,7 @@
 //  4. corpus    (skips without DSIG_CORPUS_ROOT) the oracle captures: S-L2 of the early points, trace
 //               prefixes, replays, the dirty-heuristic percentages of 05 §19.1, the check_callgraph log
 //               lines, and full-run L2 on the finished mode-P and mode-S pairs.
-// Every comparison that depends on SQLite row order needs the oracle's SQLite (3.51.1, plan §2.6); on
+// Every comparison that depends on SQLite row order needs the oracle's SQLite (3.51.1, 02 §18.3); on
 // another SQLite those checks drop to the order-free level or are skipped with a note.
 
 #include <sqlite3.h>
@@ -532,7 +533,8 @@ void TestFixtures(const std::string& Scratch) {
       }
     }
 
-    // the whole output: modes S and P need only lane L5 and the final pass; mode N needs every lane
+    // the whole output: modes S and P need only the pre-loop passes and the final pass; mode N needs
+    // every pass
     std::string Output = "not compared";
     {
       const DSig::Test::ResultsFile Expected = DSig::Test::ReadExpectedFixture(Dir);
@@ -720,7 +722,7 @@ void TestVectors(const std::string& Scratch) {
     }
     CHECK(Gates.empty());
   }
-  // The empty-result path through the CLI entry point (plan §3.10, 01 §5.1): no diff.version table ->
+  // The empty-result path through the CLI entry point (01 §5.1): no diff.version table ->
   // diff() returns False, save_results still writes the config row and empty tables. Audit F06 (v1.0.0
   // product decision): the file stays Diaphora's, byte for byte, but RunDiff reports Unsupported (exit 4)
   // with a message naming db2, so a caller never takes the empty file for "nothing matched".
@@ -806,7 +808,7 @@ std::optional<std::pair<std::string, std::string>> ExportIdsOfPair(const std::st
 
 // RunPipeline's first stages (src/diff/Pipeline.cpp RunPipeline, D:3568-3627) with the same points
 // and contexts, stopping after find_same_name (after find_remaining_functions in modes S and P): the
-// later passes of a mode-N pair belong to other lanes (and take hours on the long pairs).
+// later passes of a mode-N pair are tested by other suites (and take hours on the long pairs).
 std::map<std::string, StateSnapshot> DriveEarlyStages(DiffSession& S) {
   std::map<std::string, StateSnapshot> Points;
   const auto Mark = [&](const std::string& Name) {
@@ -1034,7 +1036,7 @@ void TestCorpus(const std::string& Scratch) {
                           ", same-name rows " + std::to_string(Facts.SameNameRows) + " (" +
                           std::to_string(Facts.SameNameSkippedSub) + " sub_ skipped)";
 
-    // (e) modes S and P need only lane L5 and the final pass: the whole run at L2 and its trace
+    // (e) modes S and P need only the pre-loop passes and the final pass: the whole run at L2 and its trace
     if (Mode != 'N') {
       const std::string Oracle = DSig::Test::OracleResultsPath(Pair, 1);
       const std::string TracePath = Join(Work, "full-trace.jsonl");

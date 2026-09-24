@@ -1,4 +1,4 @@
-// Lane P1: crash resilience of `diff` (checkpoints and --resume) and break-the-app tests.
+// Crash resilience of `diff` (checkpoints and --resume) and break-the-app tests.
 //
 // Included by foundation_tests.cpp (inside its unnamed namespace, after its helpers): the suites here
 // reuse FixturePair, BuildFoundationFixture, Join, ReadFile, WriteText, Exists, Sha256Of and, on
@@ -15,8 +15,8 @@
 //   * checkpoint directory problems, a full disk while checkpointing (the checkpoint fault hook),
 //     corrupt and truncated inputs, a locked input (SQLITE_BUSY), damaged checkpoints on resume, an
 //     unexpected exception (DiffStatus::Internal, exit 70);
-//   * the audit gaps of the last verification: F01 --snapshot-out equal to --replay and inside an oracle
-//     capture; F58 the UTF-8 fetch-error messages name the row;
+//   * audit findings F01 (--snapshot-out equal to --replay, and inside an oracle capture) and F58 (the
+//     UTF-8 fetch-error messages name the row);
 //   * JsonValue::AsDouble without floating-point from_chars: equal to Python float() (PyFloat) on
 //     shortest round-trip texts, long and extreme literals.
 
@@ -192,7 +192,7 @@ void P1KillHook(std::string_view Step) {
 
 int P1CheckpointChildMain(int Argc, char** Argv) {
   if (Argc != 9) {
-    std::fprintf(stderr, "p1 child: expected 7 arguments\n");
+    std::fprintf(stderr, "checkpoint child: expected 7 arguments\n");
     return 64;
   }
   DiffArgs Args = P1Args(Argv[2], Argv[3], Argv[4]);
@@ -206,7 +206,7 @@ int P1CheckpointChildMain(int Argc, char** Argv) {
   Detail::SetCheckpointFaultHook(&P1KillHook);
   const DiffOutcome Outcome = RunDiff(Args);
   if (Outcome.Status != DiffStatus::Ok) {
-    std::fprintf(stderr, "p1 child: %s\n", Outcome.Message.c_str());
+    std::fprintf(stderr, "checkpoint child: %s\n", Outcome.Message.c_str());
   }
   return static_cast<int>(Outcome.Status);
 }
@@ -222,7 +222,7 @@ int P1RunChild(const FixturePair& Pair, const std::string& Out, const std::strin
 // 1. Checkpoint file formats
 
 void TestP1CheckpointFormats() {
-  DSig::Test::Suite("P1 checkpoint formats");
+  DSig::Test::Suite("checkpoint formats");
   for (int Value = 0; Value <= static_cast<int>(PipelineStep::FindUnmatched); ++Value) {
     const auto Step = static_cast<PipelineStep>(Value);
     const auto Back = PipelineStepFromName(PipelineStepName(Step));
@@ -370,9 +370,9 @@ bool P1KillThenResume(const FixturePair& Pair, const P1Baseline& Base, const std
 }
 
 void TestP1KillAndResume(const FixturePair& Pair) {
-  DSig::Test::Suite("P1 kill and resume (fixture, every checkpoint)");
+  DSig::Test::Suite("kill and resume (fixture, every checkpoint)");
   if (g_P1SelfPath.empty()) {
-    DSig::Test::Skip("P1 kill and resume", "the test executable's path is unknown");
+    DSig::Test::Skip("kill and resume", "the test executable's path is unknown");
     return;
   }
   const P1Baseline Base = P1RunBaseline(Pair, "p1");
@@ -458,9 +458,9 @@ void TestP1KillAndResume(const FixturePair& Pair) {
 // The same on a real pair: ls-old vs ls, compared with an uninterrupted run byte for byte and with the
 // oracle's run1 at L2 (the stored db paths differ from the oracle's command line, so not byte for byte).
 void TestP1CorpusKillAndResume() {
-  DSig::Test::Suite("P1 kill and resume (corpus: ls-old vs ls)");
+  DSig::Test::Suite("kill and resume (corpus: ls-old vs ls)");
   if (!DSig::Test::ExportAvailable("ls-old") || !DSig::Test::ExportAvailable("ls") || g_P1SelfPath.empty()) {
-    DSig::Test::Skip("P1 kill and resume (corpus)", "the ls-old / ls exports are not available");
+    DSig::Test::Skip("kill and resume (corpus)", "the ls-old / ls exports are not available");
     return;
   }
   const std::string Oracle = DSig::Test::OracleResultsPath("ls-old_vs_ls");
@@ -500,7 +500,7 @@ void TestP1CorpusKillAndResume() {
 // 3. Checkpoint directory problems and command-line combinations
 
 void TestP1CheckpointDirProblems(const FixturePair& Pair) {
-  DSig::Test::Suite("P1 checkpoint directory problems");
+  DSig::Test::Suite("checkpoint directory problems");
   const std::string MainSha = Sha256Of(ReadFile(Pair.Main));
   const std::string DiffSha = Sha256Of(ReadFile(Pair.Diff));
   const auto InputsIntact = [&] {
@@ -676,7 +676,7 @@ void P1DiskFullHook(std::string_view Step) {
 }
 
 void TestP1DiskFull(const FixturePair& Pair) {
-  DSig::Test::Suite("P1 full disk while checkpointing");
+  DSig::Test::Suite("full disk while checkpointing");
   const P1Baseline Base = P1RunBaseline(Pair, "p1-full");
   CHECK(Base.Ok);
   if (!Base.Ok) {
@@ -740,7 +740,7 @@ void TestP1DiskFull(const FixturePair& Pair) {
 // 5. Corrupt and truncated inputs, a locked input
 
 void TestP1BrokenInputs(const FixturePair& Pair) {
-  DSig::Test::Suite("P1 corrupt, truncated and locked inputs");
+  DSig::Test::Suite("corrupt, truncated and locked inputs");
   const std::string Good = ReadFile(Pair.Main);
   CHECK(Good.size() > 8192);
   struct Case {
@@ -879,9 +879,9 @@ void TestP1BrokenInputs(const FixturePair& Pair) {
 // 6. A damaged checkpoint on resume
 
 void TestP1DamagedCheckpoint(const FixturePair& Pair) {
-  DSig::Test::Suite("P1 damaged checkpoint on resume");
+  DSig::Test::Suite("damaged checkpoint on resume");
   if (g_P1SelfPath.empty()) {
-    DSig::Test::Skip("P1 damaged checkpoint", "the test executable's path is unknown");
+    DSig::Test::Skip("damaged checkpoint", "the test executable's path is unknown");
     return;
   }
   const std::string Out = Join(Pair.Dir, "p1-damaged.diaphora");
@@ -1013,7 +1013,7 @@ void P1WriterLogicErrorHook(std::string_view Step) {
 }
 
 void TestP1InternalErrors(const FixturePair& Pair) {
-  DSig::Test::Suite("P1 unexpected exceptions are DiffStatus::Internal (exit 70)");
+  DSig::Test::Suite("unexpected exceptions are DiffStatus::Internal (exit 70)");
   CHECK_NUM_EQ(static_cast<int>(DiffStatus::Internal), 70);
   const std::string Out = Join(Pair.Dir, "p1-internal.diaphora");
   WriteText(Out, "previous results\n");  // an earlier file at -o is never replaced by a failed run
@@ -1044,10 +1044,10 @@ void TestP1InternalErrors(const FixturePair& Pair) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// 8. Audit gaps of the last verification: F01 and F58
+// 8. Audit findings F01 (--snapshot-out aliases) and F58 (UTF-8 fetch errors)
 
 void TestP1AuditGaps(const FixturePair& Pair) {
-  DSig::Test::Suite("P1 audit gaps: F01 --snapshot-out, F58 UTF-8 fetch errors");
+  DSig::Test::Suite("--snapshot-out aliases (F01) and UTF-8 fetch errors (F58)");
   // F01: --snapshot-out equal to --replay, and --snapshot-out inside an oracle capture (run.json)
   {
     const std::string Capture = Join(Pair.Dir, "p1-f01-capture");
@@ -1135,7 +1135,7 @@ void TestP1AuditGaps(const FixturePair& Pair) {
 // 9. JsonValue::AsDouble == Python float() (no floating-point from_chars)
 
 void TestP1JsonDoubles() {
-  DSig::Test::Suite("P1 JsonValue::AsDouble without floating-point from_chars");
+  DSig::Test::Suite("JsonValue::AsDouble without floating-point from_chars");
   const auto Same = [](double A, double B) { return RatioBits(A) == RatioBits(B); };
   const auto Parse = [](const std::string& Text) { return JsonParse(Text).AsDouble(); };
   // shortest round-trip texts (repr) of random doubles come back bit for bit

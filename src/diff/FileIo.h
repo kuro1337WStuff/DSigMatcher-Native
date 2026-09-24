@@ -1,6 +1,6 @@
 #pragma once
 
-// UTF-8 file access for the parity engine (lane R0, design decision (f)).
+// UTF-8 file access for the parity engine.
 //
 // Every path string in DSig::Diff and in the CLI is UTF-8: main() converts the Windows wide command
 // line, and SQLite takes UTF-8 file names on every platform. On Windows, std::filesystem::path built
@@ -10,8 +10,8 @@
 // writes whole files with the helpers below. UNC paths (\\server\share\...) and drive paths need no
 // special handling here; they are ordinary wide paths once converted.
 //
-// Internal header (src/diff is a private include directory of dsigmatcher_diff). Other lanes may use
-// it from their .cpp files.
+// Internal header (src/diff is a private include directory of dsigmatcher_diff); every .cpp file of
+// the engine may use it.
 
 #include <filesystem>
 #include <string>

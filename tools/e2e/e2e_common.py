@@ -1,6 +1,6 @@
-"""Shared helpers for tools/e2e (plan §7.1 D6/D8, §7.2 L11).
+"""Shared helpers for tools/e2e: port on results files, ground truth, chains.
 
-Every path comes from a flag or the environment (plan §7.1 D9); nothing here names a personal path.
+Every path comes from a flag or the environment; nothing here names a personal path.
 
 | Flag            | Environment         | Meaning                                                     |
 |-----------------|---------------------|-------------------------------------------------------------|
@@ -110,7 +110,7 @@ def BuildOf(ExportId):
 
 
 def TruthFor(Corpus, TargetId):
-    """(truth path, kind) for a target export: the O1 ground-truth TSV, else a -pdb export of the same
+    """(truth path, kind) for a target export: the oracle ground-truth TSV, else a -pdb export of the same
     build, else the target's own names ('self', e.g. the ELF ls sample, which has symbols)."""
     Tsv = os.path.join(Corpus, "oracle", "ground_truth", TargetId + ".tsv")
     if os.path.isfile(Tsv):

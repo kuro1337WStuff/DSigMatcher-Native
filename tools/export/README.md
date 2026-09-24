@@ -3,8 +3,7 @@
 `dsig_export.py` turns a binary, or an IDA database, into a Diaphora export (`.sqlite`). It runs IDA
 9.x **idalib** and Diaphora's **own, unmodified** exporter
 (`diaphora_ida._diff_or_export(use_ui=False, file_out=...)`). The exporter's feature definitions are
-the parity contract of the native diff (`docs/parity/00-plan.md` §7.1 D7), so nothing here
-re-implements them.
+the parity contract of the native diff, so nothing here re-implements them.
 
 The native CLI launches it:
 

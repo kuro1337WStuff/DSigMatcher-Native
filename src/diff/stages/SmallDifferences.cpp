@@ -1,9 +1,9 @@
-// Lane L6: search_small_differences("partial") (D:2085-2150), the last step of find_partial_matches
+// search_small_differences("partial") (D:2085-2150), the last step of find_partial_matches
 // (D:2218-2221). Spec: 05 §11, 01 §5.11, 02 §5.1 and §5.5, 07 §10.10. D: = diaphora.py (Diaphora
 // 3.4.2-4-g621ec26), C: = diaphora_config.py.
 //
 // It runs on the main thread: every exception propagates out of diff() (no `except`, D:2108-2150),
-// so the run aborts with no output (plan §3.11).
+// so the run aborts with no output (01 §13).
 
 #include <algorithm>
 #include <cstdint>
@@ -39,7 +39,7 @@ struct SmallRow {
 // that row, and steps to the NEXT row before returning it; fetchmany collects up to 1000 rows and
 // returns nothing when any of those calls raises. (CPython's Modules/_sqlite/cursor.c was not read
 // for this port: the behaviour below is what was measured.) Measured on the oracle's Python 3.13.12 /
-// SQLite 3.51.1 (lane L6 probe on a 2100-row cursor, scratch only; diff_tiers pins the same counts):
+// SQLite 3.51.1 (a probe on a 2100-row cursor, scratch only; diff_tiers pins the same counts):
 //   * invalid UTF-8 in row 5, 1000, 1001, 2001 or 2100: 0, 0, 1000, 2000 and 2000 rows reach the loop;
 //   * a step error (integer overflow) positioning row 5, 1000, 1001, 1002, 2001 or 2100: 0, 0, 0, 1000,
 //     1000 and 2000 rows reach the loop.

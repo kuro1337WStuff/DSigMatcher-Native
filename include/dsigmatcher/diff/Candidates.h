@@ -1,6 +1,6 @@
 #pragma once
 
-// Candidate rows (docs/parity/00-plan.md §3.4). Every SQL heuristic and most stage queries select
+// Candidate rows (02 §5.1-§5.2). Every SQL heuristic and most stage queries select
 // SELECT_FIELDS (H:51-84); the consumer (check_match -> add_matches_internal, D:1786-1948) reads the
 // aliases ea, name1, ea2, name2, description, nodes1, nodes2, md1, md2 and, through the row indices,
 // the per-function columns check_ratio reads. A RowSource yields those rows in exactly the order

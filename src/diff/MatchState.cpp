@@ -1,4 +1,4 @@
-// Diaphora's match bookkeeping (lane L1): all_matches, matched_primary / matched_secondary and the
+// Diaphora's match bookkeeping: all_matches, matched_primary / matched_secondary and the
 // operations on them. Literal port of D:1340-1374 (add_match), D:1376-1402 (has_best_match,
 // has_better_match), D:1554-1605 (cleanup_matches), D:1777-1784 (all_functions_matched) and
 // D:3133-3148 (get_sorted_results, get_total_matched_functions). Spec: 01 §6 and §8, 02 §2 and
@@ -312,7 +312,7 @@ size_t MatchState::SecondarySize() const { return Impl_->Secondary.Map.size(); }
 
 namespace {
 
-// SnapItem::Ea1 and SnapItem::Ea2 are plain strings in the frozen Snapshot.h, so an item address
+// SnapItem::Ea1 and SnapItem::Ea2 are plain strings in the public Snapshot.h, so an item address
 // that is None (kNoneAddr) is exported as the TEXT "None", where the oracle's snapshot holds JSON
 // null, and ImportItem reads it back as the text "None", a key distinct from None (Interner.h). This
 // applies to both ea1 and ea2. It is not reachable: SqlRowSource refuses NULL addresses (Database.cpp,

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run `dsigmatcher diff` on every valid oracle pair and compare it with Diaphora (plan §2.5, §1.3-§1.6).
+"""Run `dsigmatcher diff` on every valid oracle pair and compare it with Diaphora.
 
     python -B run_parity.py [--corpus <root>] [--dsigmatcher <exe>] [--pairs <pair> ...] [--long]
                             [--score] [--run 1] [--out <dir>] [--diaphora-dir <dir>] [--limit 20]
@@ -8,7 +8,7 @@
 
 For every pair of <corpus>/oracle/manifest.json (or --pairs), in manifest order:
 
-1. Oracle status (plan §1.6). The compared oracle output is diffs/<pair>/run<N> (run1 by default).
+1. Oracle status. The compared oracle output is diffs/<pair>/run<N> (run1 by default).
    - PENDING: run<N>/run.json does not exist yet (the detached oracle job is still running). Nothing
      of that run is read.
    - SKIPPED_LONG: a long pair (an oracle run took more than an hour) without --long.
@@ -19,14 +19,14 @@ For every pair of <corpus>/oracle/manifest.json (or --pairs), in manifest order:
        manifest; the `cdifflib` import warning is present (so cdifflib was absent); no DIAPHORA_*
        variable (build_oracle.py runs Diaphora under CleanEnv(); the command line in run.json must be
        exactly `python diaphora.py <db1> <db2> -o <out>`).
-   The run<N> vs run<other> determinism.json verdict is reported next to it (plan §1.5).
+   The run<N> vs run<other> determinism.json verdict is reported next to it.
 2. Native diff: `dsigmatcher diff <db1> <db2> -o <report>/<pair>/native.diaphora --pair <pair>` with
    the same <db1>/<db2> strings the oracle was given (so config.main_db / diff_db compare too), stdout
    and stderr in native.log, wall time recorded. Both exports are hashed before and after.
 3. compare_results.py (L0 from both logs, L1, L2, DDL, per-(type, description) tables, unmatched).
 4. --score: `dsigmatcher port <ref> <target> --results <x>` for the native results AND for the
    oracle's results, each scored by tools/e2e/score_ground_truth.py against the PDB ground truth of
-   the target build (lane L11), so the report shows parity (vs Diaphora) and ground truth (vs PDB)
+   the target build, so the report shows parity (vs Diaphora) and ground truth (vs PDB)
    side by side. Alias lists come from the existing cache under <corpus>/oracle/ground_truth/aliases/
    (--generate-aliases lets pdb_aliases.py build missing ones).
 
@@ -39,11 +39,11 @@ Exit status: 1 when a compared pair fails L2 (or the native diff fails, or an ex
 usage error, 0 otherwise. PENDING, SKIPPED_LONG and ORACLE_INVALID pairs never fail the run: they are
 not native failures.
 
-Paths come from flags or the environment only (plan §7.1 D9):
+Paths come from flags or the environment only:
   --corpus        (env DSIG_CORPUS_ROOT)   the corpus root; the oracle is <corpus>/oracle
   --dsigmatcher   (env DSIG_EXE)           the executable (default: <repo>/build/dsigmatcher[.exe])
   --diaphora-dir  (env DSIG_DIAPHORA_DIR)  optional: the Diaphora checkout, to record `git describe`
-                                           and that it is clean (plan §5 R12); only read
+                                           and that it is clean; only read
 """
 
 import sys
@@ -203,7 +203,7 @@ def ParseLogTime(Line):
 
 
 def HeuristicSpans(LogText):
-    """Wall time of every SQL heuristic thread from the log (plan §1.6, 02 §5.4). run_heuristics_for_category
+    """Wall time of every SQL heuristic thread from the log (02 §5.4). run_heuristics_for_category
     logs every `<mode> Finding with heuristic '<name>'` line first (D:1510), then threads_apply runs the
     heuristics one at a time (cpu_count 1, D:489-491) and logs `[Parallel] Heuristic '<name>' done` as
     each ends (jkutils/threads.py:52-54). A heuristic therefore runs from the previous `done` line (or
@@ -306,7 +306,7 @@ def RunNative(Exe, Db1, Db2, Out, LogPath, Pair, Extra):
 
 
 def ScoreBoth(Exe, Corpus, Pair, Ref, Target, Results, PairDir, GenerateAliases):
-    """Port + ground-truth score of the native and the oracle results (tools/e2e, lane L11)."""
+    """Port + ground-truth score of the native and the oracle results (tools/e2e)."""
     import e2e_common as E
     import score_ground_truth
     RefPath, TargetPath = E.ExportPath(Corpus, Ref), E.ExportPath(Corpus, Target)
@@ -390,7 +390,7 @@ def ReportMarkdown(Report):
             Row += "| %s | %s " % (GroundTruthCell(Score.get("native")), GroundTruthCell(Score.get("oracle")))
         Lines.append(Row + "|")
     Lines += ["", "Status: COMPARED (the oracle run is valid and was compared), PENDING (the oracle run has not "
-              "finished), SKIPPED_LONG (pass --long), ORACLE_INVALID (plan §1.6; never a native failure). "
+              "finished), SKIPPED_LONG (pass --long), ORACLE_INVALID (never a native failure). "
               "GT = ground truth against the PDB of the target build (tools/e2e/score_ground_truth.py): label "
               "level correct+alias/wrong/missing of scored addresses, then match level ok/wrong per category "
               "(b best, p partial, m multimatch).", ""]
@@ -521,7 +521,7 @@ with open(os.path.join(oracle, "diaphora.log"), encoding="utf-8") as handle:
 
 
 def SelfTest(Exe=None):
-    """The §1.6 classification on a synthetic corpus built from the committed `common` fixture, then
+    """The validity classification on a synthetic corpus built from the committed `common` fixture, then
     whole runs: with a stand-in differ that reproduces the oracle (L2 equal, exit 0), with a planted
     oracle difference (L2 fails, exit 1) and, when a dsigmatcher executable is found, with the real one
     (the report is written and the exit status follows the L2 verdict). Returns the failure count."""
@@ -606,7 +606,7 @@ def SelfTest(Exe=None):
                 Manifest["diffs"][Pair]["runs"].append({"wall_seconds": Info["wall_seconds"]})
         WriteJson(os.path.join(Oracle, "manifest.json"), Manifest)
 
-        print("oracle validity (plan §1.6) on a synthetic corpus:")
+        print("oracle validity on a synthetic corpus:")
         for Pair, (_, _, _, _, (Expected, Reasons)) in Cases.items():
             Status, Details = OracleStatus(Corpus, Manifest, Pair, 1, False)
             Check("%s -> %s%s" % (Pair, Expected, " %s" % Reasons if Reasons else ""),
@@ -696,7 +696,7 @@ def Main():
     Parser.add_argument("--native-arg", action="append", default=[])
     Parser.add_argument("--generate-aliases", action="store_true")
     Parser.add_argument("--self-test", action="store_true",
-                        help="check the §1.6 rules and the exit status on a synthetic corpus (no oracle needed)")
+                        help="check the validity rules and the exit status on a synthetic corpus (no oracle needed)")
     Args = Parser.parse_args()
     if Args.self_test:
         return 1 if SelfTest(Args.dsigmatcher) else 0

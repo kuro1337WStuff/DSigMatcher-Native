@@ -98,7 +98,7 @@ std::optional<std::string> FileSha256Hex(const std::string& Path);
 std::string StoredPath(const std::string& Path, bool Full);
 
 // ---------------------------------------------------------------------------------------------
-// Label port from match proposals (docs/parity/00-plan.md §7.1 D6)
+// Label port from match proposals
 //
 // The engine behind `port`. It applies match proposals (one per `.diaphora` results row) to a copy of
 // the target export, so the output is itself a Diaphora export that can be the next hop's reference.

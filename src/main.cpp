@@ -1040,7 +1040,7 @@ int RunGuarded(int Argc, char** Argv) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Entry point. Every argument string is UTF-8 from here on (lane R0 (f)): the engine hands paths to
+// Entry point. Every argument string is UTF-8 from here on: the engine hands paths to
 // SQLite, which takes UTF-8 file names, and src/diff converts UTF-8 to wide paths for every file API
 // (src/diff/FileIo.h). On Windows the narrow argv of main() is in the ANSI code page, which cannot hold
 // arbitrary Unicode, so the wide command line is converted instead.

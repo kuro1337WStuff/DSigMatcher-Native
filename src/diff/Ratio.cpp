@@ -1,8 +1,8 @@
-// The similarity ratio (lane L2). Literal port of CBinDiff.check_ratio (D:1645-1775), deep_ratio
+// The similarity ratio. Literal port of CBinDiff.check_ratio (D:1645-1775), deep_ratio
 // (D:2749-2837), compare_function_rows (D:2479-2538), quick_ratio / check_bufs (D:150-165) over
 // difflib.SequenceMatcher.quick_ratio (difflib.py:622-649, _calculate_ratio 39-42), the 7-decimal
 // rounding float("{0:.7f}".format(v)) (D:1676) and ratios_cache (D:431, D:1653-1655, D:1774).
-// Spec: 03a in full, 03b §4.1-§4.2, 07 §10.6, plan §3.8. Default configuration only (03a §0): relaxed
+// Spec: 03a in full, 03b §4.1-§4.2, 07 §10.6. Default configuration only (03a §0): relaxed
 // ratio and ML are refused by DiffConfig::Supported, so their branches (D:1677-1697, 1732-1737,
 // 1742-1744, 2823-2833) are not ported.
 //
@@ -12,7 +12,7 @@
 //   * None == None is True for bytes_hash, indegree, outdegree, switches and cyclomatic_complexity,
 //     and None != 0 / None != "[]" are True (03a §7.1, Hard parts 4);
 //   * floating point in exactly Python's evaluation order; the library is built with /fp:precise or
-//     -ffp-contract=off (plan §3.12, 03a Hard parts 2);
+//     -ffp-contract=off (03a Hard parts 2);
 //   * a BLOB cell (Python bytes) is followed where Python's behaviour is plain (== and != with str),
 //     raises where Python raises (bytes.split("\n") in quick_ratio) and is refused where Python would
 //     need more than that (json.loads(bytes), non-INTEGER integer cells).
@@ -36,8 +36,8 @@
 
 namespace DSig::Diff {
 
-// Test seam for the vector self-test of plan §4 L2 ("the mutation table of 03a §13 must fail when
-// each mutation is applied"). Declared here and in tests/diff/ratio_tests.cpp only; never called by
+// Test seam for the vector self-test of 03a §13 (the vectors must fail when any mutation of its
+// mutation table is applied). Declared here and in tests/diff/ratio_tests.cpp only; never called by
 // the engine or the CLI. An empty name clears every mutation; returns false for an unknown name.
 namespace Testing {
 bool SetRatioMutationForTesting(std::string_view Name);
@@ -59,7 +59,7 @@ enum RatioMutation : uint32_t {
   kMutSplitLines = 1u << 7,           // "splitlines instead of split("\n")"
   kMutAlways008 = 1u << 8,            // "always 0.008 per constant"
   kMutMdAsStrings = 1u << 9,          // "md compared as strings (row path)"
-  kMutSwapMdSource = 1u << 10,        // md from the other converter (plan §4 L2 md vectors)
+  kMutSwapMdSource = 1u << 10,        // md from the other converter (03a §6.4 md vectors)
 };
 
 uint32_t g_Mutations = 0;

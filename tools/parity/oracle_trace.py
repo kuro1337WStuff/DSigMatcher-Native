@@ -2,7 +2,7 @@
 
 """Instrumented run of unmodified Diaphora: trace events and state snapshots.
 
-Implements docs/parity/00-plan.md §2.3 and Appendix B. The Diaphora checkout is
+The output format is described in tools/parity/README.md. The Diaphora checkout is
 imported read-only and never edited. Methods of the live `CBinDiff` object are
 wrapped at run time; every wrapper calls the original with the original
 arguments and returns its result. Nothing is short-circuited.
@@ -11,7 +11,7 @@ Subcommands:
 
   run       one instrumented diff of one oracle pair (copies of the exports)
   selftest  run the finished pairs twice, diff the captures, check them against
-            the oracle and against 06 V3 (plan §4 L0b acceptance)
+            the oracle and against 06 V3
   status    list the captures under <corpus>/oracle/traces and whether they run
 
 Paths come from flags or the environment, never from this file:
@@ -27,7 +27,7 @@ Example:
 import sys
 
 # Must happen before anything is imported from the Diaphora checkout, so that
-# no __pycache__ directory is ever written there (plan §2.3).
+# no __pycache__ directory is ever written there.
 sys.dont_write_bytecode = True
 
 import argparse
@@ -48,7 +48,7 @@ if HERE not in sys.path:
 
 import snapshot as Snap  # noqa: E402
 
-# Stored-order cleanup sites of the default run (plan Appendix B, 06 V3). They
+# Stored-order cleanup sites of the default run (06 V3). They
 # are recorded as observed; this table only drives the selftest expectations.
 V3_CLEANUP_COUNTS = {3655: 3, 3217: 3, 3185: 8, 3471: 3, 3413: 3, 3340: 3, 3671: 3, 2945: 1, 1551: 2}
 V3_OUTER_TOTALS = [206, 287, 291, 291]
@@ -334,7 +334,7 @@ class Instrument:
         if Snap.MatchesAny(Point, self.Args.with_cache):
             Obj["ratios_cache"] = [[K, Snap.RatioBits(V)] for K, V in Bd.ratios_cache.items()]
         if Point == "after:final_pass":
-            # Raw CChooser.add_item contents, in add_item order (Appendix B).
+            # Raw CChooser.add_item contents, in add_item order.
             Obj["choosers"] = {"best": self.ChooserDump(Bd.best_chooser),
                                "partial": self.ChooserDump(Bd.partial_chooser),
                                "unreliable": self.ChooserDump(Bd.unreliable_chooser),
@@ -380,7 +380,7 @@ class Instrument:
 
     def Stop(self, Name):
         """--stop-at: the point's snapshot is written; end the run here and write
-        no .diaphora (plan §2.3). On the main thread a private exception unwinds
+        no .diaphora. On the main thread a private exception unwinds
         through diff(); a heuristic point lives on a worker thread, where an
         exception would only end that thread (threads_apply goes on with the
         next heuristic), so the process is ended there after flushing."""
@@ -435,7 +435,7 @@ class Instrument:
         self.WrapCleanup()
         for Name in HEURISTIC_WRAPPERS:
             self.WrapHeuristic(Name)
-        # Stage points (Appendix B). (method, point base, before?, after?, suffix)
+        # Stage points. (method, point base, before?, after?, suffix)
         self.WrapStage("find_equal_matches", "find_equal_matches", False, True)          # D:1404
         self.WrapStage("apply_dirty_heuristics", "apply_dirty_heuristics", False, True)  # D:2629
         self.WrapStage("find_same_name", "find_same_name", True, True)                  # D:2152
@@ -520,7 +520,7 @@ class Instrument:
 
     def WrapCleanup(self):
         """cleanup_matches (D:1554-1605). The site is the caller's line
-        (sys._getframe(1).f_lineno), the plan's CleanupSite value."""
+        (sys._getframe(1).f_lineno), the native CleanupSite value."""
         Bd, Instr = self.Bd, self
         Original = Bd.cleanup_matches
 
@@ -556,7 +556,7 @@ class Instrument:
         """Per-heuristic points. threads_apply names each worker thread after its
         heuristic (jkutils/threads.py:44-50 via heur_item["name"], D:1540); the
         same wrappers also run on the main thread for the stripped pass (D:2580),
-        which is covered by apply_dirty_heuristics instead (Appendix B)."""
+        which is covered by the apply_dirty_heuristics point instead."""
         Bd, Instr = self.Bd, self
         Original = getattr(Bd, MethodName)
 
@@ -731,7 +731,7 @@ class Instrument:
                        "ratio_bits": None if Ratio is None else Snap.RatioBits(Ratio)})
 
     def ForceConstOrder(self, Mode):
-        """--force-const-order: sensitivity measurement only (06 V4, plan §5 R3).
+        """--force-const-order: set-order sensitivity measurement only (06 V4).
         The body is D:3362-3393 verbatim except that the intersection is iterated
         in a fixed order instead of Python set order. Never an oracle run."""
         Bd, D = self.Bd, self.D
@@ -817,7 +817,7 @@ def PrepareOutDir(OutDir, Force):
 
 
 def CheckAgainstOracle(OutDir, Pair, OutFile, OracleFile, Index):
-    """Plan §2.3 self-check and §4 L0b: the instrumented .diaphora equals oracle
+    """Self-check: the instrumented .diaphora equals oracle
     run1 in stored order, and the chooser dumps reproduce its rows."""
     Report = {"oracle": OracleFile}
     if not os.path.isfile(OracleFile):
@@ -852,7 +852,7 @@ def CheckAgainstOracle(OutDir, Pair, OutFile, OracleFile, Index):
 
 
 def LogChecks(LogPath):
-    """The log-based oracle validity rules of plan §1.6."""
+    """The log-based oracle validity rules."""
     with open(LogPath, "r", encoding="utf-8", errors="replace") as Handle:
         Text = Handle.read()
     Final = None
@@ -869,7 +869,7 @@ def LogChecks(LogPath):
 def CommandRun(Args):
     ResolvePaths(Args)
     if Args.stop_at and not Snap.IsPointName(Args.stop_at):
-        raise SystemExit("--stop-at %r is not an Appendix B point name" % Args.stop_at)
+        raise SystemExit("--stop-at %r is not a known point name" % Args.stop_at)
     CorpusObj = Corpus(Args.corpus)
     PairInfo = CorpusObj.Pair(Args.pair)
     OutDir = CaptureDir(Args, CorpusObj)
@@ -1133,9 +1133,9 @@ def V3Check(CaptureDirPath):
 
 
 def CommandSelftest(Args):
-    """Plan §4 L0b tests and acceptance. Both determinism runs use the same
+    """The self-test on the finished pairs. Both determinism runs use the same
     PYTHONHASHSEED: find_related_constants iterates a Python set of constants
-    (D:3389), whose order follows the string hash seed (plan §5 R3), so two
+    (D:3389), whose order follows the string hash seed, so two
     unpinned runs can legitimately differ in row order and in intermediate
     state. A third run under another seed measures that (informational)."""
     ResolvePaths(Args)
@@ -1286,16 +1286,16 @@ def ParseArgs(Argv=None):
     Run.add_argument("--force", action="store_true", help="overwrite a capture that looks like it is running")
     Run.add_argument("--detach", action="store_true", help="start detached (survives this session) and return")
 
-    Self = Sub.add_parser("selftest", help="plan §4 L0b acceptance on the finished pairs")
+    Self = Sub.add_parser("selftest", help="determinism and self-check captures of the finished pairs")
     Common(Self)
     Self.add_argument("--pairs", nargs="*", help="default: every pair with an oracle run1 .diaphora")
     Self.add_argument("--with-cache", action="append", default=[], help="passed to each capture")
     Self.add_argument("--hash-seed", type=int, default=12345,
                       help="PYTHONHASHSEED of the two determinism runs (default 12345)")
     Self.add_argument("--probe-seed", type=int, default=54321,
-                      help="PYTHONHASHSEED of the extra R3 sensitivity run (default 54321)")
+                      help="PYTHONHASHSEED of the extra set-order sensitivity run (default 54321)")
     Self.add_argument("--no-probe", dest="probe_seed", action="store_const", const=None,
-                      help="skip the R3 sensitivity run")
+                      help="skip the set-order sensitivity run")
     Self.add_argument("--report", help="report path (default <corpus>/oracle/traces/_selftest/report.json)")
 
     Status = Sub.add_parser("status", help="list captures and whether they are still running")

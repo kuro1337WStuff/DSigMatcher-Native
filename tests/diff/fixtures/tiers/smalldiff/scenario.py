@@ -1,4 +1,4 @@
-# Lane L6 fixture: search_small_differences (D:2085-2150; tools/parity/make_fixture.py scenario;
+# Tiers fixture: search_small_differences (D:2085-2150; tools/parity/make_fixture.py scenario;
 # synthetic data only).
 #
 # Pairs with equal nodes, edges, mnemonics and cyclomatic complexity, a non-empty `names` list and

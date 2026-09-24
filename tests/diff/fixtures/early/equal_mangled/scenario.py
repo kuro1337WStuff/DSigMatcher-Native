@@ -1,6 +1,6 @@
-# Scenario `equal_mangled` of lane L5 (05 §19 scenario D, rebuilt): C++ functions whose `name` (the
-# demangled text) differs from `mangled_function`, most of them unchanged at the same id and address.
-# Synthetic data only.
+# Scenario `equal_mangled` of the `early` fixtures (05 §19 scenario D, rebuilt): C++ functions whose
+# `name` (the demangled text) differs from `mangled_function`, most of them unchanged at the same id and
+# address. Synthetic data only.
 #
 # Regenerate:
 #   python -B tools/parity/make_fixture.py tests/diff/fixtures/early/equal_mangled/scenario.py \

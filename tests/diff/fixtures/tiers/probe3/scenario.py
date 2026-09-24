@@ -1,4 +1,4 @@
-# Lane L6 fixture: 02 Appendix A probe 3 / 01 E1 (tools/parity/make_fixture.py scenario; synthetic data only).
+# Tiers fixture: 02 Appendix A probe 3 / 01 E1 (tools/parity/make_fixture.py scenario; synthetic data only).
 #
 # Six identical functions per side, func_N in the main database against sub_XXXXXX in the diff database,
 # at different addresses, same processor. run_heuristics_for_category("Best") runs its list back to

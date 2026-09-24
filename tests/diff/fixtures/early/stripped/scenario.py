@@ -1,5 +1,5 @@
-# Scenario `stripped` of lane L5 (05 §19 scenario B, rebuilt): the same binary, the diff side without
-# symbols. Synthetic data only.
+# Scenario `stripped` of the `early` fixtures (05 §19 scenario B, rebuilt): the same binary, the diff
+# side without symbols. Synthetic data only.
 #
 # Regenerate (writes main.sql, diff.sql, expected_*.tsv, after_*.json and oracle.json here):
 #   python -B tools/parity/make_fixture.py tests/diff/fixtures/early/stripped/scenario.py \

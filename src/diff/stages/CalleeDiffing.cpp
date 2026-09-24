@@ -1,4 +1,4 @@
-// Lane L7: callee diffing, "Callee found diffing matches assembly / pseudo-code". Literal port of
+// Callee diffing, "Callee found diffing matches assembly / pseudo-code". Literal port of
 // find_matches_diffing (D:3211-3229), find_matches_diffing_assembly / _pseudo (D:3195-3209),
 // find_matches_diffing_internal (D:3150-3193) and find_one_match_diffing (D:3033-3131), with the helpers
 // they call: get_row_for_items / get_function_row (D:2993-3001, D:2445-2460), functions_exists
@@ -211,11 +211,11 @@ void ProcessCandidate(DiffSession& S, const std::string& Name1, const std::strin
   }
 
   // D:3101 r = self.compare_function_rows(main_row, diff_row) (D:2479-2538: ratios_cache, then check_ratio
-  // with md_index converted by Python float(); RatioEngine::CompareFunctionRows, lane L2).
+  // with md_index converted by Python float(); RatioEngine::CompareFunctionRows).
   if (SameDatabase) {
     // The same-database quirk reached the comparison: Python would score two rows of one table (and key
-    // ratios_cache / deep_ratio by their addresses), which IRatioProvider cannot express. Refused (plan §4
-    // L7, §5 R9) instead of guessed.
+    // ratios_cache / deep_ratio by their addresses), which IRatioProvider cannot express. Refused
+    // instead of guessed.
     throw UnsupportedInput("functions_exists('" + Name1 + "', '" + Name2 +
                            "') returned two rows of the same database (duplicate function names; 06 §2.10)");
   }
@@ -239,7 +239,7 @@ void ProcessCandidate(DiffSession& S, const std::string& Name1, const std::strin
   // mode, where the iteration loop never runs, 02 §3 step 4) it calls on_match(d1, d2, desc, r) with
   // desc = heur (no iteration suffix, D:3009), both names taken from MAIN (d2["name"] = main_row["name"],
   // the D:3013 Diaphora bug kept on purpose, 06 §2.11) and int() of both node counts (D:3020-3021).
-  // PatchDiffHookOnMatch (lane L5) reproduces that script's raising conditions; its return value is
+  // PatchDiffHookOnMatch reproduces that script's raising conditions; its return value is
   // always (True, ratio) (scripts/patch_diff_vulns.py:204-236). md_index (D:3022-3023) is not read by it.
   if (S.Flags().HooksLoaded) {
     HeuristicRow HookRow;

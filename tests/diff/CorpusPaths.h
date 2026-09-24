@@ -1,11 +1,11 @@
 #pragma once
 
-// Where the parity corpus lives (plan §2.6, §7.1 D9). Nothing here is a hard-coded personal path:
+// Where the parity corpus lives. Nothing here is a hard-coded personal path:
 // the root comes from the DSIG_CORPUS_ROOT environment variable, else from the DSIG_CORPUS_ROOT
 // compile definition (the CMake cache variable of the same name). Tests that need it skip when it is
 // absent. Layout (09-oracle.md): <root>/oracle/exports/<id>/<id>.sqlite,
 // <root>/oracle/diffs/<pair>/run<N>/<pair>.diaphora, <root>/oracle/traces/<pair>/,
-// <root>/oracle/vectors/<lane>/.
+// <root>/oracle/vectors/<area>/.
 //
 // Every path string here is UTF-8, like every path the engine takes (src/diff/FileIo.h): Utf8ToPath /
 // PathToUtf8 convert explicitly, because std::filesystem::path(std::string) and path::string() use the
@@ -112,7 +112,7 @@ inline std::string VectorsDir(std::string_view Lane) {
   return PathToUtf8(Utf8ToPath(OracleDir()) / "vectors" / Utf8ToPath(Lane));
 }
 
-// Tests that compare row order with the oracle need the oracle's SQLite (plan §2.6).
+// Tests that compare row order with the oracle need the oracle's SQLite (02 §18.3).
 inline bool OracleSqlite() { return Diff::DiffDatabase::IsOracleSqlite(); }
 
 // DSIG_TEST_DATA_DIR (compile definition): tests/diff in the source tree, for committed fixtures.
@@ -124,7 +124,7 @@ inline std::string TestDataDir() {
 #endif
 }
 
-// A scratch directory for files a test builds, unique per process (several worktrees may run the
+// A scratch directory for files a test builds, unique per process (several builds may run the
 // same suite at once) under the system temp directory. Callers remove it when done.
 inline std::string ScratchDir(std::string_view Suite) {
   static const std::string Unique = [] {

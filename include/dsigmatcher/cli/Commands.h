@@ -1,6 +1,6 @@
 #pragma once
 
-// Product commands around the diff engine (docs/parity/00-plan.md §7.1 D6/D7, §7.2):
+// Product commands around the diff engine:
 //
 //   dsigmatcher extract <in.i64|in.idb> -o <out.sqlite>                         (src/cli/ExportBridge.cpp)
 //   dsigmatcher ingest  <new.exe|dll>  -o <out.sqlite> [--pdb <file>|--no-pdb]  (src/cli/ExportBridge.cpp)
@@ -43,7 +43,7 @@ struct ExportToolOptions {
   bool KeepTemp = false;    // --keep-temp
   int TimeoutSeconds = 0;   // --timeout (0: none; at most kMaxExportTimeoutSeconds)
   std::string ExportScript; // --export-script (else DSIG_EXPORT_SCRIPT, else found relative to the
-                            // executable). Added by lane L10 (additive).
+                            // executable)
   bool AllowNoDecompiler = false;  // --allow-no-decompiler: forwarded to dsig_export.py (audit F46)
   bool Quiet = false;       // --quiet: the script's progress is not streamed to stderr (its last error
                             // line still reaches the outcome's message)

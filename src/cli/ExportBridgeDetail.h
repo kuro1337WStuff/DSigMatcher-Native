@@ -1,6 +1,6 @@
 #pragma once
 
-// Internals of the export bridge (`extract` / `ingest`, plan §7.1 D7, lane L10). The public API is
+// Internals of the export bridge (`extract` / `ingest`). The public API is
 // DSig::Cli::RunExtract / RunIngest in include/dsigmatcher/cli/Commands.h; this header exists so that
 // tests/cli/export_bridge_tests.cpp can check the pieces (argument quoting, process launch, discovery,
 // exit-code mapping) on their own. Every string here is UTF-8.
@@ -51,7 +51,7 @@ struct ToolExit {
   int ExitCode;      // DSig::Cli::kExit*
   const char* What;  // one-line explanation
 };
-// Maps a dsig_export.py exit code to the CLI's exit code (Commands.h / plan §2.1).
+// Maps a dsig_export.py exit code to the CLI's exit code (Commands.h).
 ToolExit MapToolExit(int ToolExitCode);
 
 bool IsValidUtf8(std::string_view Text);

@@ -1,14 +1,14 @@
-// diff_parity: full native diffs compared with Diaphora's own output (plan §2.6, §1.3, §1.5; lane L4).
+// diff_parity: full native diffs compared with Diaphora's own output (levels of docs/parity/README.md).
 //
-// Gated, so ctest stays green while stages are still being ported (plan §2.6; L9 flips the default):
+// Gated by DSIG_PARITY:
 //   DSIG_PARITY unset  only the harness self-check below runs;
 //   DSIG_PARITY=1      the committed `common` fixture pair and every finished short oracle pair;
 //   DSIG_PARITY=long   also the long pairs (userenv / sechost labelled-to-unlabelled) once their
 //                      oracle run1 is finished and valid.
 // Each pair runs `RunDiff` in process and is compared at L2 (rows, `line` and stored order) when the
-// runtime SQLite is the oracle's 3.51.1, at L1 otherwise (plan §7.1 D2). The first 20 differences are
-// printed. An oracle run that is not valid (plan §1.6: exit code, output, log lines, input sha256) is
-// reported ORACLE_INVALID and not compared; tools/parity/run_parity.py applies the full rule set.
+// runtime SQLite is the oracle's 3.51.1, at L1 otherwise. The first 20 differences are printed. An
+// oracle run that is not valid (exit code, output, log lines, input sha256) is reported ORACLE_INVALID
+// and not compared; tools/parity/run_parity.py applies the full rule set.
 
 #include <cstdint>
 #include <cstdio>
@@ -150,9 +150,10 @@ std::optional<JsonValue> ReadJson(const std::string& Path) {
   }
 }
 
-// The subset of plan §1.6 that needs no Python: run.json exit code 0, the output exists, the log
-// has `Diffing results saved in file` and no `Timeout with heuristic`, and both exports still have
-// the manifest's sha256. Returns "" when valid, else the reason.
+// The subset of the oracle validity rules (tools/parity/README.md, "Oracle status") that needs no
+// Python: run.json exit code 0, the output exists, the log has `Diffing results saved in file` and no
+// `Timeout with heuristic`, and both exports still have the manifest's sha256. Returns "" when valid,
+// else the reason.
 std::string OracleInvalid(const JsonValue& Manifest, const OraclePair& P) {
   const std::string RunDir = Join(Join(Join(Test::OracleDir(), "diffs"), P.Pair), "run1");
   const auto Run = ReadJson(Join(RunDir, "run.json"));
@@ -202,7 +203,7 @@ void TestOracleParity(const std::string& Dir, bool IncludeLong) {
     Test::Skip("parity oracle pairs", "no oracle manifest.json");
     return;
   }
-  // The finished short pairs and the two long pairs (plan §1.5, ORACLE.md).
+  // The finished short pairs and the two long pairs (ORACLE.md).
   const OraclePair Pairs[] = {
       {"ls-old_vs_ls", "ls-old", "ls", false},
       {"ls_vs_ls-old", "ls", "ls-old", false},

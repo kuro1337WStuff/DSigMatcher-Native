@@ -1,4 +1,4 @@
-// Side-table facts of one export (docs/parity/00-plan.md §3.3; 08 §7-§8).
+// Side-table facts of one export (08 §7-§8).
 
 #include "dsigmatcher/diff/SideTables.h"
 

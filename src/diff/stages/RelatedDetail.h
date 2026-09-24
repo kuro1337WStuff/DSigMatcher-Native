@@ -1,10 +1,10 @@
 #pragma once
 
-// Lane L8 private extension point (not part of the frozen API; src/diff is a private include
-// directory of dsigmatcher_diff).
+// Private extension point of the related-constants pass (not part of the public API; src/diff is a
+// private include directory of dsigmatcher_diff).
 //
 // find_related_constants iterates `inter_consts`, a CPython set (D:3389), so the order in which its
-// str elements are executed depends on PYTHONHASHSEED (plan §5 R3, 06 Open question 2, 02 §18.2).
+// str elements are executed depends on PYTHONHASHSEED (06 §8.3, 06 Open question 2, 02 §18.2).
 // The engine uses the documented order: first appearance in the main function's JSON list. A caller
 // that knows CPython's order for one run (for example the oracle captures, recorded under
 // PYTHONHASHSEED=12345) can install it here to replay that run exactly; nothing else changes. Unset,

@@ -1,7 +1,7 @@
 #pragma once
 
-// Internal helpers of the results writer (lane L4), exposed for diff_writer only. Not part of the
-// frozen API in include/dsigmatcher/diff/ResultsWriter.h.
+// Internal helpers of the results writer, exposed for diff_writer only. Not part of the
+// public API in include/dsigmatcher/diff/ResultsWriter.h.
 
 #include <string>
 #include <string_view>

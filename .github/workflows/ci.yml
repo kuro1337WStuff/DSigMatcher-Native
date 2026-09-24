@@ -16,8 +16,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Committed files must not carry personal paths, account names or session identifiers (plan §7.1 D9;
-  # audit F20). The patterns are spelled so that this file does not match itself.
+  # Committed files must not carry personal paths, account names or session identifiers (audit F20).
+  # The patterns are spelled so that this file does not match itself.
   hygiene:
     name: No personal paths in tracked files
     runs-on: ubuntu-latest

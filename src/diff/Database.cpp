@@ -1,5 +1,5 @@
 // Path A: the read-only connection and the row sources over Diaphora's verbatim SQL
-// (docs/parity/00-plan.md §3.4, 04a §6.6).
+// (02 §18.3, 04a §6.6).
 
 #include "dsigmatcher/diff/Database.h"
 
@@ -324,7 +324,7 @@ bool MayHoldData(const std::string& Utf8Path) {
   }
 }
 
-// The name handed to sqlite3_open_v2 / ATTACH for an input (lane F1). Reading an input must not
+// The name handed to sqlite3_open_v2 / ATTACH for an input. Reading an input must not
 // create files beside it: an ordinary read-only open of a WAL-mode export creates "<db>-wal" and
 // "<db>-shm" (SQLite opens the WAL with SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE even on a read-only
 // connection, wal.c sqlite3WalOpen) and, being read-only, cannot checkpoint and delete them on close.
@@ -350,9 +350,9 @@ std::string InputFileName(const std::string& Path, const char* What) {
 void DiffDatabase::OpenSingle(const std::string& MainPath) {
   Close();
   EnsureSqliteInitialized();
-  // Read-only (lane R0 (f)): SQLITE_OPEN_READONLY is what mode=ro set, and ATTACH reuses these open
+  // Read-only: SQLITE_OPEN_READONLY is what mode=ro set, and ATTACH reuses these open
   // flags (attach.c: flags = db->openFlags), so the attached diff database is read-only too.
-  // InputFileName decides between the immutable URI and the plain file name (lane F1).
+  // InputFileName decides between the immutable URI and the plain file name.
   const std::string Name = InputFileName(MainPath, "database");
   sqlite3* Handle = nullptr;
   const int Code = sqlite3_open_v2(Name.c_str(), &Handle, SQLITE_OPEN_READONLY | SQLITE_OPEN_URI, nullptr);

@@ -6,7 +6,7 @@ Checks the pieces that run before IDA starts: the PE RSDS reader and the MSF 7.0
 on synthetic files, the sidecar name, the environment cleaning, and the driver's argument and tool
 checks with their exit codes (tool discovery is pointed at empty or fake directories, so the user's
 real IDA configuration is never read). Then whole driver + worker runs against stand-in idalib and
-Diaphora modules written at run time (lane F1): a directory with Diaphora's file names that is not
+Diaphora modules written at run time: a directory with Diaphora's file names that is not
 Diaphora is "Diaphora not usable" (exit 12), and publishing never deletes the previous output's
 sidecars before the atomic replace has succeeded. The v1.0.0 audit regressions: no written file may
 alias the input or the PDB (F02), git is never taken from the current directory (F16), a run that
@@ -248,7 +248,7 @@ def TestDriverChecks(Dir):
     Check(RunMain(["binary", Pe, "-o", Out, "--timeout", str(dsig_export.MAX_TIMEOUT_SECONDS + 1)])
           == dsig_export.EXIT_USAGE, "--timeout above the cap")
     Check(RunMain(["binary", Pe, "-o", Out, "--timeout", "4294848"]) == dsig_export.EXIT_USAGE,
-          "--timeout 4294848 (the audit's value)")
+          "--timeout 4294848 (the F42 value)")
 
     TestAliasRefusals(Dir, Pe, FakeIda, FakeDiaphora)
     os.environ.pop("IDAUSR", None)
@@ -311,7 +311,7 @@ def TestGitLookup(Dir, FakeDiaphora):
     os.makedirs(Plant)
     Marker = os.path.join(Dir, "planted git ran")
     if sys.platform == "win32":
-        # The audit's repro: a copy of cmd.exe named git.exe; its banner used to become git_describe.
+        # A copy of cmd.exe named git.exe: its banner used to become git_describe.
         shutil.copyfile(os.path.join(os.environ.get("SystemRoot", "C:\\Windows"), "System32", "cmd.exe"),
                         os.path.join(Plant, "git.exe"))
     else:
@@ -434,7 +434,7 @@ def ReadBytes(Path):
 
 
 def TestFakeIdaRuns(Dir):
-    """Whole driver + worker runs against stand-in idalib modules (lane F1)."""
+    """Whole driver + worker runs against stand-in idalib modules."""
     print("[driver + worker with stand-in idalib and Diaphora]")
     for Key in ("DSIG_IDADIR", "IDADIR", "DSIG_DIAPHORA_DIR", "DSIG_EXPORT_ALLOW_NO_DECOMPILER"):
         os.environ.pop(Key, None)

@@ -7,7 +7,7 @@
     compare_traces.py <a/snapshots/X.json> <b/snapshots/X.json>
     compare_traces.py --self-test [--trace <trace.jsonl>] [--snapshots <capture dir>]
 
-Traces (plan §2.5): reports the first divergent event with `--context` events
+Traces: reports the first divergent event with `--context` events
 before it and after it on each side, plus per-(heuristic, stage) counts of
 add_match events on each side (appended / duplicate / rejected_better, keyed by
 the event's `ctx`). Events are compared as parsed JSON objects, so key order
@@ -17,8 +17,8 @@ numbers events. When exactly one side carries `row` events (a `--rows` or
 sides and a note says so.
 
 Capture directories (a directory holding index.json and snapshots/): walks the
-points in order and reports the first point whose snapshots differ at S-L2
-(plan §1.3), with an item-level diff (`--all` goes on past the first).
+points in order and reports the first point whose snapshots differ at S-L2,
+with an item-level diff (`--all` goes on past the first).
 
 Exit code 0 when equal, 1 when different, 2 on usage errors.
 """

@@ -1,10 +1,10 @@
-// Suite diff_textdiff (lane L3, docs/parity/00-plan.md §4 L3): str.split("\n"), str.splitlines(),
-// the CPP_NAMES_RE scanner (D:114) and the literal port of CPython 3.13.12 difflib (SequenceMatcher,
-// unified_diff). Spec: 03b §4.3.1, §4.3.3, §5; 06 §6.1-§6.4 and Appendix A; 07 §10.11.1.
+// Suite diff_textdiff: str.split("\n"), str.splitlines(), the CPP_NAMES_RE scanner (D:114) and the
+// literal port of CPython 3.13.12 difflib (SequenceMatcher, unified_diff). Spec: 03b §4.3.1, §4.3.3, §5;
+// 06 §6.1-§6.4 and Appendix A; 07 §10.11.1.
 //
 // Parts:
 //   1. unit tests with the worked examples of the spec (expected values quoted from 03b / 06 / 07 and
-//      re-checked against CPython 3.13.12 for this lane);
+//      re-checked against CPython 3.13.12);
 //   2. committed synthetic vectors, tests/diff/vectors/textdiff/ (tools/parity/gen_textdiff_vectors.py
 //      --synthetic): explicit examples, plus SplitMix64 fuzz cases that this file regenerates exactly
 //      the way the generator does (GenUdiffCase / GenString below mirror gen_udiff_case / gen_string,
@@ -214,7 +214,7 @@ void TestPySplitNewline() {
   CHECK(Strings(PySplitNewline("\n")) == (V{"", ""}));
   CHECK(Strings(PySplitNewline("a\r\nb")) == (V{"a\r", "b"}));
   CHECK(Strings(PySplitNewline("a\n\r")) == (V{"a", "\r"}));
-  // 03a / plan §4 L2: 'a\nb\n' vs 'a\nb' differ by the trailing "" piece
+  // 03a §2: 'a\nb\n' vs 'a\nb' differ by the trailing "" piece
   CHECK(Strings(PySplitNewline("a\nb\n")) == (V{"a", "b", ""}));
   CHECK(Strings(PySplitNewline("a\nb")) == (V{"a", "b"}));
   // other line breaks are not separators for split("\n")
@@ -371,7 +371,7 @@ void TestCppNames() {
   // "{3,}" counts code points: 4 special letters (9 bytes) match, 3 (6 bytes) do not
   CHECK(Strings(CppNamesFindAll("\xC4\xB0\xC4\xB1\xC5\xBF\xE2\x84\xAA")) == V{"\xC4\xB0\xC4\xB1\xC5\xBF\xE2\x84\xAA"});
   CHECK(Strings(CppNamesFindAll("\xC4\xB0\xC4\xB1\xC5\xBF")).empty());
-  // "::" extensions (re-checked with re.findall for this lane)
+  // "::" extensions (re-checked with re.findall)
   CHECK(Strings(CppNamesFindAll("abcd::")) == V{"abcd"});
   CHECK(Strings(CppNamesFindAll("abcd:::e")) == V{"abcd"});
   CHECK(Strings(CppNamesFindAll("abcd::1x")) == V{"abcd::1x"});
@@ -1124,7 +1124,7 @@ void TestCorpusUnifiedDiff() {
       continue;
     }
     // The vectors must have been computed from exactly these files. A different export means stale
-    // vectors, not a native failure (plan §1.6 treats oracle problems separately), so the pair is skipped.
+    // vectors, not a native failure (oracle problems are reported separately), so the pair is skipped.
     bool MainOk = false;
     bool DiffOk = false;
     const std::string MainNow = DSig::Sha256::FileHex(DSig::Test::ExportPath(MainId), MainOk);

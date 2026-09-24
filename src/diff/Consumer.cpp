@@ -1,4 +1,4 @@
-// Row consumers (lane L1): check_match (D:1786-1872), add_matches_internal (D:1874-1948) and the
+// Row consumers: check_match (D:1786-1872), add_matches_internal (D:1874-1948) and the
 // add_matches_from_* wrappers (D:1950-2083). Spec: 02 §5.3, §6, §10-§13; 05 §2.2-§2.3; 06 §2.7;
 // 07 §10.5.1-§10.5.2. D: = diaphora.py at 3.4.2-4-g621ec26, C: = diaphora_config.py.
 //
@@ -111,7 +111,7 @@ std::optional<double> CheckMatchBody(DiffSession& S, const HeuristicRow& Row) {
   // D:1869-1871: should_add, r = call_hook("on_match", [True, r], [main_d, diff_d, desc, r]).
   // call_hook (D:1450-1459) returns the default unless hooks are loaded; the only hook of the
   // parity configuration is scripts/patch_diff_vulns.py in patch-diff mode, whose on_match returns
-  // (True, ratio) on every path, so only its raising conditions are reproduced (plan §4 L5).
+  // (True, ratio) on every path, so only its raising conditions are reproduced (01 §5.4).
   if (S.Flags().HooksLoaded) {
     PatchDiffHookOnMatch(S, Row, R);
   }
@@ -142,7 +142,7 @@ void AddMatchesInternalImpl(DiffSession& S, RowSource& Rows, Chooser Best, std::
   // D:1893 `while self.continue_getting_sql_rows(i)` = (max != 0 and i < max) (D:1874-1880): the cap
   // counts every fetched row, rejected ones included; max == 0 reads no row at all (02 §5.3).
   while (MaxRows != 0 && I < MaxRows) {
-    // D:1894-1896: the 300 s wall-clock timeout is not emulated (plan §0.8, §5 R7).
+    // D:1894-1896: the 300 s wall-clock timeout is not emulated (02 §5.4).
     ++I;                        // D:1898
     HeuristicRow Row;
     if (!Rows.Next(Row)) {      // D:1901-1903 fetchone() is None -> break
@@ -242,7 +242,7 @@ void AddMatchesFromQueryRatio(DiffSession& S, RowSource& Rows, Chooser Best, Cho
   }
   // D:1961-1964: execute + add_matches_internal(val=None -> 0.5). D:1965-1966 `except SystemExit:
   // pass` only catches the timeout, which is not emulated; D:1967-1973 log and re-raise everything
-  // else, so errors propagate to the caller (the worker thread dies; plan §3.11).
+  // else, so errors propagate to the caller (the worker thread dies; 02 §5.5).
   AddMatchesInternalImpl(S, Rows, Best, Partial, std::nullopt, false);
 }
 

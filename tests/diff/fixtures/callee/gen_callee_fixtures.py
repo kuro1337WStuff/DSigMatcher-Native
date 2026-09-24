@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Record what REAL Diaphora does in callee diffing (lane L7) on synthetic data, for tests/diff/callee_tests.cpp.
+"""Record what REAL Diaphora does in callee diffing on synthetic data, for tests/diff/callee_tests.cpp.
 
     python -B tests/diff/fixtures/callee/gen_callee_fixtures.py [--diaphora-dir <dir>] [--python <exe>]
                                                                 [--hash-seed 0] [--only <scenario>] [--no-walk]
 
-Two kinds of artefacts, both text and synthetic only (plan §2.6: never names or bytes of a real binary):
+Two kinds of artefacts, both text and synthetic only (never names or bytes of a real binary):
 
 1. walk_vectors.json: the diff walk of find_one_match_diffing (D:3040-3074) on generated text pairs. The
    UNMODIFIED CBinDiff.find_one_match_diffing runs on each (main text, diff text) with a stand-in `self`
@@ -33,7 +33,7 @@ Two kinds of artefacts, both text and synthetic only (plan §2.6: never names or
 
 The Diaphora checkout is imported read-only (python -B, PYTHONDONTWRITEBYTECODE=1) and its `git describe` /
 `git status` are checked unchanged afterwards. Nothing is written outside this directory and a temporary
-work directory. Paths come from flags or the environment only (plan §7.1 D9):
+work directory. Paths come from flags or the environment only:
   --diaphora-dir  (env DSIG_DIAPHORA_DIR)   the unmodified Diaphora checkout
   --python        (env DSIG_PYTHON)         the Python that runs Diaphora (default: this one)
 """
@@ -57,8 +57,8 @@ TOOLS = os.path.normpath(os.path.join(HERE, "..", "..", "..", "..", "tools", "pa
 if TOOLS not in sys.path:
     sys.path.insert(0, TOOLS)
 
-import make_fixture as MF  # noqa: E402  (tools/parity, lane L4)
-import snapshot as Snap  # noqa: E402  (tools/parity, lane L0b)
+import make_fixture as MF  # noqa: E402  (tools/parity)
+import snapshot as Snap  # noqa: E402  (tools/parity)
 
 WALK_SEED = 20260923
 
@@ -233,7 +233,7 @@ def CaptureChild(DiaphoraDir, Db1, Db2, OutDir):
     """Child process: diaphora.py __main__ (D:3757-3773) under oracle_trace.Instrument."""
     sys.path.insert(0, DiaphoraDir)
     import diaphora as D  # the unmodified checkout, read-only
-    import oracle_trace as OT  # tools/parity (lane L0b)
+    import oracle_trace as OT  # tools/parity
 
     Bd = D.CBinDiff(Db1)
     if not D.IS_IDA:
@@ -356,7 +356,7 @@ def Main():
             with open(WalkOut, "r", encoding="utf-8") as Handle:
                 Walk = json.load(Handle)
             if Walk["has_cdifflib"]:
-                raise SystemExit("cdifflib is installed: not an oracle environment (plan \u00a71.6)")
+                raise SystemExit("cdifflib is installed: not an oracle environment")
             Walk.update({"generator": "tests/diff/fixtures/callee/gen_callee_fixtures.py", "diaphora": Describe,
                          "seed": WALK_SEED, "doc_cases": len(DocCases())})
             # one case per line, so a regenerated file diffs line by line

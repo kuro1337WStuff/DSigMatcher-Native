@@ -4,7 +4,7 @@
 
 ## Summary
 
-- **What exists now.** `dsig-parity` (branch `parity`, HEAD `34ed418`) holds a C++20 static library, `dsigmatcher_core`, plus a CLI (`diff`/`port`/`info`) and 5 test executables. The build is clean at /W4 and all 5 ctest suites pass: 316 + 67 + 302 + 825 + 152,784 checks, verified 2026-09-23 with `dsig_build.cmd`. The diff engine is 12 hash-join heuristics that run independently and in parallel. `MatchStore` then sorts their output and resolves it greedily to 1:1, and the ratio is binary (1.0, or 0.5 when a match is ambiguous).
+- **What exists now.** The repository (branch `parity`, HEAD `34ed418`) holds a C++20 static library, `dsigmatcher_core`, plus a CLI (`diff`/`port`/`info`) and 5 test executables. The build is clean at /W4 and all 5 ctest suites pass: 316 + 67 + 302 + 825 + 152,784 checks, verified 2026-09-23 with `dsig_build.cmd`. The diff engine is 12 hash-join heuristics that run independently and in parallel. `MatchStore` then sorts their output and resolves it greedily to 1:1, and the ratio is binary (1.0, or 0.5 when a match is ambiguous).
 - **How Diaphora differs.** Diaphora's `diff()` is a **sequential, order-sensitive state machine keyed by function *name***. It runs heuristics one at a time, and within each category it goes in **reverse** registration order (`targets.pop()`). Every SQL row goes through `check_match` → `check_ratio` (graded, using difflib `quick_ratio` rounded to 7 decimals, plus `deep_ratio` bonuses) → `add_match`. Each of those steps reads the state that earlier rows left behind. After the heuristics come an iterative loop (callee diffing, related constants, related compilation units, local affinity) and a final multimatch pass. The output is `.diaphora` tables (`results` and `unmatched`).
 - **Why it cannot be patched in.** The current architecture cannot express this. It has no shared state between heuristics, no row order, no graded ratio, a single fixed category per heuristic, and no multimatch. The rewrite has four parts:
   1. Split every heuristic into a pure **candidate stream** (which can run in parallel) and a **sequential consumer** (the exact state machine).
@@ -23,7 +23,7 @@
   - the writer.
 
   Patch-diff mode also loads the default hook script `scripts/patch_diff_vulns.py`. Its `on_match` always returns its input unchanged, but it can raise (Section 10.8).
-- **Parallel work.** Section 12 proposes a layout: one registry table created up front holding all 50 heuristics plus 11 stages, one file per heuristic group and per stage, and one test executable per group, so that engineers own disjoint files.
+- **File layout.** Section 12 proposes a layout: one registry table created up front holding all 50 heuristics plus 11 stages, one file per heuristic group and per stage, and one test executable per group, so that each component lives in its own files.
 
 Evidence legend: `D:` = `<diaphora-ref>/diaphora.py`, `H:` = `diaphora_heuristics.py`, `C:` = `diaphora_config.py`, `S:` = `db_support/schema.py`.
 - The checkout is `3.4.2-4-g621ec26`, 4 commits after the tag. `git diff 3.4.2 HEAD` touches only `README.md` and CSS colours in `diaphora_ida.py`, at line 3864 and later.
@@ -66,7 +66,7 @@ if /i "%~3"=="test" (
 ```
 
 - The script configures only once, when `CMakeCache.txt` is absent. Ninja reruns CMake by itself whenever `CMakeLists.txt` changes, so adding files is safe.
-- `PATH` is prefixed with `miniconda3\Library\bin` so that the tests load **the same `sqlite3.dll` (3.51.1)** that the Python oracle uses. That DLL is the only one allowed in parity runs (see Section 11.2). Since SQLite 3.51.1 is bundled and linked statically (lane V1), the native build no longer loads any `sqlite3.dll` and the conda `CMAKE_PREFIX_PATH` was dropped from the script; the `PATH` prefix only matters for a `-DDSIG_VENDORED_SQLITE=OFF` build.
+- `PATH` is prefixed with `miniconda3\Library\bin` so that the tests load **the same `sqlite3.dll` (3.51.1)** that the Python oracle uses. That DLL is the only one allowed in parity runs (see Section 11.2). Since SQLite 3.51.1 is bundled and linked statically, the native build no longer loads any `sqlite3.dll` and the conda `CMAKE_PREFIX_PATH` was dropped from the script; the `PATH` prefix only matters for a `-DDSIG_VENDORED_SQLITE=OFF` build.
 - Check counts per executable, OBSERVED by running each exe:
 
   | Executable | Last line of output |
@@ -103,11 +103,10 @@ if /i "%~3"=="test" (
   - Windows: `vcpkg sqlite3:x64-windows`, with the DLL staged beside the exes.
 
   **These are different SQLite versions from the local 3.51.1.** See Hard part H2.
-- **Git** (`AGENTS.md`): commits are authored only by kuro1337WStuff, with no `Co-Authored-By` and no AI attribution. In this workflow only the orchestrator commits.
 
 ### 1.3 Experiments run for this document (reproducible, scratch only)
 
-All of these ran on copies in the session scratchpad with `python -B` and `PYTHONDONTWRITEBYTECODE=1`. `git status` in `diaphora-ref` stayed clean.
+All of these ran on copies in a scratch directory with `python -B` and `PYTHONDONTWRITEBYTECODE=1`. `git status` in `diaphora-ref` stayed clean.
 
 1. **Heuristic execution order.** Two 10-function Diaphora-schema databases were generated from `S:` with `sub_` names on both sides, then compared with `python -B diaphora.py db1 db2 -o out.diaphora` and `DIAPHORA_LOG_PRINT=1`.
    - The log prints `[Single thread] Finding with heuristic '<name>'` for all 12 Best heuristics **in list order**, because the log happens while the list is being built.
@@ -127,7 +126,7 @@ All of these ran on copies in the session scratchpad with `python -B` and `PYTHO
 5. **Rounding ties.** Python `'{0:.7f}'.format(k/256)` gives `0.0039062, 0.0117188, 0.0195312, 0.0273438, 0.0351562, 0.0429688, 0.0507812, 0.9960938` for k = 1,3,5,7,9,11,13,255, which is round-half-even on the exact binary value. MSVC `std::to_chars(fixed, 7)` and `snprintf("%.7f")` produced identical strings.
    - Re-verified at scale during verification (MSVC 18, `/std:c++20 /O2`) with 200,000 doubles: every `k/65536` for k < 65,536, which includes many exact binary ties, plus 134,464 random doubles in [0, 1).
    - Both `to_chars` and `snprintf` matched Python `"%.7f" % v` on **all** of them (0 mismatches).
-6. **Real-export row dumps** (added during verification). The 7 exports in `<corpus>/oracle/exports` were copied to the scratchpad and queried read-only with Python `sqlite3` (3.51.1): `userenv-9168-pdb`, `userenv-9278-pdb`, `userenv-9278-nopdb`, `sechost-9168-pdb`, `sechost-9444-nopdb`, `ls`, `ls-old`. Results:
+6. **Real-export row dumps** (added during verification). The 7 exports in `<corpus>/oracle/exports` were copied to a scratch directory and queried read-only with Python `sqlite3` (3.51.1): `userenv-9168-pdb`, `userenv-9278-pdb`, `userenv-9278-nopdb`, `sechost-9168-pdb`, `sechost-9444-nopdb`, `ls`, `ls-old`. Results:
    - All 7 exports:
      - journal mode is `wal`;
      - `sqlite_stat1` is present, with 44 indices;
@@ -145,7 +144,7 @@ All of these ran on copies in the session scratchpad with `python -B` and `PYTHO
 
 | Path | Lines | Role today | Parity relevance / action |
 |---|---|---|---|
-| `CMakeLists.txt` | 111 | One static lib `dsigmatcher_core` (13 sources), CLI `dsigmatcher`, bench, 5 test exes. Deps: `SQLite::SQLite3`, `Threads`, Zydis v4.1.1 through FetchContent. | Add the new `diff/` sources and test exes **once, up front** (Section 12) so that engineers never edit it. |
+| `CMakeLists.txt` | 111 | One static lib `dsigmatcher_core` (13 sources), CLI `dsigmatcher`, bench, 5 test exes. Deps: `SQLite::SQLite3`, `Threads`, Zydis v4.1.1 through FetchContent. | Add the new `diff/` sources and test exes **once, up front** (Section 12), so it does not have to change afterwards. |
 | `include/dsigmatcher/Types.h` / (header-only) | 156 | `PackedString`, `StringPool`, `MatchCategory`, `Match`, `FunctionTable` (27 columns), `ProgramInfo`. | **Replace** with the diff data model (Section 4). |
 | `include/.../ExportDatabase.h`, `src/ExportDatabase.cpp` | 20 / 294 | Reads 27 `functions` columns and 3 `program` columns. | **Rewrite** (Section 5). |
 | `include/.../Heuristics.h`, `src/Heuristics.cpp` | 45 / 407 | 12 heuristics as hash joins, a parallel runner, and a binary ratio. | **Superseded** by `src/diff/*`. Keep it only as the benchmark baseline, or delete it once the replacement is at parity. |
@@ -162,7 +161,7 @@ All of these ran on copies in the session scratchpad with `python -B` and `PYTHO
 | `include/.../ControlFlowGraph.h`, `src/ControlFlowGraph.cpp` | 138 / 894 | CFG, SCCs, loops, and Diaphora's quirks. | Export side. |
 | `include/.../Synth.h`, `src/Synth.cpp` | 44 / 340 | Synthetic `FunctionTable` pairs with ground truth. Fills the 27 current columns. | Extend it, or replace it with Diaphora-schema fixtures (Section 13). |
 | `tests/dsigmatcher_tests.cpp` | 1097 | Hashes, naming, `MatchStore`, synthetic accuracy (`RunExactHeuristics`), ingest round-trip, port path safety, provenance chain. | Expect breakage in `TestMatchStore` / `TestSyntheticAccuracy` when the engine is swapped. Keep the ingest, port and provenance tests. |
-| `tests/resolve_tests.cpp` | 819 | ThreadPool tests and `MatchStore` resolve tests. | The `MatchStore` tests are obsolete for the new engine. The ThreadPool tests stay. Per HANDOFF they "deliberately assert order-dependent results". |
+| `tests/resolve_tests.cpp` | 819 | ThreadPool tests and `MatchStore` resolve tests. | The `MatchStore` tests are obsolete for the new engine. The ThreadPool tests stay. They deliberately assert order-dependent results. |
 | `tests/cfg_tests.cpp`, `disassembler_tests.cpp`, `peimage_tests.cpp` | 1457 / 243 / 986 | Tests for the export-side modules. | Unaffected. |
 | `bench/dsigmatcher_bench.cpp` | 255 | Times each heuristic with `RunHeuristic`, plus `Resolve`. | Re-target it at the candidate generators and `RatioEngine`. |
 | `tools/schema_coverage.py` | 130 | Reports that 27 of 49 `functions` columns are ingested and 12 of 50 heuristics implemented (OBSERVED output). | Update its parser to the new ingestion table. |
@@ -171,7 +170,7 @@ All of these ran on copies in the session scratchpad with `python -B` and `PYTHO
 | `tools/audit_pe_dump.py`, `dump_pe.cpp`, `cpu_features.cpp`, `hash_bench.cpp`, `join_bench.cpp` | 300 / 98 / 127 / 222 / 233 | Standalone audits and benches that are **not in CMake**. | Unchanged. |
 | `tools/oracle/` (**untracked**: `build_oracle.py`, `diaphora_export.py`, `compare_exports.py`, `pdb_proof.py`) | 519 / 328 / 80 / 95 | Builds the real-export oracle under `<corpus>/oracle` (see `docs/parity/09-oracle.md`). It runs unmodified Diaphora twice per pair and writes `determinism.json` and `run.json` (`timeouts_logged`, `tracebacks_logged`). | This is the parity reference. It supersedes the synthetic-only plan in Section 13. |
 | `docs/parity/*.md` (untracked) | — | The parity spec set (01–09). | Only this file is in scope here. |
-| `README.md`, `HANDOFF.md`, `JOURNAL.md`, `AGENTS.md` | 222 / 123 / 1508 / 5 | Project docs. `AGENTS.md` forbids AI attribution. | See Open question 8 for `README.md`. |
+| `README.md` | 222 | Project readme. | See Open question 8. |
 | `.github/workflows/ci.yml` | 104 | 3-platform build and test. | See H2 for pinning SQLite. |
 
 ---
@@ -432,7 +431,7 @@ The size gate `PassesSizeGate` emulates `SQL_DEFAULT_POSTFIX = " and f.instructi
 |---|---|
 | `RunSameCleanedAssembly` → #5, `RunSameCleanedMicrocode` → #6, `RunSameCleanedPseudoCode` → #7 | SQL `f.name not like 'nullsub%'` (`H:188,205,222`) is **ASCII case-insensitive**, and `%` matches anything (experiment 4). `IsNullSub` (`Naming.h:15-17`) is case-sensitive. Empty key: `JoinByKey` skips `""`, but SQL `'' = ''` is **true**, so functions with an empty `clean_assembly` do join in SQL. NULL never joins. |
 | all | NULL vs `''` conflation (T2). Our `NameCompatible` returns true for two empty names, while SQL's `f.name = df.name` with NULL is NULL, which is false. |
-| `RunSameRareKokaHash` → #18, `RunSameRareMdIndex` → #19 | `where kgh_hash != 0` is evaluated as TEXT `!= '0'`, so `''` is **kept** and NULL dropped (experiment 4). HANDOFF says it "does nothing". That is wrong, and so is our skipping of `""`. The exporter writes `md_index = 0`, stored as `'0'`, when there is no graph (`diaphora_ida.py:2514`), so `'0'` really is excluded. |
+| `RunSameRareKokaHash` → #18, `RunSameRareMdIndex` → #19 | `where kgh_hash != 0` is evaluated as TEXT `!= '0'`, so `''` is **kept** and NULL dropped (experiment 4). An earlier note says it "does nothing". That is wrong, and so is our skipping of `""`. The exporter writes `md_index = 0`, stored as `'0'`, when there is no graph (`diaphora_ida.py:2514`), so `'0'` really is excluded. |
 | `RunSameAddressAndMnemonics` → #4 (plus #5, #6, #7, #17, #19) | `order by f.source_file = df.source_file` (`H:174`) sorts rows where the source files are *unequal* **first**, because 0 sorts before 1. Ties are ordered by SQLite's sorter: NOT DETERMINED FROM SOURCE. |
 | `RunSameRvaAndHash` → #0 | SQL `(df.rva = f.rva or df.segment_rva = f.segment_rva)` holds for `''=''`. Native requires non-empty values. |
 | `RunSameConstants` → #17 | Diaphora type is RATIO_MAX with `min 0.5` (`H:463,472`). The native version has no threshold. |
@@ -456,7 +455,7 @@ New `include/dsigmatcher/diff/SqlSemantics.h` must provide:
 1. Skip `(Index1,Index2)` pairs that have already been seen.
 2. Greedy 1:1: accept a pair when neither side is used yet.
 
-`PartitionedResolveEnabled()` returns `false` (`:64-66`), which is the HANDOFF kill switch.
+`PartitionedResolveEnabled()` returns `false` (`:64-66`): the partitioned path is switched off.
 
 The resulting semantics are **global greedy on (ratio, heuristic id)**, and that has no Diaphora counterpart. Diaphora allows the following, and the new engine must reproduce all of it:
 - A later lower-ratio match can **overwrite** `matched_primary` for non-`sub_` names (`D:1392-1394`, Section 10.5.3).
@@ -481,7 +480,7 @@ The resulting semantics are **global greedy on (ratio, heuristic id)**, and that
 ```
 - `description` is `"best#" + HeuristicId` (`:218`), whatever the category.
 - A `symbols_to_port` row is written unless `!IsPortableSymbol(Name1) || Name1 == Name2` (`:230`).
-- `-o` is opened with `SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE`, so it can be **one of the inputs** (HANDOFF known issue). Diaphora `os.remove`s the output first (`D:2379-2381`).
+- `-o` is opened with `SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE`, so it can be **one of the inputs** (a known issue). Diaphora `os.remove`s the output first (`D:2379-2381`).
 
 ### 8.2 Diaphora's output format (target; `D:2374-2429`, OBSERVED in experiments 2 and 3)
 
@@ -633,7 +632,7 @@ if self.do_continue:
 ```
 Afterwards the main script calls `bd.save_results(diff_out)` (`D:3773`).
 
-Stage table. Each row names the native owner file from Section 12.
+Stage table. Each row names the native file from Section 12 that implements the stage.
 
 | # | Stage | Runs by default? | Native file |
 |---|---|---|---|
@@ -1587,73 +1586,73 @@ private:
 
 ---
 
-## 12. Proposed file layout for parallel implementation (disjoint ownership)
+## 12. Proposed file layout
 
-Rule: the **lead creates every file below in one scaffolding commit**:
+Every file below is created up front, in one scaffolding step:
 - all headers with final signatures;
 - the registry with all 50 specs, including verbatim SQL, and all stage entries;
 - every generator and stage as a compiling stub that returns `NotImplemented` (the pipeline then falls back to Path A for heuristics, and a stub stage is logged as skipped);
 - every test executable registered in CMake.
 
-After that commit, **engineers edit only the files they own**, and nobody touches `CMakeLists.txt`, `Registry.cpp` or shared headers without the lead.
+After that step, work on one component touches only that component's files; `CMakeLists.txt`, `Registry.cpp` and the shared headers stay frozen.
 
 ```
 include/dsigmatcher/diff/
-  Table.h            FunctionTable v2, TextColumn/IntColumn, NameTable            [lead]
-  SideTables.h       constants/CU/instructions/bb_instructions/program/version    [lead]
-  SqlSemantics.h     text compare, literal affinity, LIKE, abs/cast, length       [owner: semantics]
-  PySemantics.h      startswith variants, None-equality helpers, float() parse    [owner: semantics]
-  Registry.h         HeuristicSpec, StageSpec, enums, Heuristics(), Stages()      [lead, frozen]
-  Candidates.h       CandidateRow, CandidateStream, generator declarations x50    [lead, frozen]
-  MatchState.h       Section 11.3                                                 [owner: state]
-  Ratio.h            RatioEngine (QuickRatio, Round7, CheckRatio, DeepRatio)      [owner: ratio]
-  TextDiff.h         SequenceMatcher port, unified_diff, splitlines, name scanner [owner: textdiff]
-  Pipeline.h         DiffConfig, DiffSession, stage declarations                  [lead]
-  ResultsWriter.h    .diaphora writer + legacy tables                             [owner: output]
+  Table.h            FunctionTable v2, TextColumn/IntColumn, NameTable            [scaffold]
+  SideTables.h       constants/CU/instructions/bb_instructions/program/version    [scaffold]
+  SqlSemantics.h     text compare, literal affinity, LIKE, abs/cast, length       [group: semantics]
+  PySemantics.h      startswith variants, None-equality helpers, float() parse    [group: semantics]
+  Registry.h         HeuristicSpec, StageSpec, enums, Heuristics(), Stages()      [scaffold, frozen]
+  Candidates.h       CandidateRow, CandidateStream, generator declarations x50    [scaffold, frozen]
+  MatchState.h       Section 11.3                                                 [group: state]
+  Ratio.h            RatioEngine (QuickRatio, Round7, CheckRatio, DeepRatio)      [group: ratio]
+  TextDiff.h         SequenceMatcher port, unified_diff, splitlines, name scanner [group: textdiff]
+  Pipeline.h         DiffConfig, DiffSession, stage declarations                  [scaffold]
+  ResultsWriter.h    .diaphora writer + legacy tables                             [group: output]
 src/diff/
-  Registry.cpp                 the 50 + 11 table (verbatim SQL literals)          [lead, frozen after M0]
-  Ingest.cpp                   Section 5.3                                        [owner: ingest]
-  SideTables.cpp                                                                  [owner: ingest]
-  SqlCandidateSource.cpp       Path A                                             [lead]
-  MatchState.cpp               Sections 10.5.3-10.5.5                             [owner: state]
-  Consumer.cpp                 check_match + add_matches_* routing (10.5.1-2)     [owner: state]
-  Ratio.cpp                    Section 10.6                                       [owner: ratio]
-  TextDiff.cpp                 Section 10.11.1 difflib/regex/splitlines           [owner: textdiff]
-  SqlSemantics.cpp, PySemantics.cpp                                               [owner: semantics]
-  Pipeline.cpp                 Section 10.2 driver + S2 + category runner (10.3/10.4) [lead]
-  ResultsWriter.cpp            Section 8.2                                        [owner: output]
-  heuristics/Best_Hashes.cpp          Ids 0,1,2,3                                 [owner: H-a]
-  heuristics/Best_TextEqual.cpp       Ids 4,5,6,7,8,10                            [owner: H-a]
-  heuristics/Best_RvaSpp.cpp          Ids 9,11                                    [owner: H-a]
-  heuristics/Partial_CompUnit.cpp     Ids 12,13,14                                [owner: H-b]
-  heuristics/Partial_KokaMd.cpp       Ids 15,16,18,19,22                          [owner: H-b]
-  heuristics/Partial_Constants.cpp    Ids 17,20,21                                [owner: H-b]
-  heuristics/Partial_Names.cpp        Ids 23,24,26,29,30                          [owner: H-c]
-  heuristics/Partial_PseudoFuzzy.cpp  Ids 25,32,33,34,35,36,37,38                 [owner: H-c]
-  heuristics/Partial_Structure.cpp    Ids 27,28,31,41                             [owner: H-d]
-  heuristics/Partial_Instructions.cpp Ids 39,40                                   [owner: H-d]
-  heuristics/Unreliable.cpp           Ids 42..49 (non-default)                    [owner: H-d]
-  stages/Preflight.cpp          S0 (version, equal_db log, callgraph checks)      [owner: stages-1]
-  stages/EqualMatches.cpp       S1 (10.7)                                         [owner: stages-1]
-  stages/DirtyHeuristics.cpp    S3 + S5a (10.8)                                   [owner: stages-1]
-  stages/SameName.cpp           S4 (10.9)                                         [owner: stages-1]
-  stages/SmallDifferences.cpp   S5c tail (10.10)                                  [owner: stages-2]
-  stages/CalleeDiffing.cpp      10.11.1                                           [owner: stages-2]
-  stages/RelatedConstants.cpp   10.11.2                                           [owner: stages-3]
-  stages/RelatedCompilationUnit.cpp 10.11.3                                       [owner: stages-3]
-  stages/LocalAffinity.cpp      10.11.4                                           [owner: stages-3]
-  stages/FinalPass.cpp          10.12                                             [owner: state]
-  stages/Unmatched.cpp          10.13                                             [owner: output]
+  Registry.cpp                 the 50 + 11 table (verbatim SQL literals)          [scaffold, frozen after M0]
+  Ingest.cpp                   Section 5.3                                        [group: ingest]
+  SideTables.cpp                                                                  [group: ingest]
+  SqlCandidateSource.cpp       Path A                                             [scaffold]
+  MatchState.cpp               Sections 10.5.3-10.5.5                             [group: state]
+  Consumer.cpp                 check_match + add_matches_* routing (10.5.1-2)     [group: state]
+  Ratio.cpp                    Section 10.6                                       [group: ratio]
+  TextDiff.cpp                 Section 10.11.1 difflib/regex/splitlines           [group: textdiff]
+  SqlSemantics.cpp, PySemantics.cpp                                               [group: semantics]
+  Pipeline.cpp                 Section 10.2 driver + S2 + category runner (10.3/10.4) [scaffold]
+  ResultsWriter.cpp            Section 8.2                                        [group: output]
+  heuristics/Best_Hashes.cpp          Ids 0,1,2,3                                 [group: H-a]
+  heuristics/Best_TextEqual.cpp       Ids 4,5,6,7,8,10                            [group: H-a]
+  heuristics/Best_RvaSpp.cpp          Ids 9,11                                    [group: H-a]
+  heuristics/Partial_CompUnit.cpp     Ids 12,13,14                                [group: H-b]
+  heuristics/Partial_KokaMd.cpp       Ids 15,16,18,19,22                          [group: H-b]
+  heuristics/Partial_Constants.cpp    Ids 17,20,21                                [group: H-b]
+  heuristics/Partial_Names.cpp        Ids 23,24,26,29,30                          [group: H-c]
+  heuristics/Partial_PseudoFuzzy.cpp  Ids 25,32,33,34,35,36,37,38                 [group: H-c]
+  heuristics/Partial_Structure.cpp    Ids 27,28,31,41                             [group: H-d]
+  heuristics/Partial_Instructions.cpp Ids 39,40                                   [group: H-d]
+  heuristics/Unreliable.cpp           Ids 42..49 (non-default)                    [group: H-d]
+  stages/Preflight.cpp          S0 (version, equal_db log, callgraph checks)      [group: stages-1]
+  stages/EqualMatches.cpp       S1 (10.7)                                         [group: stages-1]
+  stages/DirtyHeuristics.cpp    S3 + S5a (10.8)                                   [group: stages-1]
+  stages/SameName.cpp           S4 (10.9)                                         [group: stages-1]
+  stages/SmallDifferences.cpp   S5c tail (10.10)                                  [group: stages-2]
+  stages/CalleeDiffing.cpp      10.11.1                                           [group: stages-2]
+  stages/RelatedConstants.cpp   10.11.2                                           [group: stages-3]
+  stages/RelatedCompilationUnit.cpp 10.11.3                                       [group: stages-3]
+  stages/LocalAffinity.cpp      10.11.4                                           [group: stages-3]
+  stages/FinalPass.cpp          10.12                                             [group: state]
+  stages/Unmatched.cpp          10.13                                             [group: output]
 tests/
-  TestHarness.h                 shared CHECK/CHECK_EQ/Suite/Report (from tests/dsigmatcher_tests.cpp:25-42) [lead]
-  diff/registry_tests.cpp       50 specs: names/category/type/min/flags equal the H: enumeration [lead]
+  TestHarness.h                 shared CHECK/CHECK_EQ/Suite/Report (from tests/dsigmatcher_tests.cpp:25-42) [scaffold]
+  diff/registry_tests.cpp       50 specs: names/category/type/min/flags equal the H: enumeration [scaffold]
   diff/semantics_tests.cpp      experiment-4 vectors                              [semantics]
   diff/state_tests.cpp          add_match/has_better/cleanup/final-pass vectors   [state]
   diff/ratio_tests.cpp          quick_ratio/Round7/check_ratio/deep_ratio oracle vectors [ratio]
   diff/textdiff_tests.cpp       unified_diff/splitlines/name-scanner oracle vectors [textdiff]
-  diff/heuristics_<group>_tests.cpp  Path B rows == Path A rows on fixtures       [each H owner]
-  diff/stages_<n>_tests.cpp                                                       [each stage owner]
-  diff/parity_tests.cpp         fixture pairs: native .diaphora == oracle .diaphora (Section 13) [lead]
+  diff/heuristics_<group>_tests.cpp  Path B rows == Path A rows on fixtures       [per H group]
+  diff/stages_<n>_tests.cpp                                                       [per stage group]
+  diff/parity_tests.cpp         fixture pairs: native .diaphora == oracle .diaphora (Section 13) [scaffold]
 tools/parity/
   make_fixture.py     builds Diaphora-schema DBs from S:TABLES (as in Section 1.3), PLUS every S:INDICES entry
                       (S:23-65), `analyze`, and WAL mode, exactly like a real export (D:634-649,
@@ -1686,7 +1685,7 @@ struct HeuristicSpec {
 };
 std::span<const HeuristicSpec> Heuristics();
 ```
-CMake: the lead adds a helper function once:
+CMake gets one helper function:
 ```cmake
 function(dsig_add_suite Name Source)
   add_executable(${Name} ${Source})
@@ -1695,13 +1694,13 @@ function(dsig_add_suite Name Source)
   add_test(NAME ${Name} COMMAND ${Name})
 endfunction()
 ```
-The lead then lists every `src/diff/**` source and every `dsig_add_suite(...)` explicitly. Globs are ruled out because they break incremental reconfiguration and hide files.
+Every `src/diff/**` source and every `dsig_add_suite(...)` is then listed explicitly. Globs are ruled out because they break incremental reconfiguration and hide files.
 
 ---
 
 ## 13. Parity harness and milestones
 
-- **Real exports now exist.** HANDOFF Blocker 1 is superseded. `<corpus>/oracle` holds 7 IDA 9.4 + Diaphora exports and 5 pairs (`docs/parity/09-oracle.md`), built by the untracked `tools/oracle/build_oracle.py`. That tool already runs Diaphora twice per pair and records `determinism.json` and `run.json` (with `timeouts_logged`). Use it as the L1–L3 reference. The rest of this bullet covers the synthetic fixtures, which remain useful for targeted cases.
+- **Real exports now exist.** `<corpus>/oracle` holds 7 IDA 9.4 + Diaphora exports and 5 pairs (`docs/parity/09-oracle.md`), built by the untracked `tools/oracle/build_oracle.py`. That tool already runs Diaphora twice per pair and records `determinism.json` and `run.json` (with `timeouts_logged`). Use it as the L1–L3 reference. The rest of this bullet covers the synthetic fixtures, which remain useful for targeted cases.
   - OBSERVED:
     - `ls-old_vs_ls`, `ls_vs_ls-old` and `userenv-9168-pdb_vs_9278-pdb` finished and were deterministic across the two runs.
     - `userenv-9168-pdb_vs_9278-pdb` takes the patch-diff short-circuit.
@@ -1713,8 +1712,8 @@ The lead then lists every `src/diff/**` source and every `dsig_add_suite(...)` e
   - L3: L2 plus `line` numbers and row order.
   - Unmatched: the set of `(type, address)`.
 - **Milestones.**
-  - **M0 (lead):** scaffolding, the registry, Path A, `MatchState`, `RatioEngine`, the writer, and the driver with S0–S8. S4 same name, S5a remaining functions and S7 final pass are enough for the win32u pair (patch-diff mode, Section 10.8).
-  - **M1 (parallel):** stage owners and Path B generators per group.
+  - **M0:** scaffolding, the registry, Path A, `MatchState`, `RatioEngine`, the writer, and the driver with S0–S8. S4 same name, S5a remaining functions and S7 final pass are enough for the win32u pair (patch-diff mode, Section 10.8).
+  - **M1:** the stages, and the Path B generators per group.
   - **M2:** L3 parity on all fixtures plus real exports; retire the legacy engine.
 - **Order sanity check.** `dump_rows.py`, run under Python's sqlite3, versus Path A under the C API. The same DLL should give identical sequences; this is the cheapest test of H2.
 
@@ -1769,7 +1768,7 @@ The lead then lists every `src/diff/**` source and every `dsig_add_suite(...)` e
 ## Open questions
 
 1. **Scope of "parity".** Is the target the default standalone config only (Section 10.1)? Or must `--unreliable`, `--relaxed-ratio` and `ML_USE_TRAINED_MODEL` also match? The ML path needs the sklearn pickle, and IDA-mode multi-threaded runs are non-deterministic (`D:489-491` disables threads outside IDA precisely because "Parallel diffing is broken").
-   - *Partly resolved by the task statement, not by source:* the workflow defines parity as `python diaphora.py db1 db2 -o out` with the shipped `diaphora_config.py`, which is exactly Section 10.1.
+   - *Partly resolved by the project's goal, not by source:* parity is defined as `python diaphora.py db1 db2 -o out` with the shipped `diaphora_config.py`, which is exactly Section 10.1.
    - Non-default modes stay out of scope until someone asks for them.
    - Environment toggles (Section 10.1) cannot switch flags *off*, so oracle runs must not set `DIAPHORA_*` variables.
 2. **Path A acceptability.** Is running Diaphora's SQL through the SQLite C API an acceptable permanent reference engine under the "native C++" rule? It is native, but it is SQL-driven. Or is it only a test oracle, with Path B mandatory for every heuristic?
@@ -1783,12 +1782,12 @@ The lead then lists every `src/diff/**` source and every `dsig_add_suite(...)` e
    - Emulation remains the fallback.
 5. **Diaphora crash inputs (H6).** Should native parity mode fail the same way (no output), or produce output with a warning?
 6. **Output default.** Should `diff -o` default to the `.diaphora` format, with `--format legacy` for today's tables, or the other way round? Which choosers should `port` apply by default (`best` only? `best,partial`?), and should it refuse to create duplicate names (Section 9)?
-7. **Real exports.** The win32u pair with PDB symbols will almost certainly take the patch-diff short-circuit, since more than 90% of `mangled_function` values match. That means it cannot exercise the 50 heuristics or the loop. Can the user provide exports that do: one side unsymbolised, or a copy of db2 with names rewritten to `sub_<hex>`? Or should the fixtures carry that load until then?
+7. **Real exports.** The win32u pair with PDB symbols will almost certainly take the patch-diff short-circuit, since more than 90% of `mangled_function` values match. That means it cannot exercise the 50 heuristics or the loop. Are there exports that do: one side unsymbolised, or a copy of db2 with names rewritten to `sub_<hex>`? Or should the fixtures carry that load until then?
    - **RESOLVED (OBSERVED):** such exports already exist in `<corpus>/oracle/exports` (`docs/parity/09-oracle.md`).
    - `userenv-9168-pdb_vs_9278-nopdb` and `sechost-9168-pdb_vs_9444-nopdb` are labelled-to-unlabelled pairs. Their logs show the Best and Partial categories running, so no dirty short-circuit fires.
    - `ls-old_vs_ls` runs the full pipeline, including callee diffing, related constants, related CU and local affinity (see its `diaphora.log`).
    - `userenv-9168-pdb_vs_9278-pdb` confirms the patch-diff prediction: 643 of 643 names match, 100%.
-8. **README scope statement.** `README.md:41` says bit-for-bit reproduction of scoring is out of scope, and the pipeline section describes Hopcroft–Karp/LSH assignment (`README.md:45-73`). Both contradict the new goal. The orchestrator should decide whether to rewrite those sections.
+8. **README scope statement.** `README.md:41` says bit-for-bit reproduction of scoring is out of scope, and the pipeline section describes Hopcroft–Karp/LSH assignment (`README.md:45-73`). Both contradict the new goal. Whether to rewrite those sections is a separate decision.
    - Verified: line 41 reads "Out of scope: reproducing Diaphora's Python plugin surface, and bit-for-bit reproducing its scoring weights."
    - Verified: `## Matching pipeline` spans lines 45–73, with Stage 7 Hopcroft–Karp at lines 70–71.
 9. **CU lookup ambiguity (Section 10.11.3) and `find_remaining_functions` UNION order (Section 10.8).** Both rest on SQLite behaviour that was OBSERVED, not specified. Confirm them with `dump_rows.py` on real exports before relying on Path B for these stages.
@@ -1803,10 +1802,10 @@ The lead then lists every `src/diff/**` source and every `dsig_add_suite(...)` e
 ## Verification log
 
 An adversarial verification pass was run on 2026-09-23 against the source.
-- Native source: `dsig-parity` at `34ed418`.
+- Native source: this repository at `34ed418`.
 - Diaphora: `diaphora-ref` at `3.4.2-4-g621ec26`, read only.
 - Python: `miniconda3/python.exe` 3.13.12 with `sqlite3` 3.51.1, stdlib difflib (no `cdifflib`).
-- Real exports: the oracle corpus `<corpus>/oracle`, **copied** to the session scratchpad before querying.
+- Real exports: the oracle corpus `<corpus>/oracle`, **copied** to a scratch directory before querying.
 
 Every native file:line reference in Sections 1–9 was opened and checked. So was every `D:`/`H:`/`C:`/`S:`/`difflib.py`/`threads.py`/`diaphora_ida.py`/`patch_diff_vulns.py` reference in Sections 10–13, all 50 registry rows (enumerated from `diaphora_heuristics.HEURISTICS`), the build, and all five test executables.
 
@@ -1819,7 +1818,7 @@ Every native file:line reference in Sections 1–9 was opened and checked. So wa
    - Added the ctest names.
 3. §1.3 experiment 1: `Equal assembly` is the **second** UNION branch of #10 (`H:287`), not the first (`H:277` is `Equal pseudo-code`). Added the reverse-order observation from a real oracle log.
 4. §1.3 experiment 5: re-verified with 200,000 doubles (0 mismatches). Added experiment 6, the real-export row dumps.
-5. §2: the map omitted `tools/oracle/` (untracked, the real parity reference), `docs/parity/`, `README.md`, `HANDOFF.md`, `JOURNAL.md` and `AGENTS.md`. Added them, plus the line counts that were missing.
+5. §2: the map omitted `tools/oracle/` (untracked, the real parity reference), `docs/parity/` and `README.md`. Added them, plus the line counts that were missing.
 6. §3: `port` also treats two NULL processors as equal (`ColumnString` maps NULL to `""`), unlike Diaphora's SQL `=`.
 7. §4.3: noted that `rva` is also `text unique` (`S:98`).
 8. §5.1: added the read-only open (`:113`), the `program` read gating (`:274-280`) and the `Present` semantics.
@@ -1882,7 +1881,7 @@ Every native file:line reference in Sections 1–9 was opened and checked. So wa
     - The exports are WAL-mode.
     - Diaphora's main connection is read-write and creates missing main tables (`D:615-632`).
 32. §12: the registry comment implied Diaphora's flags are bit-encoded. They are list values `0..3` tested by membership (`H:44-48`, `D:1498-1508`).
-33. §13: real exports now exist, which supersedes HANDOFF Blocker 1. `make_fixture.py` must also create `S:INDICES`, run `analyze` and use WAL, or the planner order differs from real exports.
+33. §13: real exports now exist; there were none when this document was started. `make_fixture.py` must also create `S:INDICES`, run `analyze` and use WAL, or the planner order differs from real exports.
 34. Hard parts H2, H4, H5 and H7: added real-export plan, determinism, timeout and md-parse observations.
 35. Summary:
     - The patch-diff trigger is a **pair** count over the main function count, not "main-side functions with a partner".

@@ -1,4 +1,4 @@
-// Lane L5: find_remaining_functions (D:2702-2716) with get_unmatched_functions (D:2639-2669) and
+// find_remaining_functions (D:2702-2716) with get_unmatched_functions (D:2639-2669) and
 // search_remaining_functions (D:2671-2700). Spec: 01 §5.9, 05 §16-§18, 07 §10.8.
 // D: = diaphora.py at 3.4.2-4-g621ec26, C: = diaphora_config.py.
 //

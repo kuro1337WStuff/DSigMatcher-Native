@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Score a ported database against the PDB ground truth of the same build (plan §7.1 D8).
+"""Score a ported database against the PDB ground truth of the same build.
 
     score_ground_truth.py <ported.sqlite> <truth> [--aliases <tsv>] [--json <out>] [--markdown <out>]
                           [--title <text>] [--samples <n>]
@@ -23,9 +23,9 @@ are reported separately. --aliases defaults to <truth dir>/aliases/<build>.tsv f
 or <corpus>/oracle/ground_truth/aliases/<build>.tsv for a <corpus>/oracle/exports/<build>-pdb export.
 
 Function starts the two analyses disagree on are never mixed into the score:
-  truth_only   truth addresses that are not functions of the ported DB (O1's pdb_only rows when the
-               ported DB is a no-PDB analysis: userenv 41, sechost 16);
-  ported_only  functions of the ported DB with no truth row (O1's nopdb_only rows: userenv 6).
+  truth_only   truth addresses that are not functions of the ported DB (the ground-truth TSV's pdb_only
+               rows when the ported DB is a no-PDB analysis: userenv 41, sechost 16);
+  ported_only  functions of the ported DB with no truth row (the TSV's nopdb_only rows: userenv 6).
 Truth rows whose own name is not a real symbol (sub_..., as in the ELF ls sample used as its own
 truth) are not scorable either and are counted as truth_unnamed.
 
@@ -461,7 +461,7 @@ def main():
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
         pass
-    Parser = argparse.ArgumentParser(description="Score a ported DB against PDB ground truth (plan §7.1 D8).")
+    Parser = argparse.ArgumentParser(description="Score a ported DB against PDB ground truth.")
     Parser.add_argument("ported")
     Parser.add_argument("truth")
     Parser.add_argument("--aliases")

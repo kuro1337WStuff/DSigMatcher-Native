@@ -1,4 +1,4 @@
-// cli_port_results: `port --results` (docs/parity/00-plan.md §7.1 D6, §7.2 L11).
+// cli_port_results: `port --results`, which ports labels along the matches of a .diaphora results file.
 //
 // Synthetic fixtures (built at run time, nothing committed but this file) cover the decision rules,
 // the output schema, provenance across two hops, path safety, bad inputs and WAL handling. The corpus
@@ -775,9 +775,10 @@ void TestAliasHelpers(const std::string& Dir) {
                        DatabaseFileSet("the target database", A)));
 }
 
-// The verifier's reproduction and every other derived-path alias: the output, "<output>.dsig-tmp" and
-// the -wal/-shm/-journal sidecars of both against the reference, the target, the results file and
-// their sidecars. Each case runs in its own directory and must leave every file of it untouched.
+// Every derived-path alias, starting with the reproduced one (a target named <out>.dsig-tmp): the output,
+// "<output>.dsig-tmp" and the -wal/-shm/-journal sidecars of both against the reference, the target, the
+// results file and their sidecars. Each case runs in its own directory and must leave every file of it
+// untouched.
 void TestDerivedPathAliases(const std::string& Dir) {
   DSig::Test::Suite("port --results: no written file (temporary, sidecars) aliases an input or its sidecars");
   struct Case {
@@ -789,7 +790,7 @@ void TestDerivedPathAliases(const std::string& Dir) {
     bool TargetWal = false;  // leave committed frames in the target's -wal
   };
   const Case Cases[] = {
-      {"target is <out>.dsig-tmp (verifier)", "ref.sqlite", "out.sqlite.dsig-tmp", "r.diaphora", "out.sqlite"},
+      {"target is <out>.dsig-tmp", "ref.sqlite", "out.sqlite.dsig-tmp", "r.diaphora", "out.sqlite"},
       {"reference is <out>.dsig-tmp", "out.sqlite.dsig-tmp", "target.sqlite", "r.diaphora", "out.sqlite"},
       {"results is <out>.dsig-tmp", "ref.sqlite", "target.sqlite", "out.sqlite.dsig-tmp", "out.sqlite"},
       {"target is <out>-journal", "ref.sqlite", "out.sqlite-journal", "r.diaphora", "out.sqlite"},
@@ -1419,7 +1420,7 @@ void TestInProcessPort(const std::string& Dir) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// corpus: Diaphora's own run1 results of every finished oracle pair (plan §7.2 L11 acceptance)
+// corpus: Diaphora's own run1 results of every finished oracle pair
 
 void TestCorpus() {
   const char* Name = "corpus: port every finished oracle pair from Diaphora's run1 results";

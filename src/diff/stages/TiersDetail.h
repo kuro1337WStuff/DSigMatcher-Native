@@ -1,16 +1,16 @@
 #pragma once
 
-// Lane L6 private interface (not part of the frozen API): helpers of src/diff/stages/HeuristicTiers.cpp
+// Private interface (not part of the public API): helpers of src/diff/stages/HeuristicTiers.cpp
 // and SmallDifferences.cpp that the diff_tiers suite and a later fusion pass use.
 //
 //  * RunnableHeuristics: the list run_heuristics_for_category builds (D:1479-1541), in HEURISTICS
 //    order, before threads_apply runs it back to front (jkutils/threads.py:40).
-//  * HeuristicTruncations: the heuristics whose worker "thread" ended with an exception (plan §3.11),
+//  * HeuristicTruncations: the heuristics whose worker "thread" ended with an exception (02 §5.5),
 //    recorded per session. Diaphora only logs them (D:1968, D:2081) and threading.excepthook prints
 //    the traceback; the record exists so tests and diagnostics can see the truncation.
 //  * DataTouched: a read-only description of what one SQL string reads (tables, columns, join keys),
 //    derived lexically from the verbatim SQL. No stage uses it to decide anything; it exists so a
-//    post-parity fusion pass can group heuristics that share join keys (plan §4.x "Performance").
+//    post-parity fusion pass can group heuristics that share join keys (docs/fusion/INVENTORY.md).
 
 #include <cstdint>
 #include <optional>

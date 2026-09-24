@@ -1,4 +1,4 @@
-// Minimal JSON DOM, parser and writer (docs/parity/00-plan.md Appendix B). Grammar follows Python's
+// Minimal JSON DOM, parser and writer for the snapshot and trace formats. Grammar follows Python's
 // json module: NUMBER_RE `-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][-+]?[0-9]+)?`, whitespace " \t\n\r",
 // NaN / Infinity / -Infinity only in PythonCompat mode, strict control characters.
 //

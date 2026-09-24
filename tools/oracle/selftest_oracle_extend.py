@@ -196,7 +196,7 @@ def TestSpecs():
     Check({P["id"] for P in oracle_extend.EXT_DIFFS} == {"win32u-9168-useri64_vs_9444-nopdb",
                                                         "cryptbase-1-pdb_vs_8875-nopdb",
                                                         "cryptbase-8875-pdb_vs_9444-nopdb"},
-          "specs: the three plan pairs")
+          "specs: the three extension diffs")
     for Spec in oracle_extend.EXT_EXPORTS:
         if Spec.get("kind") != "user-i64":
             Check("{bin}/" in Spec["source"] and "{" not in Spec["source"].replace("{bin}", ""),

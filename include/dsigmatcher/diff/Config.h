@@ -1,6 +1,6 @@
 #pragma once
 
-// Configuration under test (docs/parity/00-plan.md §1.1): `python diaphora.py db1 db2 -o out` with the
+// Configuration under test (01 §1-§2): `python diaphora.py db1 db2 -o out` with the
 // shipped diaphora_config.py and no DIAPHORA_* environment variables. C: = diaphora_config.py,
 // D: = diaphora.py (Diaphora 3.4.2-4-g621ec26).
 
@@ -26,7 +26,7 @@ inline constexpr int kMaxFunctionsPerGap = 100;                             // C
 inline constexpr int kDiffingMatchesMaxDifferentBblocksPercent = 25;        // C:177
 inline constexpr int kDiffingMatchesMinBblocks = 3;                         // C:183
 inline constexpr int64_t kSqlMaxProcessedRows = 1000000;                    // C:90 SQL_MAX_PROCESSED_ROWS
-inline constexpr int kSqlTimeoutLimitSeconds = 300;                         // C:92 (never emulated, plan §0.8)
+inline constexpr int kSqlTimeoutLimitSeconds = 300;                         // C:92 (never emulated, 02 §5.4)
 inline constexpr std::string_view kSqlDefaultPostfix =
     " and f.instructions > 5 and df.instructions > 5 ";                    // C:128 SQL_DEFAULT_POSTFIX
 inline constexpr std::string_view kDecimalValues = "7f";                    // C:120 DECIMAL_VALUES
@@ -50,7 +50,7 @@ struct DiffConfig {
   // The %POSTFIX% text run_heuristics_for_category substitutes (D:1471-1473).
   std::string_view Postfix() const { return IgnoreSmallFunctions ? kSqlDefaultPostfix : std::string_view(); }
 
-  // True for every configuration the parity engine supports: the §1.1 defaults, optionally with
+  // True for every configuration the parity engine supports: the defaults above, optionally with
   // IgnoreSmallFunctions. Unreliable, relaxed ratio, ML and threads are refused (exit 4).
   bool Supported() const {
     return !Unreliable && !RelaxedRatio && Experimental && SlowHeuristics && !UseTrainedModel &&

@@ -50,7 +50,7 @@ Everything below was checked against the source and, where marked **[verified]**
 | `self.timeout` | `SQL_TIMEOUT_LIMIT` | **300 s** | diaphora.py:451, config:92 |
 | `self.sql_max_processed_rows` | `SQL_MAX_PROCESSED_ROWS` | **1,000,000** | diaphora.py:454-456, config:90 |
 
-**Correction to the task brief.** The claim "slow heuristics auto-disabled at `MIN_FUNCTIONS_TO_DISABLE_SLOW=4001`" is **IDA-GUI-only**. The constant's only use is the IDA options dialog default:
+**Correction to an earlier summary.** The claim "slow heuristics auto-disabled at `MIN_FUNCTIONS_TO_DISABLE_SLOW=4001`" is **IDA-GUI-only**. The constant's only use is the IDA options dialog default:
 
 ```python
 # diaphora_ida.py:3798-3800
@@ -150,7 +150,7 @@ Everything below was checked against the source and, where marked **[verified]**
 
 I checked the indentation byte-for-byte with `cat -A`: spaces only, no tabs. `find_experimental_matches()` (line 3651) is **inside** `if self.unreliable:` (line 3638).
 
-### 1.1 Porting pseudocode of the orchestration relevant to this doc
+### 1.1 Porting pseudocode of the driver steps relevant to this doc
 
 ```
 equal_db()                                # log only (section 1.2)
@@ -1920,7 +1920,7 @@ Observed `EXPLAIN QUERY PLAN` output on the synthetic pair (3000 and 3100 functi
 - Access: every export was opened read-only (`file:…?mode=ro`, with `diff` attached the same way), under Python 3.13.12 / SQLite 3.51.1.
 - Query text: the verbatim SQL, built with `diaphora_heuristics.get_query_fields` imported with `-B` (no bytecode written).
 - Integrity: the SHA-256 of all exports was identical before and after. `git status` in `diaphora-ref` stayed clean.
-- Scratch scripts are in this session's scratchpad (`plans.py`, `ord2.py`, `dirty.py`, `names.py`, `res.py`, `unm.py`).
+- Scratch scripts are in a scratch directory (`plans.py`, `ord2.py`, `dirty.py`, `names.py`, `res.py`, `unm.py`).
 
 **Plans** (`EXPLAIN QUERY PLAN`, verbatim SQL):
 

@@ -1,11 +1,11 @@
 #pragma once
 
-// Path A connection (docs/parity/00-plan.md §3.4). One read-only connection holds both exports:
+// Path A connection (02 §18.3). One read-only connection holds both exports:
 //   sqlite3_open_v2(<db1>, SQLITE_OPEN_READONLY | SQLITE_OPEN_URI)
 //   ATTACH ? AS diff  with <db2> bound                  (read-only through the connection's open flags)
 // Each input is named by a "file:...?mode=ro&immutable=1" URI (DiffDatabase::UriForPath), so reading it
 // creates no -wal / -shm beside it; an input with a non-empty -wal or -journal keeps its plain UTF-8 file
-// name instead, so committed WAL frames are read and a hot journal is refused (lane F1, Database.cpp
+// name instead, so committed WAL frames are read and a hot journal is refused (Database.cpp
 // InputFileName).
 // exactly the schema names Diaphora uses (`main`, and `diff` from `attach "<db2>" as diff`,
 // D:2441 / D:657). The engine never writes, never runs ANALYZE and never creates indexes, so the

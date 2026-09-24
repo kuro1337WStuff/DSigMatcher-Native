@@ -1,8 +1,8 @@
 #pragma once
 
-// The diff driver (docs/parity/00-plan.md §2.1, §2.4, §3.6): DiffSession owns everything one diff
-// needs; RunPipeline is the literal port of CBinDiff.diff() (D:3568-3701); RunDiff is the only
-// exception boundary (exit codes of §2.1); RunReplay runs one stage between two snapshots.
+// The diff driver (01 §5): DiffSession owns everything one diff needs; RunPipeline is the literal
+// port of CBinDiff.diff() (D:3568-3701); RunDiff is the only exception boundary (exit codes:
+// DiffStatus below); RunReplay runs one stage between two snapshots.
 
 #include <cstdint>
 #include <functional>
@@ -30,7 +30,7 @@
 
 namespace DSig::Diff {
 
-// CBinDiff attributes the passes set (snapshot "flags", Appendix B).
+// CBinDiff attributes the passes set (snapshot "flags").
 struct DiffFlags {
   bool IsSameProcessor = false;    // D:3617
   bool IsPatchDiff = false;        // D:2612
@@ -38,7 +38,7 @@ struct DiffFlags {
   bool HooksLoaded = false;        // D:2614-2619 (scripts/patch_diff_vulns.py in patch-diff mode)
 };
 
-// --related-cu-source (plan §0.3, L8).
+// --related-cu-source (06 §9.2; stages/RelatedCompilationUnit.cpp).
 enum class RelatedCuSource : uint8_t { Native = 0, Sql = 1 };
 
 class DiffSession {
@@ -135,9 +135,9 @@ public:
   // either fails (audit F27). Safe to call more than once.
   void FinishHarness();
 
-  // ---- per-lane session state ------------------------------------------------------------
+  // ---- per-stage session state -----------------------------------------------------------
   // A default-constructed T owned by the session, created on first use (for example the patch-diff
-  // hook's dedup set). Lets a lane keep session state without changing this header.
+  // hook's dedup set). Lets a stage keep session state without changing this header.
   template <class T>
   T& Ext() {
     std::shared_ptr<void>& Slot = ExtSlot(std::type_index(typeid(T)));
@@ -192,7 +192,7 @@ EngineCheckpoint CaptureCheckpoint(DiffSession& S, const PipelineCursor& Cursor)
 // state does not belong to the session's databases (CheckSnapshotMatchesInputs).
 void RestoreCheckpoint(DiffSession& S, const EngineCheckpoint& Checkpoint);
 
-// Runs exactly one replayable stage (Appendix B, marked R) from `Before` and returns the after
+// Runs exactly one replayable stage from `Before` and returns the after
 // snapshot. `Stage` is a point base such as "find_same_name", "heuristic:41", "cleanup:3185:4",
 // "find_matches_diffing:0", "run_heuristics_for_category:Best", "final_pass" or "find_unmatched";
 // `Iteration` / `HeuristicId` supply the suffix when `Stage` omits it. Throws UnsupportedInput for
@@ -201,7 +201,7 @@ StateSnapshot RunReplay(DiffSession& S, const StateSnapshot& Before, std::string
                         std::optional<int> Iteration = std::nullopt,
                         std::optional<int> HeuristicId = std::nullopt);
 
-// Exit codes (§2.1, as amended for v1.0.0).
+// Exit codes.
 enum class DiffStatus : int {
   Ok = 0,
   Usage = 2,           // usage error, or a command line refused before any file was touched
@@ -209,7 +209,7 @@ enum class DiffStatus : int {
   WouldRaise = 3,      // DIAPHORA_WOULD_RAISE: nothing written (an existing output is left as it was)
   Unsupported = 4,     // unsupported configuration or input quirk; also db2 not a usable Diaphora export,
                        // where Diaphora's empty results file IS written (audit F06)
-  SqliteMismatch = 5,  // --strict-sqlite and sqlite3_libversion() != 3.51.1 (plan §7.1 D2)
+  SqliteMismatch = 5,  // --strict-sqlite and sqlite3_libversion() != 3.51.1
   Io = 6,              // I/O or environment failure (disk full, missing TMP, a damaged database file)
   Internal = 70,       // an internal error (EX_SOFTWARE): a bug, never an input problem
 };
@@ -283,7 +283,7 @@ std::string DefaultOutputName(std::string_view Db1, std::string_view Db2);
 // basename(splitext(path)[0]) with the host's os.path rules (ntpath on Windows, posixpath elsewhere).
 std::string PathStem(std::string_view Path);
 
-// The warning printed when parity mode runs on another SQLite (plan §7.1 D2).
+// The warning printed when parity mode runs on another SQLite.
 std::string SqliteMismatchWarning(std::string_view Version);
 
 }

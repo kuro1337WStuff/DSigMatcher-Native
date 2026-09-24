@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Compare two Diaphora results files (.diaphora) at the parity levels of docs/parity/00-plan.md §1.3.
+"""Compare two Diaphora results files (.diaphora) at the parity levels L0, L1 and L2.
 
     python -B compare_results.py <oracle.diaphora> <native.diaphora> [--oracle-log <log>]
                                  [--native-log <log>] [--compare-config-paths] [--json <out>]
                                  [--markdown <out>] [--limit 20] [--quiet]
     python -B compare_results.py --self-test [--file <any .diaphora>]
 
-Levels (plan §1.3):
+Levels:
   L0  the detected mode (N, S or P, from the `Symbols stripped detected:` / `Patch diffing detected:`
       log lines) and the `Final results: Best b, Partial p, Unreliable u, Multimatches m` line
       (D:3684-3692) agree. Needs both logs; otherwise it is reported as not evaluated.
@@ -33,9 +33,9 @@ A pair in both files is grouped under the oracle's (type, description); one row 
 mismatch columns. Descriptions are heuristic or pass names, so this is the per-heuristic and per-pass
 agreement table. `unmatched` is diffed per type the same way on (type, address, name).
 
-Plan §5 R3: rows described "Same constants related matches" (D:3368) depend on CPython's set order.
-Differences confined to them are reported as the separate tolerated class `r3_only`; the L1/L2
-verdicts are never relaxed for them.
+Set order: rows described "Same constants related matches" (D:3368) depend on CPython's set order
+(D:3389; 06 §8.3). Differences confined to them are reported as the separate tolerated class
+`r3_only`; the L1/L2 verdicts are never relaxed for them.
 
 Both files are opened read-only with immutable=1 (no journal or -wal/-shm file is ever created).
 Exit status: 0 when L2 holds and the DDL is equal, 1 otherwise, 2 on a usage or read error.
@@ -176,7 +176,7 @@ def Compare(Oracle, Native, OracleLog=None, NativeLog=None, ComparePaths=False, 
     if not DdlEqual:
         Note("sqlite_master differs: oracle %r native %r" % (Oracle["schema"], Native["schema"]))
 
-    # config: the version always, the paths on request, the date never (plan §1.2).
+    # config: the version always, the paths on request, the date never (01 §11).
     ConfigEqual = len(Oracle["config"]) == len(Native["config"]) and all(
         A[2] == B[2] and (not ComparePaths or (A[0], A[1]) == (B[0], B[1]))
         for A, B in zip(Oracle["config"], Native["config"]))
@@ -346,8 +346,8 @@ def Summary(Report):
     Native = sum(Report["counts"]["native_results"].values())
     Parts.append("rows oracle %d native %d" % (Oracle, Native))
     if Report["tolerated"]["r3_rows"]:
-        Parts.append("R3 rows %d%s" % (Report["tolerated"]["r3_rows"],
-                                       " (only R3 differs)" if Report["tolerated"]["r3_only"] else ""))
+        Parts.append("set-order rows %d%s" % (
+            Report["tolerated"]["r3_rows"], " (only set-order rows differ)" if Report["tolerated"]["r3_only"] else ""))
     return ", ".join(Parts)
 
 
@@ -543,7 +543,7 @@ def SelfTest(BaseFile=None):
             Changed = [list(Row) for Row in Results]
             Changed[R3[0]][6] = "0.1111111"
             Tolerated = Planted("r3", Changed)
-            Check("planted R3-only change: r3_only, L1 still fails",
+            Check("planted set-order-only change: r3_only, L1 still fails",
                   Tolerated["tolerated"]["r3_only"] and not Tolerated["verdict"]["L1"])
     finally:
         shutil.rmtree(Work, ignore_errors=True)

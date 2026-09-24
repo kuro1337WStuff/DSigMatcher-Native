@@ -4,7 +4,7 @@
 #   python -B tools/parity/make_fixture.py tests/diff/fixtures/common/scenario.py tests/diff/fixtures/common \
 #       --diaphora-dir <diaphora-ref>
 #
-# What it exercises in the results writer and the parity harness (plan §4 L4, 01 §10.2-§11):
+# What it exercises in the results writer and the parity harness (01 §10.2-§11):
 # - 02 probe 9 case A: a C++ function (name != mangled_function) identical on both sides, with the same
 #   id and address, is matched twice for one address pair: "100% equal" under the mangled key
 #   (D:1424-1440) and "Perfect match, same name" under the demangled one (D:2152-2210). Both reach

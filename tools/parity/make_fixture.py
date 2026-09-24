@@ -4,7 +4,7 @@
     python -B make_fixture.py <scenario.py> <outdir> [--diaphora-dir <dir>] [--python <exe>]
                               [--hash-seed 0] [--keep-work <dir>]
 
-Plan docs/parity/00-plan.md §2.5 (make_fixture.py) and §2.6 (committed fixtures), 07 §12.
+Fixtures are built exactly like real exports (07 §12).
 
 1. The scenario file is executed with `Function`, `COLUMNS` and `SCHEMA_VERSION` predefined. It must
    define `MAIN` and `DIFF`, one dict per database:
@@ -30,7 +30,7 @@ Plan docs/parity/00-plan.md §2.5 (make_fixture.py) and §2.6 (committed fixture
      main.sql, diff.sql              the fixture databases (dumps, sqlite_stat1 included)
      expected_results.tsv            `results` in rowid order (all ten columns, `line` included)
      expected_unmatched.tsv          `unmatched` in rowid order
-     after_final_pass.json           snapshot (Appendix B) with the raw `choosers` dump
+     after_final_pass.json           snapshot (tools/parity/README.md) with the raw `choosers` dump
      after_find_unmatched.json       snapshot with the raw `unmatched` dump
      oracle.json                     mode, Final results counts, SQLite / Python / Diaphora versions,
                                      hash seed, the self-checks; no paths
@@ -42,7 +42,7 @@ The Diaphora checkout is imported read-only (sys.dont_write_bytecode, -B) and it
 `git status` are checked unchanged afterwards. Nothing is written outside <outdir> and a temporary
 work directory (removed unless --keep-work names one).
 
-Paths come from flags or the environment only (plan §7.1 D9):
+Paths come from flags or the environment only:
   --diaphora-dir  (env DSIG_DIAPHORA_DIR)   the unmodified Diaphora checkout
   --python        (env DSIG_PYTHON)         the Python that runs Diaphora (default: this one)
 """

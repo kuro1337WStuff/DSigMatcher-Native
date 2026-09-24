@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Every PDB function/public symbol per address of one build, cached as TSV (plan §7.1 D8).
+"""Every PDB function/public symbol per address of one build, cached as TSV.
 
 A PDB can name one address several times: win32u's syscall stubs carry an exported `Nt*` name and a
 `Zw*` alias, and identical-code folding puts several publics on one stub. A ground-truth scorer that

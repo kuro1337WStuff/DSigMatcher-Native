@@ -1,6 +1,6 @@
-// The `.diaphora` results file (lane L4): a literal port of CBinDiff.save_results (D:2374-2429) plus
+// The `.diaphora` results file: a literal port of CBinDiff.save_results (D:2374-2429) plus
 // the formatting CChooser.add_item applies to every chooser item (D:275-296). Spec: 01 §10.2-§11,
-// 09 "Results database (.diaphora) schema", 02 §16, 06 §16; plan §3.10.
+// 09 "Results database (.diaphora) schema", 02 §16, 06 §16.
 //
 // D: = diaphora.py, C: = diaphora_config.py (Diaphora 3.4.2-4-g621ec26).
 

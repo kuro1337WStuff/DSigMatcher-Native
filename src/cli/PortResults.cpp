@@ -1,5 +1,4 @@
 // `dsigmatcher port <ref.sqlite> <target.sqlite> -o <out.sqlite> [--results <x.diaphora>]`
-// (docs/parity/00-plan.md §7.1 D6).
 //
 // Without --results the parity diff runs in-process first (Diff::RunDiff, exactly what `dsigmatcher
 // diff` runs) and writes its results file beside the output; the port then applies that file exactly

@@ -702,7 +702,7 @@ std::unordered_map<std::string, NameOrigin> ReadNameOrigins(const std::string& P
 }
 
 // =============================================================================================
-// Label port from match proposals (docs/parity/00-plan.md §7.1 D6)
+// Label port from match proposals
 //
 // What a port writes (decided from docs/parity/08-schema.md, recorded in tools/e2e/README.md):
 //
@@ -1156,7 +1156,7 @@ LabelPortResult PortLabels(const LabelPortOptions& Options, const std::vector<La
     return Result;
   };
 
-  // Alias refusal before any I/O (an in-place port once destroyed the target database; lane F1).
+  // Alias refusal before any I/O (an in-place port once destroyed the target database).
   // The port deletes, creates and renames the output, the temporary "<output>.dsig-tmp" and every
   // -wal / -shm / -journal sidecar of both (CopyDatabase, RemoveDatabaseFiles and PublishOutput), and
   // SQLite itself creates, plays back and deletes the temporary's sidecars

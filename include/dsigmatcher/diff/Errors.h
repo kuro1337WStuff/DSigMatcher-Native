@@ -1,6 +1,6 @@
 #pragma once
 
-// Error model of the parity engine (docs/parity/00-plan.md §3.11).
+// Error model of the parity engine (01 §13, 07 §10.15).
 //
 // The core library is exception-free; DSig::Diff uses exceptions because it is a literal port of
 // Python's propagation. RunDiff (Pipeline.h) is the only exception boundary and maps:

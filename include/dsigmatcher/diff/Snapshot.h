@@ -1,6 +1,6 @@
 #pragma once
 
-// Stage snapshots (docs/parity/00-plan.md §2.2 and Appendix B), shared with the oracle
+// Stage snapshots (schema: tools/parity/README.md), shared with the oracle
 // instrumentation (tools/parity/oracle_trace.py). Snapshots hold plain strings, not interned ids, so
 // they can be compared without a session. Schema "dsig-parity-snapshot/1":
 //

@@ -1,4 +1,4 @@
-// Lane L5: the default patch-diff hook, scripts/patch_diff_vulns.py (loaded by D:2615-2619 in
+// The default patch-diff hook, scripts/patch_diff_vulns.py (loaded by D:2615-2619 in
 // patch-diff mode). Spec: 01 §5.4, 03b §4.4, 05 §8.3, 07 §10.8. P: = scripts/patch_diff_vulns.py,
 // D: = diaphora.py, both at 3.4.2-4-g621ec26.
 //
@@ -109,7 +109,7 @@ bool FindVulnsUsingAssembly(const TextValue& Asm1, const TextValue& Asm2) {
   RequireStr(Asm2, "scripts/patch_diff_vulns.py:137");
   // P:137-138 lines = list(unified_diff(asm1.split("\n"), asm2.split("\n"))): default n=3 and
   // lineterm="\n", so the "--- ", "+++ " and "@@" rows end with "\n" and the content rows do not
-  // (difflib.py:1084-1161, lane L3).
+  // (difflib.py:1084-1161, TextDiff.cpp).
   const std::vector<std::string_view> A = PySplitNewline(Asm1.Text);
   const std::vector<std::string_view> B = PySplitNewline(Asm2.Text);
   const std::vector<std::string> Lines = UnifiedDiff(A, B, 3, "\n");

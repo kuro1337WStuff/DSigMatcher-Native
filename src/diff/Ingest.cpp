@@ -1,4 +1,4 @@
-// Ingest of the Diaphora `functions` table (docs/parity/00-plan.md §3.3; 07 §4-§5; 08 §9) and the
+// Ingest of the Diaphora `functions` table (07 §4-§5; 08 §9) and the
 // string interners.
 
 #include <array>
@@ -353,7 +353,7 @@ void IngestExport(const DiffDatabase& Db, Side Which, Interners& Ids, ExportData
   LoadSideTables(Db, Which, Out.Tables);
   const std::string Schema(SchemaName(Which));
 
-  // Design decision (lane R0 (d)): a side table the default diff reads must exist on both sides,
+  // Design decision: a side table the default diff reads must exist on both sides,
   // else the input is refused with UnsupportedInput naming the table (exit 4) instead of surfacing a
   // raw "no such table" SQL error from whichever stage first reads it. `version` is not listed: a
   // missing diff.version is Diaphora's empty-result path (D:3577-3591), main.version is never read.
@@ -401,7 +401,7 @@ void IngestExport(const DiffDatabase& Db, Side Which, Interners& Ids, ExportData
     return;
   }
 
-  // 00-plan §3.3: all columns, plus SQLite's own casts, in `order by id`.
+  // 07 §5.3: all columns, plus SQLite's own casts, in `order by id`.
   const std::string Sql = "select f.*, cast(f.md_index as real), cast(f.address as real) from " + Schema +
                           ".functions f order by f.id";
   Statement Stmt = Db.Prepare(Sql);

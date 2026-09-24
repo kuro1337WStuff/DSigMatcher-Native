@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Ratio vectors for lane L2 (docs/parity/00-plan.md §4 L2; spec docs/parity/03a-ratio.md §13).
+"""Ratio and Python value-semantics vectors (spec docs/parity/03a-ratio.md §13).
 
 Every expected value is produced by the REAL, unmodified Diaphora (or CPython itself):
   * CBinDiff.check_ratio on main_d/diff_d built exactly like check_match (D:1798-1842) from a
@@ -50,7 +50,7 @@ SCHEMA_ID = "dsig-ratio-vectors/1"
 # Environment
 
 def Hex(Value):
-    """IEEE-754 bits of float(x) as 16 lowercase hex digits (plan Appendix B ratio_bits)."""
+    """IEEE-754 bits of float(x) as 16 lowercase hex digits (the snapshot schema's ratio_bits)."""
     return struct.pack(">d", float(Value)).hex()
 
 
@@ -60,7 +60,7 @@ def Git(Dir, *ArgList):
 
 def LoadDiaphora(Dir):
     for Key in [K for K in os.environ if K.upper().startswith("DIAPHORA_")]:
-        del os.environ[Key]  # build_oracle.CleanEnv() semantics: the default configuration (plan §1.1)
+        del os.environ[Key]  # build_oracle.CleanEnv() semantics: the default configuration (01 §2)
     sys.path.insert(0, Dir)
     import diaphora  # noqa: E402  (the unmodified checkout)
     from db_support import schema  # noqa: E402
@@ -73,7 +73,7 @@ def LoadDiaphora(Dir):
         "relaxed_ratio": False,
     }
     if Env["cdifflib"]:
-        raise SystemExit("cdifflib is installed: this Python is not an oracle (plan §1.6)")
+        raise SystemExit("cdifflib is installed: this Python is not an oracle")
     return diaphora, schema, diaphora_heuristics, Env
 
 

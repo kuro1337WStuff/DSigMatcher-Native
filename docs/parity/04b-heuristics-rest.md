@@ -7,7 +7,7 @@
 - **Scope.** `diaphora_heuristics.py:699-1323`: the last 14 Partial heuristics (H29-H42), all 8 Unreliable heuristics (H43-H50) and the self-test helpers at the end of the file. Numbering continues 04a: `H<n>` is `HEURISTICS[n-1]`.
 - **Counts, generated from the imported module rather than typed:** 50 heuristics, **Best 12 / Partial 30 / Unreliable 8**. By ratio type: RATIO 22, RATIO_MAX 22, NO_FPS 5 and RATIO_MAX_TRUSTED 1. The file asserts the ratio split itself at `:1262`. This document covers 22 of them: 14 Partial and 8 Unreliable.
 - **What runs in the default standalone oracle** (`python diaphora.py db1 db2 -o out`). Whenever the Partial pass runs, ten in-scope Partial heuristics run with no further per-heuristic condition: H29-H36, H41 and H42. H42 is flagged SLOW, and `slow_heuristics` is True by default at any size. **H40 Same rare assembly instruction** runs only when both `program.processor` values are equal. **H37-H39** (the three "Partial pseudo-code fuzzy hash" heuristics) are skipped because they carry `HEUR_FLAG_UNRELIABLE`. **None of H43-H50 run**, because the whole Unreliable pass is gated on `DIFFING_ENABLE_UNRELIABLE=False`. `MIN_FUNCTIONS_TO_DISABLE_SLOW` is read only by IDA's `BinDiffOptions` default (`diaphora_ida.py:3798-3800`), never by standalone `diaphora.py`.
-- **None of these run at all** when the "dirty" speed-up fires, which it does when ≥99% of address pairs or >90% of mangled names are shared. **This is confirmed on the real oracle:** `userenv-9168-pdb_vs_9278-pdb` logs `Patch diffing detected: A total of 643 matches out of 643, 100.0% percent have the same name` and runs no heuristic from `HEURISTICS`. The other four oracle pairs do not trigger it (mangled-name shares of 37.50%, 35.85%, 9.33% and 15.81%). No `win32u` Diaphora export exists, so the brief's question about `win32u` stays **NOT DETERMINED**. Setting `DIAPHORA_EXPERIMENTAL=""` disables the speed-up; `self.experimental` is read nowhere else in `diaphora.py` (only at `:3618`).
+- **None of these run at all** when the "dirty" speed-up fires, which it does when ≥99% of address pairs or >90% of mangled names are shared. **This is confirmed on the real oracle:** `userenv-9168-pdb_vs_9278-pdb` logs `Patch diffing detected: A total of 643 matches out of 643, 100.0% percent have the same name` and runs no heuristic from `HEURISTICS`. The other four oracle pairs do not trigger it (mangled-name shares of 37.50%, 35.85%, 9.33% and 15.81%). No `win32u` Diaphora export exists, so the open question about `win32u` stays **NOT DETERMINED**. Setting `DIAPHORA_EXPERIMENTAL=""` disables the speed-up; `self.experimental` is read nowhere else in `diaphora.py` (only at `:3618`).
 - **Order.** Standalone runs one heuristic at a time in **reverse declaration order** (`threads_apply` calls `targets.pop()`), which was verified. The in-scope Partial heuristics therefore run **before** H13-H28, starting with H42 Loop count.
 - **Routing depends on the per-pair ratio, not on the heuristic's category.** r == 1.0 goes to `best`, r ≥ min goes to `partial`, and anything else is dropped. The `unreliable` branch is dead code for every heuristic here. In the Unreliable pass everything moves down one tier: 1.0 goes to `partial` and ≥ min goes to `unreliable`.
 - **SQL traps:**
@@ -26,7 +26,7 @@
 
 - **Reference.** `<diaphora-ref>`, `git describe` = `3.4.2-4-g621ec26`. `git diff 3.4.2 HEAD --stat` touches only `README.md` and `diaphora_ida.py`, so `diaphora_heuristics.py`, `diaphora.py`, `diaphora_config.py`, `jkutils/threads.py` and `db_support/schema.py` are the 3.4.2 files.
 - **Runtime.** `<conda>/python.exe` is 3.13.12 with SQLite **3.51.1**. `pragma compile_options` shows no ICU and no STAT4, so `ANALYZE` writes `sqlite_stat1` only and LIKE folds ASCII only.
-- **Experiments.** All ran on a `git archive` copy of the reference in the session scratchpad (`.../scratchpad/exp/`), with `PYTHONDONTWRITEBYTECODE=1`. The reference tree was not modified. Nothing was committed.
+- **Experiments.** All ran on a `git archive` copy of the reference in a scratch directory (`<scratch>/exp/`), with `PYTHONDONTWRITEBYTECODE=1`. The reference tree was not modified. Nothing was committed.
   - `order_probe.py` builds two synthetic exports with Diaphora's own `schema.TABLES` + `INDICES` + `analyze`, runs `CBinDiff.diff` and records which heuristic each `add_matches_from_*` call belongs to.
   - `unrel_probe.py` does the same for the Unreliable pass and also records the chooser of each `add_match`.
   - `sem_probe.py`, `bb_probe.py`, `tie_probe*.py` and `sort_stab.py` are SQLite semantics probes.
@@ -256,7 +256,7 @@ Default values used below:
 | `SQL_TIMEOUT_LIMIT` | 300 s wall-clock per heuristic | config `:92` |
 | `ignore_all_names` | False (standalone) | `diaphora.py:3759-3760` |
 
-The task brief says slow heuristics are auto-disabled at 4001 functions. **That is IDA-only.** 01-driver, 02-matching, 03a and 04a reached the same conclusion independently.
+An earlier summary says slow heuristics are auto-disabled at 4001 functions. **That is IDA-only.** 01-driver, 02-matching, 03a and 04a reached the same conclusion independently.
 
 ### 3.2 The gate chain, in order
 
@@ -1531,7 +1531,7 @@ The functions below are a developer self-test, run only by `python diaphora_heur
 ### 10.1 Re-verification on the real oracle exports (added in the verification pass)
 
 - **Data.** `<corpus>/oracle/exports/<id>/<id>.sqlite`: `ls`, `ls-old`, `userenv-9168-pdb`, `userenv-9278-nopdb`, `userenv-9278-pdb`, `sechost-9168-pdb` and `sechost-9444-nopdb`. They were made with IDA 9.4 idalib, Hex-Rays and Diaphora's own exporter (09-oracle). They were opened `?mode=ro&immutable=1`; their `-wal` files are empty, so nothing is missed and nothing is written. The pairs are the 5 oracle pairs, with db1 as `main` and db2 attached `as diff`.
-- **Method.** `real_spec.py` (verification scratchpad) is an independent no-SQL implementation of this document's predicates: §2.4, the H40 `rare()` algorithm and the H41 `blocks()` algorithm with the first-row `func_id` and ascending-`instruction_id` `GROUP_CONCAT`. For every H29-H50 on every pair, it compared the `(ea, ea2)` multiset with SQLite 3.51.1 running the verbatim SQL (`%POSTFIX%` → `""`).
+- **Method.** `real_spec.py` (a scratch script of the verification pass) is an independent no-SQL implementation of this document's predicates: §2.4, the H40 `rare()` algorithm and the H41 `blocks()` algorithm with the first-row `func_id` and ascending-`instruction_id` `GROUP_CONCAT`. For every H29-H50 on every pair, it compared the `(ea, ea2)` multiset with SQLite 3.51.1 running the verbatim SQL (`%POSTFIX%` → `""`).
 - **Result: 0 mismatches in 110 comparisons.** The ordering claims held on every pair: the source_file key is non-decreasing for the 16 ORDER BY heuristics, and the H43 score is non-increasing. The H41 multiset matched on sechost, whose 11 shared blocks exercise the bare-`func_id` rule.
 - **Row counts:**
 

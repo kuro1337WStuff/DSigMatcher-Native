@@ -1,6 +1,6 @@
 #pragma once
 
-// Minimal JSON DOM for the snapshot/trace formats (docs/parity/00-plan.md Appendix B) and for
+// Minimal JSON DOM for the snapshot/trace formats (tools/parity/README.md) and for
 // Python-compatible parsing. Numbers are kept as their source text, so big integers survive exactly;
 // callers convert with AsInt64 / AsDouble / AsUInt64. Objects keep member order; a duplicate key
 // replaces the earlier value in place (Python dict semantics of json.loads).

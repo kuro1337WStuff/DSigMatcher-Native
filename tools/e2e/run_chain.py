@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""End-to-end label chain: hop i = diff(ref_i, target_i) -> port -> ref_{i+1} (plan §7.1 D6/D8, §7.2 L11).
+"""End-to-end label chain: hop i = diff(ref_i, target_i) -> port -> ref_{i+1}.
 
     run_chain.py --differ diaphora|native [--chain cryptbase]
                  [--ref <export id or .sqlite> --targets <id|path> ... [--truths <tsv|sqlite> ...]]
@@ -17,9 +17,8 @@ Per hop, in <out>/hop<i>/:
        diaphora  `<python> diaphora.py work/<ref> work/<target> -o results.diaphora`, cwd = the
                  unmodified Diaphora checkout, every DIAPHORA_* variable removed and
                  PYTHONDONTWRITEBYTECODE=1 (build_oracle.CleanEnv). The run must exit 0, save its file and
-                 log no timeout or traceback (plan §1.6); the checkout's git state is checked unchanged.
-       native    `dsigmatcher diff work/<ref> work/<target> -o results.diaphora` (the parity engine;
-                 stub-level until its lanes land, so it may find nothing yet).
+                 log no timeout or traceback; the checkout's git state is checked unchanged.
+       native    `dsigmatcher diff work/<ref> work/<target> -o results.diaphora` (the parity engine).
   3. ported.sqlite = `dsigmatcher port <ref_i> <target_i> -o ported.sqlite --results results.diaphora`.
      ref_1 is the original export (read without being modified); ref_{i+1} is hop i's ported.sqlite, so
      hop 2 re-feeds a ported DB as the reference and its provenance records hops = 2.

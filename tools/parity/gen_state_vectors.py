@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""State-machine vectors for lane L1 (docs/parity/00-plan.md §4 L1).
+"""Match-state-machine vectors (specs docs/parity/01-driver.md §8-§10, 02-matching.md §6-§16).
 
 Every expected value comes from the REAL, unmodified Diaphora: a CBinDiff whose match-state methods
 are called directly on synthetic data, exactly like the spec probes did (02 Appendix A probes 1, 6
@@ -48,7 +48,7 @@ _MISSING = object()
 
 
 def Hex(Value):
-    """IEEE-754 bits of float(x) as 16 lowercase hex digits (plan Appendix B ratio_bits)."""
+    """IEEE-754 bits of float(x) as 16 lowercase hex digits (the snapshot schema's ratio_bits)."""
     return struct.pack(">d", float(Value)).hex()
 
 
@@ -58,7 +58,7 @@ def Git(Dir, *ArgList):
 
 def LoadDiaphora(Dir):
     for Key in [K for K in os.environ if K.upper().startswith("DIAPHORA_")]:
-        del os.environ[Key]  # build_oracle.CleanEnv() semantics: the default configuration (plan §1.1)
+        del os.environ[Key]  # build_oracle.CleanEnv() semantics: the default configuration (01 §2)
     sys.path.insert(0, Dir)
     import diaphora  # noqa: E402  (the unmodified checkout)
     Env = {
@@ -578,7 +578,7 @@ def NamedCases():
         {"op": "find_unmatched", "main": [["a", " 10 "], ["b", "1_1"], ["c", "+12"], ["d", "-13"], ["e", "0014"]],
          "diff": [["c", "20\t"]]},
     ]})
-    # int() of an address text at every site L1 evaluates it (D:280 find_unmatched, D:286/D:288 final
+    # int() of an address text at every site it is evaluated (D:280 find_unmatched, D:286/D:288 final
     # pass add_item, D:1935 add_matches_internal): CPython strips only Py_ISSPACE (space, TAB, LF, VT,
     # FF, CR), not the 0x1c-0x1f separators that str.isspace() accepts. CPython's default limit of
     # 4300 digits does NOT apply: diaphora.py calls sys.set_int_max_str_digits(0) when it is loaded

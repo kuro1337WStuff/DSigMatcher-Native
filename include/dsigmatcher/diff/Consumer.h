@@ -1,6 +1,6 @@
 #pragma once
 
-// Row consumers (L1): check_match and the add_matches_* family. Literal ports of D:1786-2083.
+// Row consumers: check_match and the add_matches_* family. Literal ports of D:1786-2083.
 // Spec: 02 §6-§12, 07 §10.5.1-10.5.2, 05 §2.2-§2.3.
 
 #include <cstdint>
@@ -27,7 +27,7 @@ public:
 
 // D:1786-1872: nullsub -> has_best_match -> check_ratio (MdSource::Sql) -> has_better_match -> hook.
 // Returns the accepted ratio, or nullopt when Python returns (False, 0.0). When S.Flags().HooksLoaded,
-// the hook is PatchDiffHookOnMatch (Stages.h, L5).
+// the hook is PatchDiffHookOnMatch (Stages.h, stages/PatchDiffHook.cpp).
 std::optional<double> CheckMatch(DiffSession& S, const HeuristicRow& Row);
 
 // D:1882-1948: routing plus the 1,000,000-row cap (D:1874-1880, counts every fetched row).

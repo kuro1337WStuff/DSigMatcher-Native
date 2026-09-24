@@ -125,7 +125,7 @@ target_link_libraries(dsigmatcher_core PUBLIC ${DSIG_SQLITE_TARGET} Threads::Thr
 dsig_apply_warnings(dsigmatcher_core)
 
 # ---------------------------------------------------------------------------------------------
-# Parity engine (docs/parity/00-plan.md §3). Every source is listed explicitly (no globs).
+# Parity engine (src/diff). Every source is listed explicitly (no globs).
 add_library(dsigmatcher_diff STATIC
   src/diff/Database.cpp
   src/diff/FileIo.cpp
@@ -160,7 +160,7 @@ target_include_directories(dsigmatcher_diff PUBLIC include PRIVATE src/diff)
 target_link_libraries(dsigmatcher_diff PUBLIC dsigmatcher_core ${DSIG_SQLITE_TARGET})
 dsig_apply_warnings(dsigmatcher_diff)
 
-# Floating point must follow Python's evaluation exactly (plan §3.12, 03a Hard parts 2): no
+# Floating point must follow Python's evaluation exactly (03a Hard parts 2): no
 # contraction into FMA, no fast-math, no /arch:AVX2 or -march=native on this library.
 function(dsig_apply_fp Target)
   if(MSVC)
@@ -171,7 +171,7 @@ function(dsig_apply_fp Target)
 endfunction()
 dsig_apply_fp(dsigmatcher_diff)
 
-# Product commands around the engine (plan §7.2): extract / ingest, port (in-process diff or
+# Product commands around the engine: extract / ingest, port (in-process diff or
 # --results) and update (ingest + diff + port).
 add_library(dsigmatcher_cli STATIC
   src/cli/ExportBridge.cpp
@@ -198,7 +198,7 @@ endif()
 
 # System SQLite only (DSIG_VENDORED_SQLITE=OFF; the bundled one is linked statically): stage the
 # sqlite3.dll that sits next to the linked import library beside the executables, so manual runs load the
-# same SQLite the tests use (plan §3.4; 07 §11.2). Windows only.
+# same SQLite the tests use (07 §11.2). Windows only.
 set(DSIG_SQLITE_DLL "")
 if(WIN32 AND NOT DSIG_VENDORED_SQLITE)
   set(_dsig_sqlite_lib "${SQLite3_LIBRARY}")
@@ -220,7 +220,7 @@ if(WIN32 AND NOT DSIG_VENDORED_SQLITE)
   endif()
 endif()
 
-# The export bridge's script (plan §7.1 D7). src/cli/ExportBridge.cpp FindExportScript looks for it
+# The export bridge's script. src/cli/ExportBridge.cpp FindExportScript looks for it
 # beside the executable, then in <prefix>/share/dsigmatcher/tools/export/, then in tools/export/ of an
 # ancestor directory; the last only works for a build directory inside the source tree. So the script
 # is copied next to the built executable (any build directory works), and installed with it. Editing
@@ -298,7 +298,7 @@ if(DSIG_CORPUS_ROOT)
 endif()
 
 # ---------------------------------------------------------------------------------------------
-# Parity suites (plan §2.6, §3.12). Corpus- and SQLite-3.51.1-dependent tests skip without them.
+# Parity suites. Corpus- and SQLite-3.51.1-dependent tests skip without them.
 function(dsig_add_suite Name Source)
   add_executable(${Name} ${Source})
   target_link_libraries(${Name} PRIVATE dsigmatcher_cli dsigmatcher_diff dsigmatcher_core)
@@ -335,7 +335,7 @@ dsig_add_suite(cli_commands tests/cli/cli_commands_tests.cpp)
 target_compile_definitions(cli_commands PRIVATE DSIG_CLI_PATH="$<TARGET_FILE:dsigmatcher>")
 add_dependencies(cli_commands dsigmatcher)
 
-# Install layout and export-script discovery away from the source tree (lane F1): installs into a
+# Install layout and export-script discovery away from the source tree: installs into a
 # fresh prefix under the system temp directory and runs the installed executable. No Python and no
 # IDA are needed: the run stops at tool discovery, which reports every missing tool at once.
 add_test(NAME cli_install_layout

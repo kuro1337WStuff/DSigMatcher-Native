@@ -1,4 +1,4 @@
-// Python value semantics the diff depends on (lane L2). Spec: 03a §6.4 (float(str) for md_index),
+// Python value semantics the diff depends on. Spec: 03a §6.4 (float(str) for md_index),
 // §7.1 (set(json.loads(constants)) with Python equality), 03b §4.1-§4.2, 08 §9.3 and H-7/H-8.
 //
 // Everything here is a port of CPython 3.13.12 behaviour (the oracle's Python, 03a "Environment of
@@ -1222,7 +1222,7 @@ std::vector<PyValue> PySetIntersection(const PySet& Main, const PySet& Diff) {
   // (the argument when the sizes are equal) and adds the iterated set's keys. The key objects are
   // therefore Diff's unless Diff is strictly larger. That only matters for equal values of different
   // types (1 / 1.0 / True), where str() differs. The iteration ORDER is CPython hash order; the port
-  // uses Main's first-appearance order (documented deviation, plan §5 R3).
+  // uses Main's first-appearance order (documented deviation, 06 §8.3 and 06 V6).
   const bool KeysFromDiff = Diff.Size() <= Main.Size();
   std::vector<PyValue> Result;
   for (const PyValue& Item : Main.Ordered()) {

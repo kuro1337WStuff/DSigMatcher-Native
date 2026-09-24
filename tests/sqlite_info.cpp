@@ -2,7 +2,7 @@
 // shows which SQLite produced it. With the bundled SQLite (DSIG_VENDORED_SQLITE, cmake/VendoredSqlite.cmake)
 // it also checks that the library is the parity oracle's: SQLite 3.51.1 from the same check-in, compiled
 // with the same `pragma compile_options` as conda's sqlite-3.51.1 DLL that Diaphora ran on
-// (docs/parity/00-plan.md §5 R1). Only the compiler name and the platform-dependent entries (mutex
+// (02 §18.3, 04a §6.4). Only the compiler name and the platform-dependent entries (mutex
 // implementation, atomic intrinsics) may differ; none of them influences query plans or row order.
 
 #include <cstdio>
@@ -115,7 +115,7 @@ void CheckOracleBuild(const std::vector<std::string>& Options) {
     Check(Expected.count(Option) == 1, "compile option the oracle does not have: " + Option);
   }
 
-  // The sorter is stable only single-threaded (plan §3.4): a fresh connection starts with threads = 0.
+  // The sorter is stable only single-threaded (04a §6.4): a fresh connection starts with threads = 0.
   sqlite3* Db = nullptr;
   Check(sqlite3_open_v2(":memory:", &Db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE, nullptr) == SQLITE_OK,
         "open :memory:");

@@ -1,5 +1,5 @@
-// diff_related: related constants, related compilation unit and local affinity (docs/parity/00-plan.md
-// §4 L8; spec 06 §7-§11, 07 §10.11.2-§10.11.4, 02 §18.2, 08 H-4).
+// diff_related: related constants, related compilation unit and local affinity (spec 06 §7-§11,
+// 07 §10.11.2-§10.11.4, 02 §18.2, 08 H-4).
 //
 //   * fixture vectors (tests/diff/fixtures/related/, recorded from REAL Diaphora by generate.py there):
 //     every case restores a starting state, runs one stage and must reproduce Diaphora's state after
@@ -11,7 +11,7 @@
 //   * corpus replays (skip without DSIG_CORPUS_ROOT or the oracle captures): every before:<stage>:k ->
 //     RunReplay -> after:<stage>:k of the three stages at S-L2, plus the stage's add_match (and, when
 //     recorded, row) trace events against the oracle's. find_related_matches iterates a CPython set
-//     (plan §5 R3): its difference is classified as the tolerated class with exact counts, and replayed
+//     (D:3389, 06 §8.3): its difference is classified as the tolerated class with exact counts, and replayed
 //     again with the capture's own CPython order (<corpus>/oracle/vectors/related/<capture>.set_order.json,
 //     generate.py set-order) when that file exists;
 //   * CuReplaySource vs SqlRowSource row sequences on the long pairs' seeds and the native related-CU
@@ -191,7 +191,8 @@ bool SameSequence(std::vector<std::string> A, std::vector<std::string> B, bool O
   return true;
 }
 
-// S-L2 (plan §1.3), or L1 (lists as multisets) when the runtime SQLite is not the oracle's.
+// S-L2 (docs/parity/README.md, "Comparison levels"), or L1 (lists as multisets) when the runtime SQLite
+// is not the oracle's.
 DSig::Test::CompareReport CompareState(const StateSnapshot& Expected, const StateSnapshot& Native, bool Ordered) {
   if (Ordered) {
     return DSig::Test::CompareSnapshots(Expected, Native, 10);
@@ -566,7 +567,7 @@ void TestCuReplayEquivalence(const std::string& Scratch) {
   }
 }
 
-// The EXPLAIN QUERY PLAN guard (plan §0.3): an expression index on cast(address as real) turns `SCAN f`
+// The EXPLAIN QUERY PLAN guard (06 §9.2): an expression index on cast(address as real) turns `SCAN f`
 // into an index search, so the pass must use the verbatim SQL, and then the native and SQL settings
 // give the same result.
 void TestPlanGuardFallback(const std::string& Scratch) {
@@ -605,8 +606,8 @@ void TestPlanGuardFallback(const std::string& Scratch) {
   DSig::Test::Note("plan with the expression index: " + Plan);
 }
 
-// The R3 hook (src/diff/stages/RelatedDetail.h): an installed order is executed as given; anything but a
-// permutation of the intersection is refused.
+// The constant-order hook (src/diff/stages/RelatedDetail.h): an installed order is executed as given;
+// anything but a permutation of the intersection is refused.
 void TestConstantOrderHook(const std::string& Scratch) {
   DSig::Test::Suite("find_related_constants: the constant-order hook");
   std::string Main;
@@ -1057,7 +1058,7 @@ TraceVerdict CompareSegments(const std::string& OraclePath, const std::string& P
 }
 
 // ---------------------------------------------------------------------------------------------
-// The R3 classification
+// The set-order classification
 
 bool IsRelatedConstantsItem(const SnapItem& I) { return I.Desc == "Same constants related matches"; }
 
@@ -1067,8 +1068,8 @@ std::string ItemKey(const SnapItem& I) {
          std::to_string(I.Nodes2);
 }
 
-// The tolerated class of plan §5 R3: the two states differ only in "Same constants related matches"
-// items (their presence or order) and in matched_* entries of names those items carry.
+// The set-order tolerated class (D:3389, 06 §8.3): the two states differ only in "Same constants related
+// matches" items (their presence or order) and in matched_* entries of names those items carry.
 struct R3Class {
   bool Confined = true;
   size_t OnlyOracle = 0;
@@ -1166,7 +1167,7 @@ R3Class ClassifyR3(const StateSnapshot& Oracle, const StateSnapshot& Native) {
 struct StageCounts {
   int Run = 0;
   int Exact = 0;           // S-L2 equal and (when compared) trace equal, documented order
-  int Tolerated = 0;       // R3 class, documented order (find_related_matches)
+  int Tolerated = 0;       // set-order class, documented order (find_related_matches)
   int ExactWithOrder = 0;  // S-L2 + trace equal with the capture's CPython order installed
   int OrderRuns = 0;
   int TraceCompared = 0;
@@ -1260,7 +1261,7 @@ void ReplayStage(const Capture& C, const std::pair<std::string, std::string>& Id
   const bool WithTrace = true;
   std::string Timing;
   if (Long) {
-    // the timing of plan §4 L8 "Performance": the stage alone, no trace written
+    // a timing run: the stage alone, no trace written
     const ReplayResult Timed = ReplayOnce(C, Ids, Base, BeforeSnap, Scratch, false, nullptr);
     const DSig::Test::CompareReport Report = DSig::Test::CompareSnapshots(AfterSnap, Timed.Native, 5);
     DSig::Test::Report(Timed.Ok && Report.L2Equal, (Label + " (untraced timing run) S-L2").c_str(), __FILE__, __LINE__);
@@ -1286,9 +1287,10 @@ void ReplayStage(const Capture& C, const std::pair<std::string, std::string>& Id
     DSig::Test::Report(true, Label.c_str(), __FILE__, __LINE__);
     DSig::Test::Note(Summary);
   } else if (Stage == "find_related_matches") {
-    // Plan §5 R3: `for constant in inter_consts` iterates a CPython set (D:3389). Report the class.
+    // `for constant in inter_consts` iterates a CPython set (D:3389, 06 §8.3). Report the class.
     const R3Class Class = ClassifyR3(AfterSnap, R.Native);
-    std::string Text = Summary + "; R3 tolerated class " + (Class.Confined ? "CONFINED" : "NOT confined") +
+    std::string Text = Summary + "; set-order tolerated class " +
+                       (Class.Confined ? "CONFINED" : "NOT confined") +
                        ": related-constants items only in the oracle " + std::to_string(Class.OnlyOracle) +
                        ", only native " + std::to_string(Class.OnlyNative) + ", reordered " +
                        std::to_string(Class.Reordered) + ", matched_* keys differing " +
@@ -1312,7 +1314,7 @@ void ReplayStage(const Capture& C, const std::pair<std::string, std::string>& Id
     if (R.Trace && !R.Trace->Equal) {
       DSig::Test::Note("    first trace difference: " + R.Trace->FirstDifference);
     }
-    DSig::Test::Report(Class.Confined, (Label + " R3 class confined").c_str(), __FILE__, __LINE__);
+    DSig::Test::Report(Class.Confined, (Label + " set-order class confined").c_str(), __FILE__, __LINE__);
     Counts.Tolerated += Class.Confined ? 1 : 0;
   } else {
     DSig::Test::Report(false, (Label + " S-L2" + (R.Trace ? " + trace" : "")).c_str(), __FILE__, __LINE__);
@@ -1382,7 +1384,7 @@ void TestCorpusStageReplays(const std::string& Scratch) {
   for (const auto& [Stage, Counts] : g_Totals) {
     DSig::Test::Note(Stage + ": " + std::to_string(Counts.Exact) + "/" + std::to_string(Counts.Run) +
                      " replays S-L2 + trace exact in the documented order, " + std::to_string(Counts.Tolerated) +
-                     " R3 tolerated" +
+                     " set-order tolerated" +
                      (Counts.OrderRuns > 0 ? ", " + std::to_string(Counts.ExactWithOrder) + "/" +
                                                  std::to_string(Counts.OrderRuns) + " exact with the capture's CPython order"
                                            : std::string()) +
@@ -1438,7 +1440,7 @@ std::vector<CuSeed> CuSeeds(DiffSession& S, size_t Limit) {
 }
 
 void TestCuSequences() {
-  DSig::Test::Suite("CuReplaySource == SqlRowSource on the long pairs' first seeds (plan §4 L8)");
+  DSig::Test::Suite("CuReplaySource == SqlRowSource on the long pairs' first seeds (06 §9.2)");
   if (!DSig::Test::CorpusRoot()) {
     DSig::Test::Skip("CU sequences", "DSIG_CORPUS_ROOT is not set");
     return;

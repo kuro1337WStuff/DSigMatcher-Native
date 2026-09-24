@@ -15,7 +15,7 @@ and `check_ratio`/`deep_ratio` are specified elsewhere; this document covers eve
 - Default standalone config: unreliable **off**, experimental **on** (its only effect is the "dirty"
   speed-up checks), slow heuristics **on regardless of function count**, relaxed ratio off, ML off,
   one worker thread. `MIN_FUNCTIONS_TO_DISABLE_SLOW = 4001` is read **only** by the IDA GUI dialog
-  (`diaphora_ida.py:3798-3800`). The orchestrator's summary, which says it applies here, is wrong.
+  (`diaphora_ida.py:3798-3800`). An earlier summary that says it applies here is wrong.
 - After the "100% equal" pass the run takes one of **three modes**. **Stripped**: at least 99% of
   main functions have a same-address partner in db2. **Patch-diff** (checked only if stripped
   did not trigger): more than 90% same `mangled_function` pairs, counted as join rows over
@@ -50,11 +50,11 @@ but unused. No `DIAPHORA_*` or `PYTHONHASHSEED` environment variables are set on
 ## 0. How this was verified
 
 Every behavioural claim cites source. The driver-level claims below were also **run** against a
-scratch copy of Diaphora (`git archive HEAD` into the session scratchpad, run with `python -B`, so
+scratch copy of Diaphora (`git archive HEAD` into a scratch directory, run with `python -B`, so
 the reference checkout was not touched). The inputs for E1-E8 were small synthetic exports built
 with `db_support/schema.py`. The verification pass (V1-V14 in the "Verification log" at the end)
 also used **real** IDA exports from `<corpus>/oracle/exports` (copied to the
-scratchpad first) and the oracle's own logs in `oracle/diffs`.
+scratch directory first) and the oracle's own logs in `oracle/diffs`.
 
 | # | Experiment | Observed |
 |---|---|---|
@@ -387,7 +387,7 @@ partial results" only matters on malformed data or on timeouts.
 
 ---
 
-## 5. `diff()` — orchestration (`diaphora.py:3568-3701`)
+## 5. `diff()` — control flow (`diaphora.py:3568-3701`)
 
 ```python
   def diff(self, db):
@@ -1963,8 +1963,8 @@ ratio real, category)` and `symbols_to_port(...)` into the `-o` file. It has no 
 `results`, `unmatched` or multimatch tables, uses a `best#<id>` description and a REAL ratio.
 Parity needs a separate Diaphora-compatible writer (section 11) fed by a match store that
 implements sections 8-10 **exactly**. That includes the name-keyed bookkeeping, the per-category
-stable sorting and the final max/multimatch filter. The current `MatchStore` "greedy 1:1 resolve"
-(`HANDOFF.md`) is a different algorithm.
+stable sorting and the final max/multimatch filter. The current `MatchStore` greedy 1:1 resolve
+is a different algorithm.
 
 ---
 
@@ -2026,7 +2026,7 @@ stable sorting and the final max/multimatch filter. The current `MatchStore` "gr
    takes mode S. A PDB-vs-PDB `sechost` pair has not been built yet. Keep recording the detection
    log line for each run.
 2. **SQLite row order**: will the parity target be "same set modulo 1.0-tie order", or must the
-   native engine emulate per-query SQLite plan order? **Still needs a user decision.** Exact
+   native engine emulate per-query SQLite plan order? **Still needs a design decision.** Exact
    `line` parity requires the latter. New fact: the three finished oracle pairs gave
    byte-identical `results` and `unmatched` row order across two runs each
    (`oracle/diffs/*/determinism.json`: `results_identical_in_order: true`), so exact order is at
@@ -2076,7 +2076,7 @@ An adversarial pass on 2026-09-23 checked every behavioural claim, quoted excerp
 against `<diaphora-ref>` at `621ec26`. `diaphora.py`, `diaphora_config.py`,
 `diaphora_heuristics.py`, `jkutils/` and `scripts/` are identical to tag 3.4.2, so the line numbers
 hold for both. Experiments ran on a `git archive HEAD` copy and on copies of the oracle exports in
-the session scratchpad (`.../scratchpad/v01`). The reference checkout, the oracle exports and the
+a scratch directory (`<scratch>/v01`). The reference checkout, the oracle exports and the
 running oracle diffs were only read.
 
 ### Experiments run in this pass
@@ -2193,7 +2193,7 @@ schema and write order. The section 12 log lines. The `diaphora_ida.py` citation
 
 ### Still open
 
-- Parity target (set modulo 1.0 ties, or exact row order): a user decision. The oracle is at
+- Parity target (set modulo 1.0 ties, or exact row order): a design decision. The oracle is at
   least order-deterministic across repeated runs (V12).
 - Timeouts in the native port: a design decision. The detection must not rely only on
   `Timeout with heuristic` log lines, because NO_FPS timeouts are silent.

@@ -1,8 +1,8 @@
 # Bundled SQLite (DSIG_VENDORED_SQLITE=ON, the default): the official SQLite 3.51.1 amalgamation, built
 # as the static library `dsig_sqlite3` with the parity oracle's compile options.
 #
-# Why: Diaphora's results depend on the row order SQLite's query planner produces (docs/parity/00-plan.md
-# §5 R1). The oracle ran on conda's sqlite 3.51.1 (package sqlite-3.51.1-hda9a48d_0), whose recipe
+# Why: Diaphora's results depend on the row order SQLite's query planner produces (docs/parity/02-matching.md
+# §18.3). The oracle ran on conda's sqlite 3.51.1 (package sqlite-3.51.1-hda9a48d_0), whose recipe
 # compiles the same sqlite3.c (sqlite-autoconf-3510100, byte-identical to the amalgamation below) with
 # only these defines:
 #   SQLITE_ENABLE_RTREE SQLITE_ENABLE_GEOPOLY SQLITE_ENABLE_COLUMN_METADATA=1

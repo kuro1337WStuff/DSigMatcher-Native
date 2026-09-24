@@ -1,7 +1,7 @@
-// JSONL trace sink and Diaphora's summary lines (docs/parity/00-plan.md §2.2, Appendix B).
+// JSONL trace sink and Diaphora's summary lines (schema: tools/parity/README.md).
 //
-// The line format is the oracle's, byte for byte (tools/parity/oracle_trace.py, lane L0b, whose hours-
-// long captures already exist): Snap.DumpJson(event) = json.dumps(event, ensure_ascii=False,
+// The line format is the oracle's, byte for byte (tools/parity/oracle_trace.py, whose hours-long
+// captures already exist): Snap.DumpJson(event) = json.dumps(event, ensure_ascii=False,
 // separators=(",", ":")) followed by "\n", with the keys in the order the oracle builds each event:
 //   add_match  Instrument.WrapAddMatch: ev, seq, ctx, name1, name2, ea1, ea2, desc, ratio_bits, chooser,
 //              result (seq = Instrument.AddMatchSeq, the 0-based ordinal of add_match calls)

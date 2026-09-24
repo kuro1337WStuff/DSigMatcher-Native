@@ -1,6 +1,6 @@
 #pragma once
 
-// The `.diaphora` results file (L4): save_results (D:2374-2429) plus CChooser.add_item's formatting
+// The `.diaphora` results file: save_results (D:2374-2429) plus CChooser.add_item's formatting
 // (D:275-296). Spec: 01 §10.2-§11, 09 "Results database schema". Every value is bound as TEXT.
 
 #include <cstdint>

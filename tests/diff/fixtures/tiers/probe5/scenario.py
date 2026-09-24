@@ -1,4 +1,4 @@
-# Lane L6 fixture: 02 Appendix A probe 5, the UNION tie (tools/parity/make_fixture.py scenario;
+# Tiers fixture: 02 Appendix A probe 5, the UNION tie (tools/parity/make_fixture.py scenario;
 # synthetic data only).
 #
 # The diff database holds two copies of func_1: sub_9700 (id 1, address 0x9700 = 38656) and sub_9100

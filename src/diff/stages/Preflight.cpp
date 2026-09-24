@@ -1,4 +1,4 @@
-// Lane L5: the checks CBinDiff.diff() makes before any matching. Spec: 01 §5.1-§5.3, §5.6, §13;
+// The checks CBinDiff.diff() makes before any matching. Spec: 01 §5.1-§5.3, §5.6, §13;
 // 05 §1.2, §3; 08 §7.1-§7.2. D: = diaphora.py at 3.4.2-4-g621ec26.
 //   StageCheckVersion    D:3577-3591  `select value from diff.version`
 //   StageEqualDb         D:661-687    equal_db (log only)
@@ -235,7 +235,7 @@ const std::string& FloatOverflowMag() {
 bool FloatOverflows(const BigInt& V) { return CompareMag(V.Mag, FloatOverflowMag()) >= 0; }
 
 double BigToDouble(const BigInt& V) {
-  // float(int) is correctly rounded (half-even); PyFloat of the decimal text is too (lane L2).
+  // float(int) is correctly rounded (half-even); PyFloat of the decimal text is too (PyValue.cpp).
   const std::optional<double> Value = PyFloat(BigText(V));
   if (!Value) {
     throw UnsupportedInput("check_callgraph: cannot convert " + BigText(V) + " to float");
@@ -489,7 +489,7 @@ PyValue JsonOfCell(const SqlCell& Cell, const char* Site) {
   switch (Cell.Type) {
     case SqlType::Text:
       try {
-        return PyJsonLoads(Cell.Bytes);  // raises like json.loads (lane L2)
+        return PyJsonLoads(Cell.Bytes);  // raises like json.loads (PyValue.cpp)
       } catch (const DiaphoraWouldRaise& Error) {
         throw DiaphoraWouldRaise(std::string(Site) + " " + Error.Site, Error.Detail);
       }

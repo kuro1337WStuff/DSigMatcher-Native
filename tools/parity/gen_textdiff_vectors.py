@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the lane L3 text-diff vectors (docs/parity/00-plan.md §4 L3).
+"""Generate the text-diff vectors (spec docs/parity/03b-text-difflib.md §4.3, §5).
 
 Two modes:
 

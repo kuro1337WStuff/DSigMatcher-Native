@@ -1,4 +1,4 @@
-# Lane L6 fixture: heuristic flag filtering with different processors (tools/parity/make_fixture.py
+# Tiers fixture: heuristic flag filtering with different processors (tools/parity/make_fixture.py
 # scenario; synthetic data only).
 #
 # same_processor_both_databases (D:2950-2967) is False (metapc against ARM), so every heuristic

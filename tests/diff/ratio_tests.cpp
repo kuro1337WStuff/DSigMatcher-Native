@@ -1,12 +1,12 @@
-// diff_ratio: the ratio engine and Python value semantics (lane L2, docs/parity/00-plan.md §4 L2;
-// spec 03a in full, 03b §4.1-§4.2, 07 §10.6, 08 §9.3, H-7, H-8).
+// diff_ratio: the ratio engine and Python value semantics (spec 03a in full, 03b §4.1-§4.2, 07 §10.6,
+// 08 §9.3, H-7, H-8).
 //
 // Every expected value comes from real Diaphora / CPython through tools/parity/gen_ratio_vectors.py:
 //   * committed synthetic vectors (tests/diff/vectors/ratio): values.json (float(), "{0:.7f}",
 //     repr, json.loads + set, quick_ratio), four 03a-harness databases and the hand-made
 //     targeted.json, each run through BOTH md paths (check_match's SQL cast and
 //     compare_function_rows' float());
-//   * the 0.99 clamp boundary (lane F1): clamp-boundary-{same,other}.json from
+//   * the 0.99 clamp boundary (D:1766-1771): clamp-boundary-{same,other}.json from
 //     tools/parity/gen_ratio_clamp_vectors.py, pairs whose r + deep_ratio score is exactly 1.0;
 //   * the mutation self-test: every mutation of the 03a §13 table must change at least one vector;
 //   * corpus vectors (<corpus>/oracle/vectors/ratio, never committed, skipped when absent): the 03a
@@ -595,7 +595,7 @@ std::optional<PairCounts> RunSyntheticDoc(const JsonValue& Doc, const std::strin
     return std::nullopt;
   }
   if (DSig::Test::OracleSqlite()) {
-    // ingest's cast(md_index as real) is SQLite's own conversion (plan §3.3): equal to Python's row md
+    // ingest's cast(md_index as real) is SQLite's own conversion (07 §5.3): equal to Python's row md
     for (uint32_t Row = 0; Row < M.Count() + D.Count(); ++Row) {
       const bool IsMain = Row < M.Count();
       const FunctionTable& T = IsMain ? M : D;
@@ -750,7 +750,7 @@ void TestMutations() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// the 0.99 clamp boundary (lane F1): `if r + score < 1.0: r += score` / `else: r = 0.99`
+// the 0.99 clamp boundary: `if r + score < 1.0: r += score` / `else: r = 0.99`
 // (D:1766-1771). clamp-boundary-{same,other}.json (tools/parity/gen_ratio_clamp_vectors.py, real
 // Diaphora) hold pairs whose r and deep_ratio score add up to exactly 1.0 in IEEE doubles, so the
 // expected ratio is 0.99; a port that tested `<=` would return 1.0 for each of them. The generic

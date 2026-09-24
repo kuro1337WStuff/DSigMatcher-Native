@@ -1,6 +1,6 @@
 #pragma once
 
-// Diaphora's match bookkeeping (L1): all_matches (three lists), matched_primary / matched_secondary
+// Diaphora's match bookkeeping: all_matches (three lists), matched_primary / matched_secondary
 // (dicts keyed by NAME strings), and the cleanup / counters around them. Literal port of
 // D:1340-1402 (add_match, has_best_match, has_better_match), D:1554-1605 (cleanup_matches),
 // D:1777-1784 (all_functions_matched), D:3133-3148 (get_sorted_results, get_total_matched_functions).
@@ -45,7 +45,7 @@ struct MatchedEntry {
   double Ratio = 0.0;
 };
 
-// The caller line of every cleanup_matches() call in the default diff (Appendix B); the value is the
+// The caller line of every cleanup_matches() call in the default diff; the value is the
 // D: line number, used in the snapshot point names "before:cleanup:<site>:<n>".
 enum class CleanupSite : uint16_t {
   L1551 = 1551,  // run_heuristics_for_category, after each category
@@ -87,7 +87,7 @@ public:
   size_t PrimarySize() const;
   size_t SecondarySize() const;
 
-  // Snapshot I/O (Appendix B). Export fills all_matches, matched_* (dict insertion order) and the
+  // Snapshot I/O (Snapshot.h). Export fills all_matches, matched_* (dict insertion order) and the
   // totals; the session adds point, flags, cache, choosers and unmatched. Import restores the same
   // fields (interning through the session's Interners) and rebuilds any derived index.
   StateSnapshot Export() const;
