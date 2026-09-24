@@ -771,6 +771,86 @@ def ProcessAlive(Pid, Start=None):
     return Start is None or Now is None or Now == Start
 
 
+def IsAscii(Text):
+    return all(ord(Char) < 0x80 for Char in Text)
+
+
+def ShortPathName(Path):
+    """The Windows 8.3 form of an existing Path, or None (not Windows, or the call failed). A component
+    without an 8.3 name stays long, so the result is not necessarily ASCII."""
+    if os.name != "nt":
+        return None
+    import ctypes
+    from ctypes import wintypes
+    Kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    Kernel32.GetShortPathNameW.argtypes = (wintypes.LPCWSTR, wintypes.LPWSTR, wintypes.DWORD)
+    Kernel32.GetShortPathNameW.restype = wintypes.DWORD
+    Size = Kernel32.GetShortPathNameW(Path, None, 0)
+    if Size == 0:
+        return None
+    Buffer = ctypes.create_unicode_buffer(Size)
+    Written = Kernel32.GetShortPathNameW(Path, Buffer, Size)
+    if Written == 0 or Written >= Size:
+        return None
+    return Buffer.value
+
+
+def PrivateFallbackRoot():
+    """%ProgramData%\\dsigmatcher\\tmp\\<user SID>, created if needed and restricted to the current user,
+    SYSTEM and Administrators (a work directory holds a copy of the user's input). None when it cannot
+    be made ASCII, created or restricted."""
+    if os.name != "nt":
+        return None
+    Base = os.environ.get("ProgramData") or os.path.join(os.environ.get("SystemDrive", "C:") + "\\", "ProgramData")
+    System32 = os.path.join(os.environ.get("SystemRoot", "C:\\Windows"), "System32")
+    try:
+        Who = subprocess.run([os.path.join(System32, "whoami.exe"), "/user", "/fo", "csv", "/nh"],
+                             capture_output=True, timeout=30, **NoWindowFlags())
+        Sid = re.search(rb"S-1-[0-9-]+", Who.stdout)
+        if Who.returncode != 0 or Sid is None:
+            return None
+        Sid = Sid.group(0).decode("ascii")
+        Root = os.path.join(Base, "dsigmatcher", "tmp", Sid)
+        if not IsAscii(Root):
+            return None
+        os.makedirs(Root, exist_ok=True)
+        # No inherited entries (ProgramData lets every user read what other users create there).
+        Acl = subprocess.run([os.path.join(System32, "icacls.exe"), Root, "/inheritance:r", "/grant:r",
+                              "*%s:(OI)(CI)F" % Sid, "*S-1-5-18:(OI)(CI)F", "*S-1-5-32-544:(OI)(CI)F"],
+                             capture_output=True, timeout=60, **NoWindowFlags())
+        if Acl.returncode != 0:
+            return None
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return Root
+
+
+def NoWindowFlags():
+    return {"creationflags": 0x08000000} if os.name == "nt" else {}  # CREATE_NO_WINDOW
+
+
+def ChooseWorkRoot(Requested):
+    """The directory the work directory is created in: --temp-dir, else the system temp directory.
+    On Windows IDA hands IDAUSR to IDAPython in the ANSI code page, which IDAPython decodes as UTF-8, so
+    a non-ASCII IDAUSR breaks IDAPython and the worker crashes (0xC0000005) when the export starts. The
+    work directory holds IDAUSR and the copy IDA opens, so its root must be ASCII: a non-ASCII root is
+    replaced by its 8.3 short form, else by a private ASCII directory under %ProgramData%. Returns
+    (root, note); note says what was replaced, or is None. Raises ExportError when no ASCII root exists."""
+    Root = os.path.abspath(Requested or tempfile.gettempdir())
+    if os.name != "nt" or IsAscii(Root):  # elsewhere IDA passes paths as UTF-8
+        return Root, None
+    Short = ShortPathName(Root)
+    if Short and IsAscii(Short) and os.path.isdir(Short):
+        return Short, "the work root %s is not ASCII, which IDA cannot use; using its short form %s" % (Root, Short)
+    Fallback = PrivateFallbackRoot()
+    if Fallback:
+        return Fallback, ("the work root %s is not ASCII, which IDA cannot use, and has no 8.3 short form; using %s"
+                          % (Root, Fallback))
+    raise ExportError(EXIT_USAGE, "the work directory %s is not ASCII, which IDA cannot use, and no ASCII "
+                      "replacement is available: pass --temp-dir <an existing directory with an ASCII path>"
+                      % Root)
+
+
 def WriteOwner(TempRoot, Worker=None, Kept=False):
     """owner.json in the work directory: which processes use it, so a later run can tell a directory
     left behind by a killed run (dsigmatcher terminated, a crash, a power cut) from a live one."""
@@ -940,9 +1020,12 @@ def Drive(Args):
         raise ExportError(EXIT_OUTPUT, "--temp-dir does not exist: %s" % Args.temp_dir)
     # A run that was killed (dsigmatcher terminated, a crash) cannot remove its work directory, which
     # holds a copy of the user's database; the next run in the same place does (audit F43).
-    SweepWorkDirectories(Args.temp_dir or tempfile.gettempdir())
+    WorkRoot, WorkRootNote = ChooseWorkRoot(Args.temp_dir)
+    if WorkRootNote:
+        Log(WorkRootNote)
+    SweepWorkDirectories(WorkRoot)
     try:
-        TempRoot = tempfile.mkdtemp(prefix=WORK_PREFIX, dir=Args.temp_dir or None)
+        TempRoot = tempfile.mkdtemp(prefix=WORK_PREFIX, dir=WorkRoot)
     except OSError as Exc:
         raise ExportError(EXIT_OUTPUT, "cannot create a work directory: %s" % Exc)
     Log("work directory %s" % TempRoot)

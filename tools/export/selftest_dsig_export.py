@@ -40,7 +40,7 @@ def Check(Condition, What):
     CHECKS[0] += 1
     if not Condition:
         CHECKS[1] += 1
-        print("  FAIL %s" % What)
+        print(("  FAIL %s" % What).encode("ascii", "backslashreplace").decode("ascii"))
 
 
 GUID = bytes(range(0x10, 0x20))
@@ -346,7 +346,12 @@ def TestGitLookup(Dir, FakeDiaphora):
 FAKE_IDALIB = {
     "idapro.py": "def get_library_version():\n    return (9, 9, 0)\n"
                  "def enable_console_messages(Enable):\n    pass\n"
-                 "def open_database(Path, Auto, Args=None):\n    return 0\n"
+                 "def open_database(Path, Auto, Args=None):\n"
+                 "    import os\n"
+                 "    # the real IDAPython breaks on a non-ASCII IDAUSR on Windows (the worker then crashes)\n"
+                 "    if os.environ.get('FAKE_REQUIRE_ASCII') == '1' and not (os.environ['IDAUSR'] + Path).isascii():\n"
+                 "        os._exit(99)\n"
+                 "    return 0\n"
                  "def close_database(Save=False):\n    pass\n",
     "idaapi.py": "class _Cvar:\n    batch = False\ncvar = _Cvar()\n"
                  "def get_kernel_version():\n    return '9.9'\n",
@@ -520,6 +525,7 @@ def TestFakeIdaRuns(Dir):
         TestNoFunctionsAndHexRays(Good, Out)
         TestSweep(Dir, Good)
         TestLauncherGone(Good, Out)
+        TestNonAsciiWorkRoot(Dir, Good)
     finally:
         dsig_export.CleanEnv = RealCleanEnv
         for Key, Value in Saved.items():
@@ -665,6 +671,52 @@ def TestLauncherGone(Good, Out):
         os.getppid = RealGetppid
     Check(Code == dsig_export.EXIT_INTERRUPTED, "exit %s, want %d" % (Code, dsig_export.EXIT_INTERRUPTED))
     Check(ReadBytes(Out) == Before, "the output was not replaced")
+
+
+def TestNonAsciiWorkRoot(Dir, Good):
+    """On Windows IDAPython cannot start with a non-ASCII IDAUSR, and the work directory holds IDAUSR:
+    a non-ASCII --temp-dir or system temp directory (the default for a user whose name is not ASCII) is
+    replaced by an ASCII one. Elsewhere the root is used as given."""
+    print("[a non-ASCII temp directory]")
+    Unicode = os.path.join(Dir, "t\u00e9mp \u00fc \u6f22")
+    os.makedirs(Unicode)
+    Root, Note = dsig_export.ChooseWorkRoot(Dir)
+    Check(Root == os.path.abspath(Dir) and Note is None, "an ASCII root is used as given: %s" % Root)
+    Root, Note = dsig_export.ChooseWorkRoot(Unicode)
+    if os.name == "nt":
+        Check(Root.isascii() and os.path.isdir(Root) and bool(Note), "a non-ASCII root is replaced: %s" % Root)
+        # Without an 8.3 name (disabled on the volume) the private fallback is used; without that too the
+        # run is refused before IDA starts.
+        RealShort, RealFallback = dsig_export.ShortPathName, dsig_export.PrivateFallbackRoot
+        dsig_export.ShortPathName = lambda _Path: None
+        dsig_export.PrivateFallbackRoot = lambda: os.path.join(Dir, "fallback")
+        try:
+            Root, Note = dsig_export.ChooseWorkRoot(Unicode)
+            Check(Root == os.path.join(Dir, "fallback") and "8.3" in (Note or ""),
+                  "no 8.3 name: the fallback root is used: %s" % Root)
+            dsig_export.PrivateFallbackRoot = lambda: None
+            try:
+                dsig_export.ChooseWorkRoot(Unicode)
+                Check(False, "no ASCII root at all must be refused")
+            except dsig_export.ExportError as Exc:
+                Check(Exc.Code == dsig_export.EXIT_USAGE and "--temp-dir" in Exc.Message,
+                      "no ASCII root: refused with advice: %s" % Exc.Message)
+        finally:
+            dsig_export.ShortPathName, dsig_export.PrivateFallbackRoot = RealShort, RealFallback
+    else:
+        Check(Root == os.path.abspath(Unicode) and Note is None, "a non-ASCII root is kept: %s" % Root)
+    # A whole run with the non-ASCII --temp-dir: on Windows the stand-in idalib fails the way IDAPython
+    # does when IDAUSR or the opened copy is not ASCII.
+    Argv = list(Good)
+    Argv[Argv.index("--temp-dir") + 1] = Unicode
+    os.environ["FAKE_REQUIRE_ASCII"] = "1" if os.name == "nt" else "0"
+    try:
+        Code = RunMain(Argv)
+    finally:
+        os.environ.pop("FAKE_REQUIRE_ASCII", None)
+    Check(Code == dsig_export.EXIT_OK, "a run with a non-ASCII --temp-dir succeeds: exit %s" % Code)
+    Check(not [Name for Name in os.listdir(Unicode) if dsig_export.WORK_NAME_RE.match(Name)],
+          "no work directory is left in the non-ASCII directory")
 
 
 def TestImportDiaphora(Dir):
