@@ -1,6 +1,6 @@
 #pragma once
 
-// UTF-8 file access for the parity engine (lane R0, orchestrator decision (f)).
+// UTF-8 file access for the parity engine (lane R0, design decision (f)).
 //
 // Every path string in DSig::Diff and in the CLI is UTF-8: main() converts the Windows wide command
 // line, and SQLite takes UTF-8 file names on every platform. On Windows, std::filesystem::path built

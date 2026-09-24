@@ -1156,7 +1156,7 @@ LabelPortResult PortLabels(const LabelPortOptions& Options, const std::vector<La
     return Result;
   };
 
-  // Alias refusal before any I/O (JOURNAL.md "in-place port destroyed the target database"; lane F1).
+  // Alias refusal before any I/O (an in-place port once destroyed the target database; lane F1).
   // The port deletes, creates and renames the output, the temporary "<output>.dsig-tmp" and every
   // -wal / -shm / -journal sidecar of both (CopyDatabase, RemoveDatabaseFiles and PublishOutput), and
   // SQLite itself creates, plays back and deletes the temporary's sidecars
@@ -1256,8 +1256,8 @@ LabelPortResult PortLabels(const LabelPortOptions& Options, const std::vector<La
   const std::string AppliedAt = CurrentUtcTimestamp();
 
   // Pass 1: one decision per proposal, in stored order. The order of the tests: not portable,
-  // confirmation, hop cap, ratio floor, existing real name (JOURNAL.md "names that never travelled
-  // were counted as ported").
+  // confirmation, hop cap, ratio floor, existing real name (otherwise names that never travelled
+  // would be counted as ported).
   Result.Decisions.resize(Proposals.size());
   std::vector<bool> Claimed(Target.Rows.size(), false);
   std::vector<std::string> OriginAddress(Proposals.size());
@@ -1325,7 +1325,7 @@ LabelPortResult PortLabels(const LabelPortOptions& Options, const std::vector<La
     }
     if (TargetHasRealName) {
       // Diaphora's stripped-binary shortcut pairs functions by address, so on a real name it is only
-      // trusted with both flags (JOURNAL.md: 1172 of 1329 such rows were wrong on win32u).
+      // trusted with both flags (1172 of the 1329 such rows were wrong on the win32u pair).
       const bool Stripped = Proposal.Description == kStrippedDescription;
       const bool MayOverwrite = Options.OverwriteExistingNames && (!Stripped || Options.OverwriteStripped);
       if (!MayOverwrite) {

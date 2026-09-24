@@ -12,6 +12,8 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <string>
+#include <string_view>
 #include <tuple>
 
 #include "CheckpointDetail.h"
@@ -159,16 +161,19 @@ namespace {
 
 // Runs `Read` and gives a JsonError that has no member path yet the path `Where` (audit F58), so a bad
 // value reports "all_matches.best[0][6]: JSON value is not an integer" instead of a bare message. The
-// innermost caller that knows a path wins; outer callers let the error pass unchanged.
+// innermost caller that knows a path wins; outer callers let the error pass unchanged. `Where` is a
+// string_view so that a literal path creates no temporary std::string: GCC 13/14 -Wdangling-reference
+// would otherwise flag every `const auto& X = InField("...", ...)` (a false positive: the result refers
+// into the parsed document, not into an argument).
 template <class F>
-auto InField(const std::string& Where, F&& Read) -> decltype(Read()) {
+auto InField(std::string_view Where, F&& Read) -> decltype(Read()) {
   try {
     return Read();
   } catch (const JsonError& Error) {
     if (!Error.Path.empty()) {
       throw;
     }
-    throw JsonError(Error.Detail, Error.Position, Where);
+    throw JsonError(Error.Detail, Error.Position, std::string(Where));
   }
 }
 
