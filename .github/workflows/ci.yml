@@ -1,9 +1,10 @@
 name: CI
 
+# Branch pushes, pull requests and manual runs. Tag pushes (v*) are not built here: the release workflow
+# (release.yml) builds, tests and packages every tagged commit on all three platforms itself.
 on:
   push:
     branches: [main]
-    tags: ['v*']
   pull_request:
   workflow_dispatch:
 
@@ -52,8 +53,10 @@ jobs:
             os: ubuntu-latest
           - name: Windows / MSVC
             os: windows-latest
+          # The release's deployment target, so a C++ library feature newer than macOS 13 fails here too.
           - name: macOS / Clang
             os: macos-latest
+            osx_target: '13.0'
           # DSIG_VENDORED_SQLITE=OFF: the distribution's SQLite, so the fallback build keeps working and
           # the order-insensitive (L1) comparisons and the SQLite-mismatch warning stay exercised.
           - name: Linux / GCC / system SQLite
@@ -80,12 +83,18 @@ jobs:
 
       - name: Configure
         shell: bash
+        env:
+          SQLITE_MODE: ${{ matrix.sqlite }}
+          OSX_TARGET: ${{ matrix.osx_target }}
         run: |
-          if [ "${{ matrix.sqlite }}" = "system" ]; then
-            cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DDSIG_VENDORED_SQLITE=OFF
-          else
-            cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          args=(-S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release)
+          if [ "$SQLITE_MODE" = "system" ]; then
+            args+=(-DDSIG_VENDORED_SQLITE=OFF)
           fi
+          if [ -n "$OSX_TARGET" ]; then
+            args+=("-DCMAKE_OSX_DEPLOYMENT_TARGET=$OSX_TARGET")
+          fi
+          cmake "${args[@]}"
 
       - name: Report toolchain
         shell: bash
