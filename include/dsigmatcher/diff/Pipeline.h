@@ -15,6 +15,7 @@
 #include <utility>
 #include <vector>
 
+#include "dsigmatcher/diff/Checkpoint.h"
 #include "dsigmatcher/diff/Config.h"
 #include "dsigmatcher/diff/Consumer.h"
 #include "dsigmatcher/diff/Database.h"
@@ -110,6 +111,12 @@ public:
   // rule, tools/parity/README.md "iteration").
   std::optional<int> Iteration() const;
   void SetIteration(std::optional<int> Iteration);
+  // The harness counters a checkpoint carries: the next point's seq, and the calls so far per cleanup
+  // site (the <n> of "before:cleanup:<site>:<n>").
+  int64_t PointSeq() const;
+  void SetPointSeq(int64_t Seq);
+  std::vector<std::pair<int, int64_t>> CleanupCounters() const;
+  void SetCleanupCounters(const std::vector<std::pair<int, int64_t>>& Counters);
   std::string_view Context() const;               // innermost context label, "diff" at top level
                                                   // (written as null in the trace, like the oracle)
   void PushContext(std::string Label);
@@ -169,6 +176,22 @@ private:
 // logs the final lines (D:3684-3695).
 bool RunPipeline(DiffSession& S);
 
+// Checkpointing of RunPipeline (Checkpoint.h). `Save` is called after every completed top-level step
+// with the cursor of that step; it may throw to end the run. With `ResumeFrom`, the session already
+// holds the state of that checkpoint (RestoreCheckpoint) and RunPipeline continues after its step:
+// the uninterrupted run and the resumed run write the same results.
+struct PipelineCheckpointing {
+  std::function<void(const PipelineCursor&)> Save;
+  std::optional<PipelineCursor> ResumeFrom;
+};
+bool RunPipeline(DiffSession& S, PipelineCheckpointing* Checkpointing);
+
+// The complete engine state of the session after the step `Cursor` records (the binding is left empty).
+EngineCheckpoint CaptureCheckpoint(DiffSession& S, const PipelineCursor& Cursor);
+// Restores a captured state into a session opened on the same inputs. Throws UnsupportedInput when the
+// state does not belong to the session's databases (CheckSnapshotMatchesInputs).
+void RestoreCheckpoint(DiffSession& S, const EngineCheckpoint& Checkpoint);
+
 // Runs exactly one replayable stage (Appendix B, marked R) from `Before` and returns the after
 // snapshot. `Stage` is a point base such as "find_same_name", "heuristic:41", "cleanup:3185:4",
 // "find_matches_diffing:0", "run_heuristics_for_category:Best", "final_pass" or "find_unmatched";
@@ -211,6 +234,9 @@ struct DiffArgs {
   bool StrictSqlite = false;              // --strict-sqlite: exit 5 unless SQLite is 3.51.1
   bool AllowSqliteMismatch = false;       // --allow-sqlite-mismatch: no warning
   bool Quiet = false;                     // no summary lines on stderr (the SQLite warning still prints)
+  std::string CheckpointDir;              // --checkpoint-dir: a checkpoint after every top-level stage
+  std::string ResumeDir;                  // --resume: continue the run checkpointed there (and keep
+                                          // checkpointing into it)
 };
 
 struct DiffOutcome {
@@ -227,11 +253,28 @@ struct DiffOutcome {
   std::vector<std::string> Skipped;  // always empty: no stage is a stub any more (audit F63); kept only
                                      // until the CLI (src/main.cpp) stops printing it
   std::string SqliteVersion;
+  std::string CheckpointDir;             // the checkpoint directory in use ("" without checkpoints)
+  std::string ResumedAfter;              // --resume: the stage the run continued after, e.g.
+                                         // "find_related_compilation_unit:1"
+  size_t CheckpointsWritten = 0;
+  std::vector<std::string> Warnings;     // checkpoint failures the run survived (also printed on stderr)
 };
 
 // Checks every path first (aliases, oracle captures, the output's directory: nothing is opened or
 // written when one is refused), then Open, RunPipeline (or RunReplay when ReplayPath is set), write.
 // Never throws.
+//
+// Checkpoints (CheckpointDir / ResumeDir, Checkpoint.h):
+//   * a fresh run refuses (exit 2) a directory that already holds a checkpoint, so progress is never
+//     thrown away by mistake: resume it with --resume or remove it; a directory that cannot be created or
+//     written is exit 6, checked before the inputs are opened;
+//   * --resume refuses (exit 4) a missing or damaged checkpoint and one whose binding (tool version,
+//     SQLite version, sha256 of db1/db2, --ignore-small-functions, --related-cu-source) differs from
+//     this command's; it cannot be combined with --replay, --trace or --snapshot-dir (exit 2);
+//   * a checkpoint that cannot be written (a full disk) is a warning: the run goes on and the previous
+//     checkpoint stays usable;
+//   * the checkpoint files are removed once the results file has been written; after any failure they
+//     stay, so the run can be resumed.
 DiffOutcome RunDiff(const DiffArgs& Args);
 
 // Diaphora's default output name (D:3753-3755): basename(splitext(db1)[0]) + "_vs_" + ... + ".diaphora".

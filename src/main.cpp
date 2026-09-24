@@ -140,6 +140,10 @@ void PrintCommandUsage(std::FILE* Out, const std::string& Command, bool All) {
     std::fprintf(Out, "db1 db2` would choose.\n\n");
     std::fprintf(Out, "  -o, --output <path>              results file (replaced; must not be an input)\n");
     PrintDiaphoraDiffOptions(Out);
+    std::fprintf(Out, "      --checkpoint-dir <dir>       save the engine state after every stage (created if\n");
+    std::fprintf(Out, "                                   missing; removed again once the results are written)\n");
+    std::fprintf(Out, "      --resume <dir>               continue a run that stopped (crash, kill, full disk) from\n");
+    std::fprintf(Out, "                                   its last checkpoint; same inputs and options required\n");
     std::fprintf(Out, "      --json                       print one JSON object with the outcome on stdout\n");
     if (All) {
       std::fprintf(Out, "\ndeveloper / parity-harness options:\n");
@@ -236,6 +240,7 @@ const std::vector<OptionSpec>& OptionsFor(const std::string& Command) {
       {"--output", "-o", true},          {"--ignore-small-functions", nullptr, false},
       {"--strict-sqlite", nullptr, false}, {"--allow-sqlite-mismatch", nullptr, false},
       {"--quiet", nullptr, false},       {"--json", nullptr, false},
+      {"--checkpoint-dir", nullptr, true}, {"--resume", nullptr, true},
       // developer / parity harness (--help-all)
       {"--trace", nullptr, true},        {"--trace-rows", nullptr, false},     {"--snapshot-dir", nullptr, true},
       {"--snapshot-points", nullptr, true}, {"--snapshot-cache", nullptr, true}, {"--pair", nullptr, true},
@@ -526,10 +531,10 @@ int ReportCommand(const Parsed& Arguments, const Cli::CommandOutcome& Outcome) {
   return Cli::kExitOk;
 }
 
-// RunDiff reports an unexpected exception as an I/O failure whose message starts with "internal
-// error: "; the CLI reports that as an internal error (exit 70).
+// The exit code of a diff outcome: the DiffStatus value (an unexpected exception inside the engine is
+// DiffStatus::Internal, exit 70).
 int DiffExitCode(const Diff::DiffOutcome& Outcome) {
-  if (Outcome.Status == Diff::DiffStatus::Io && Outcome.Message.rfind("internal error: ", 0) == 0) {
+  if (Outcome.Status == Diff::DiffStatus::Internal) {
     return Cli::kExitInternal;
   }
   return static_cast<int>(Outcome.Status);
@@ -570,6 +575,12 @@ int RunDiffCommand(const Parsed& Arguments) {
   Args.StrictSqlite = Arguments.Has("--strict-sqlite");
   Args.AllowSqliteMismatch = Arguments.Has("--allow-sqlite-mismatch");
   Args.Quiet = Arguments.Has("--quiet");
+  Args.CheckpointDir = Arguments.Value("--checkpoint-dir");
+  Args.ResumeDir = Arguments.Value("--resume");
+  if ((Arguments.Has("--checkpoint-dir") && Args.CheckpointDir.empty()) ||
+      (Arguments.Has("--resume") && Args.ResumeDir.empty())) {
+    return UsageError(Arguments, "--checkpoint-dir and --resume need a directory");
+  }
   if (Arguments.Has("--iteration")) {
     const auto Value = ParseInteger(Arguments.Value("--iteration"), 0, INT_MAX);
     if (!Value) {
@@ -608,6 +619,9 @@ int RunDiffCommand(const Parsed& Arguments) {
   if (!Args.ReplayPath.empty() && Arguments.Has("--output")) {
     return UsageError(Arguments, "--replay writes --snapshot-out; -o/--output does not apply");
   }
+  if (!Args.ReplayPath.empty() && (Arguments.Has("--checkpoint-dir") || Arguments.Has("--resume"))) {
+    return UsageError(Arguments, "--checkpoint-dir and --resume do not apply to --replay");
+  }
 
   const Diff::DiffOutcome Outcome = Diff::RunDiff(Args);
   const int ExitCode = Outcome.Status == Diff::DiffStatus::Ok ? Cli::kExitOk : DiffExitCode(Outcome);
@@ -633,6 +647,14 @@ int RunDiffCommand(const Parsed& Arguments) {
   }
   Data.Set("skipped", std::move(Skipped));
   Data.Set("sqlite_version", JsonValue::String(Outcome.SqliteVersion));
+  Data.Set("checkpoint_dir", Outcome.CheckpointDir.empty() ? JsonValue::Null() : JsonValue::String(Outcome.CheckpointDir));
+  Data.Set("resumed_after", Outcome.ResumedAfter.empty() ? JsonValue::Null() : JsonValue::String(Outcome.ResumedAfter));
+  Data.Set("checkpoints_written", JsonValue::UInt(Outcome.CheckpointsWritten));
+  JsonValue Warnings = JsonValue::Array();
+  for (const std::string& Warning : Outcome.Warnings) {
+    Warnings.Push(JsonValue::String(Warning));
+  }
+  Data.Set("warnings", std::move(Warnings));
   Report.Data = std::move(Data);
   if (!Args.ReplayPath.empty()) {
     Report.Report.push_back("snapshot written : " + Outcome.OutputPath);
@@ -642,6 +664,9 @@ int RunDiffCommand(const Parsed& Arguments) {
                             std::to_string(Outcome.Partial) + ", unreliable " + std::to_string(Outcome.Unreliable) +
                             ", multimatch " + std::to_string(Outcome.Multimatch));
     Report.Report.push_back("results written  : " + Outcome.OutputPath);
+    if (!Outcome.ResumedAfter.empty()) {
+      Report.Report.push_back("resumed after    : " + Outcome.ResumedAfter);
+    }
   }
   if (!Outcome.Skipped.empty()) {
     Report.Report.push_back("stages skipped   : " + std::to_string(Outcome.Skipped.size()) + " (not implemented yet)");

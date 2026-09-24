@@ -42,6 +42,15 @@ void WriteFileBytes(const std::string& Utf8Path, std::string_view Bytes);
 // another handle held).
 void ReplaceFileBytes(const std::string& Utf8Path, std::string_view Bytes);
 
+// ReplaceFileBytes for a file that must survive a crash or a power loss (the checkpoint files): the
+// temporary file's bytes are flushed to the disk (FlushFileBuffers / fsync) before the rename, and on
+// POSIX the directory is synced after it. `Fault`, when not null, is called with "<Label>:write" before
+// the temporary file is written and "<Label>:rename" before the rename (a test hook: a throwing hook
+// simulates a failure at that step). Throws IoFailure; the target keeps its old content on failure and
+// the temporary file is removed.
+void ReplaceFileBytesDurable(const std::string& Utf8Path, std::string_view Bytes,
+                             void (*Fault)(std::string_view Step) = nullptr, std::string_view Label = {});
+
 // Renames `From` over `To` (MoveFileExW(MOVEFILE_REPLACE_EXISTING) on Windows, rename(2) elsewhere).
 // A transient sharing violation (an indexer or a virus scanner holding the target for a moment) is
 // retried for about a second. Throws IoFailure; `From` is left in place on failure.

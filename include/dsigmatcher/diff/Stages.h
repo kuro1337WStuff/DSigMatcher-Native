@@ -75,7 +75,11 @@ void StageRunHeuristicsForCategory(DiffSession& S, HeurCategory Category);
 // by replays of "heuristic:<id>". No points, no cleanup.
 void StageRunSingleHeuristic(DiffSession& S, int Id);
 // D:2212-2221 find_partial_matches: the Partial category, then (slow heuristics) search_small_differences.
+// The two halves are separate top-level steps of a checkpointed run (Checkpoint.h); together they are
+// exactly StageFindPartialMatches.
 void StageFindPartialMatches(DiffSession& S);
+void StageFindPartialMatchesCategory(DiffSession& S);          // D:2216 run_heuristics_for_category("Partial")
+void StageFindPartialMatchesSmallDifferences(DiffSession& S);  // D:2218-2221
 
 // ---- L6 stages/SmallDifferences.cpp ---------------------------------------------------------
 // D:2085-2150 search_small_differences("partial").

@@ -167,12 +167,18 @@ void StageRunSingleHeuristic(DiffSession& S, int Id) {
 
 void StageFindPartialMatches(DiffSession& S) {
   // D:2212-2221 find_partial_matches.
-  {
-    // oracle_trace.py WrapStage makes "run_heuristics_for_category:Partial" the main-thread ctx for
-    // the call (find_partial_matches itself is not wrapped), as RunPipeline does for Best.
-    ContextScope Scope(S, "run_heuristics_for_category:Partial");
-    StageRunHeuristicsForCategory(S, HeurCategory::Partial);  // D:2216
-  }
+  StageFindPartialMatchesCategory(S);
+  StageFindPartialMatchesSmallDifferences(S);
+}
+
+void StageFindPartialMatchesCategory(DiffSession& S) {
+  // oracle_trace.py WrapStage makes "run_heuristics_for_category:Partial" the main-thread ctx for the
+  // call (find_partial_matches itself is not wrapped), as RunPipeline does for Best.
+  ContextScope Scope(S, "run_heuristics_for_category:Partial");
+  StageRunHeuristicsForCategory(S, HeurCategory::Partial);  // D:2216
+}
+
+void StageFindPartialMatchesSmallDifferences(DiffSession& S) {
   if (S.Config().SlowHeuristics) {  // D:2218 (no auto-disable outside IDA, plan §1.1)
     // D:2220 log_refresh("Finding with heuristic 'Small names difference'"): progress line only.
     S.Point("before:search_small_differences");
