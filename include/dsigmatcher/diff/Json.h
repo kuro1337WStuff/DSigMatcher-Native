@@ -78,7 +78,8 @@ public:
   bool IsIntegerText() const;        // an integer literal (no '.', 'e' or NaN/Infinity)
   int64_t AsInt64() const;           // integer literal within int64 range
   uint64_t AsUInt64() const;         // non-negative integer literal within uint64 range
-  double AsDouble() const;           // correctly rounded (std::from_chars), NaN/Infinity allowed
+  double AsDouble() const;           // Python float(text): correctly rounded, overflow +-inf, underflow
+                                     // +-0.0; NaN/Infinity allowed (no floating-point from_chars)
   const std::string& AsString() const;
 
   const std::vector<JsonValue>& Items() const;
@@ -107,6 +108,9 @@ struct JsonParseOptions {
 };
 
 JsonValue JsonParse(std::string_view Text, const JsonParseOptions& Options = {});
+
+// True when Text is exactly one JSON number literal (Python's NUMBER_RE, without NaN / Infinity).
+bool IsJsonNumberText(std::string_view Text);
 
 struct JsonWriteOptions {
   bool Pretty = false;               // newline + two-space indent; compact (the default) is exactly

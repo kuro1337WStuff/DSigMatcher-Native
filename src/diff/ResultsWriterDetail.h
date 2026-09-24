@@ -14,6 +14,10 @@ namespace DSig::Diff::Detail {
 // writer suite cross-checks the two.
 std::string FormatRatio7Exact(double Value);
 
+// "%.<Decimals>f" % v the same way, for 1 <= Decimals <= 9 (FormatRatio7Exact is Decimals = 7; the
+// trace's "%1.2f" percent is Decimals = 2). NaN is "nan", the infinities "inf" / "-inf".
+std::string FormatFixedExact(double Value, int Decimals);
+
 // True when FormatRatio7 is backed by std::to_chars on this standard library.
 bool FormatRatio7UsesToChars();
 

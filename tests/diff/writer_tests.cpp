@@ -3,7 +3,10 @@
 //
 // 1. Formatting: FormatLine05, FormatAddr08x (Python int() of the address text, then "%08x"),
 //    FormatRatio7 ("%.7f", ties to even) against the 03a tie table and Python-generated strings, and
-//    cross-checked against the exact big-integer formatter and RatioEngine::Round7 on 10^6 doubles.
+//    cross-checked against the exact big-integer formatter and RatioEngine::Round7 on 10^6 doubles;
+//    FormatFixedExact(v, 2), the trace's "%1.2f" percent (Trace.cpp FormatPercent2, which uses no
+//    floating-point std::to_chars so it builds with older Apple libc++), against Python strings and
+//    against std::to_chars where the standard library has it.
 // 2. The writer on hand-made choosers: DDL text, TEXT storage, `insert or ignore` drops with `line`
 //    gaps, None choosers, NULL names, the empty-result path, the config row, output replacement,
 //    formatting errors that leave an old output untouched, non-ASCII output paths.
@@ -17,6 +20,7 @@
 #include <sqlite3.h>
 
 #include <algorithm>
+#include <charconv>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -42,6 +46,7 @@
 #include "dsigmatcher/diff/Ratio.h"
 #include "dsigmatcher/diff/ResultsWriter.h"
 #include "dsigmatcher/diff/Snapshot.h"
+#include "dsigmatcher/diff/Trace.h"
 
 namespace {
 
@@ -270,6 +275,67 @@ void TestFormatRatio7CrossCheck() {
   CHECK_NUM_EQ(Random, 1000000);
   CHECK_NUM_EQ(Out.TextMismatch, 0);
   CHECK_NUM_EQ(Out.RoundMismatch, 0);
+}
+
+// "%1.2f" % v (Python 3.13) for the trace's percent, and the exact formatter at other precisions.
+void TestFormatFixed2() {
+  Test::Suite("FormatFixedExact(v, 2) = Python \"%1.2f\" (the trace percent, no floating-point to_chars)");
+  const std::vector<std::pair<double, const char*>> Python = {
+      {0.125, "0.12"},    {0.375, "0.38"},   {2.675, "2.67"},   {0.005, "0.01"},     {1.005, "1.00"},
+      {0.015, "0.01"},    {0.0025, "0.00"},  {99.995, "100.00"}, {45.724, "45.72"},   {100.0, "100.00"},
+      {-0.0, "-0.00"},    {-0.004, "-0.00"}, {-1.125, "-1.12"}, {66.66666666666667, "66.67"},
+      {1e22, "10000000000000000000000.00"},  {5e-324, "0.00"},  {0.995, "0.99"},     {0.9950000000000001, "1.00"},
+  };
+  for (const auto& [Value, Text] : Python) {
+    CHECK_TEXT_EQ(Detail::FormatFixedExact(Value, 2), Text);
+    CHECK_TEXT_EQ(FormatPercent2(Value), Text);
+  }
+  CHECK_TEXT_EQ(Detail::FormatFixedExact(0.00000005, 7), "0.0000000");  // a tie below, to even
+  CHECK_TEXT_EQ(Detail::FormatFixedExact(1.5, 1), "1.5");
+  CHECK_TEXT_EQ(Detail::FormatFixedExact(0.25, 1), "0.2");               // an exact tie, to even
+  CHECK_TEXT_EQ(Detail::FormatFixedExact(123.456, 9), "123.456000000");
+#if defined(__cpp_lib_to_chars) && __cpp_lib_to_chars >= 201611L
+  // Where the standard library has floating-point to_chars, it must agree everywhere.
+  size_t Count = 0;
+  size_t Mismatch = 0;
+  std::string First;
+  const auto One = [&](double Value) {
+    char Buffer[400];
+    const std::to_chars_result Done = std::to_chars(Buffer, Buffer + sizeof(Buffer), Value, std::chars_format::fixed, 2);
+    const std::string Want(Buffer, Done.ptr);
+    const std::string Got = Detail::FormatFixedExact(Value, 2);
+    ++Count;
+    if (Got != Want) {
+      ++Mismatch;
+      if (First.empty()) {
+        First = RatioBitsHex(Value) + ": to_chars " + Want + " exact " + Got;
+      }
+    }
+  };
+  std::mt19937_64 Rng(0x50321u);
+  std::uniform_real_distribution<double> Percent(0.0, 100.0);
+  for (int I = 0; I < 200000; ++I) {
+    One(Percent(Rng));
+  }
+  for (int I = 0; I < 100000; ++I) {
+    const uint64_t Bits = Rng();
+    const double Value = FromBits(Bits);
+    One(std::isfinite(Value) ? Value : FromBits(Bits & ~(uint64_t{1} << 62)));
+  }
+  for (int K = 1; K < 800 * 8; K += 2) {
+    One(K / 8.0);  // every 2-decimal tie in [0, 800]: the odd multiples of 1/8
+  }
+  for (int L = 1; L <= 1500; ++L) {
+    for (int M = 0; M <= L; ++M) {
+      One(static_cast<double>(M * 100) / L);  // show_summary's (total * 100) / total_functions1
+    }
+  }
+  Test::Note(std::to_string(Count) + " values against std::to_chars; mismatches " + std::to_string(Mismatch) +
+             (First.empty() ? "" : "; first: " + First));
+  CHECK_NUM_EQ(Mismatch, 0);
+#else
+  Test::Note("no floating-point std::to_chars in this standard library: checked against Python strings only");
+#endif
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -779,6 +845,7 @@ int main() {
   TestFormatAddr08x();
   TestFormatRatio7();
   TestFormatRatio7CrossCheck();
+  TestFormatFixed2();
   const std::string Dir = Test::ScratchDir("diff_writer");
   try {
     TestWriterRows(Dir);

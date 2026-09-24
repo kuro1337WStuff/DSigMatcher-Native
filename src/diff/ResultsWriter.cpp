@@ -16,6 +16,7 @@
 #include <ctime>
 #include <filesystem>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <system_error>
 #include <utility>
@@ -617,7 +618,12 @@ namespace Detail {
 
 void SetWriterFaultHook(WriterFaultHook Hook) { g_WriterFaultHook = Hook; }
 
-std::string FormatRatio7Exact(double Value) {
+std::string FormatRatio7Exact(double Value) { return FormatFixedExact(Value, 7); }
+
+std::string FormatFixedExact(double Value, int Decimals) {
+  if (Decimals < 1 || Decimals > 9) {
+    throw std::invalid_argument("FormatFixedExact: decimals must be 1..9");
+  }
   if (std::isnan(Value)) {
     return "nan";
   }
@@ -635,8 +641,13 @@ std::string FormatRatio7Exact(double Value) {
     Mantissa |= uint64_t{1} << 52;
     Exp2 = static_cast<int>(Biased) - 1075;
   }
+  uint32_t Scale = 1;
+  for (int Index = 0; Index < Decimals; ++Index) {
+    Scale *= 10u;
+  }
+  const size_t Places = static_cast<size_t>(Decimals);
   BigNat N = BigNat::FromU64(Mantissa);
-  N.MulAdd(10000000u, 0u);  // value * 10^7 = N * 2^Exp2
+  N.MulAdd(Scale, 0u);  // value * 10^Decimals = N * 2^Exp2
   if (Exp2 >= 0) {
     N.ShiftLeft(static_cast<unsigned>(Exp2));
   } else {
@@ -650,10 +661,10 @@ std::string FormatRatio7Exact(double Value) {
     }
   }
   std::string Digits = N.ToDecimal();
-  if (Digits.size() < 8) {
-    Digits.insert(0, 8 - Digits.size(), '0');
+  if (Digits.size() < Places + 1) {
+    Digits.insert(0, Places + 1 - Digits.size(), '0');
   }
-  Digits.insert(Digits.size() - 7, 1, '.');
+  Digits.insert(Digits.size() - Places, 1, '.');
   return Negative ? "-" + Digits : Digits;  // Python keeps the sign of -0.0 and of negatives that round to 0
 }
 

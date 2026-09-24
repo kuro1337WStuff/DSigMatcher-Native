@@ -12,12 +12,12 @@
 
 #include "dsigmatcher/diff/Trace.h"
 
-#include <charconv>
 #include <cstdio>
 #include <fstream>
 #include <unordered_set>
 
 #include "FileIo.h"
+#include "ResultsWriterDetail.h"
 #include "dsigmatcher/diff/Errors.h"
 #include "dsigmatcher/diff/Json.h"
 #include "dsigmatcher/diff/Pipeline.h"
@@ -263,10 +263,10 @@ void TraceRow(DiffSession& S, const HeuristicRow& Row, RowDecision Decision, std
 }
 
 std::string FormatPercent2(double Value) {
-  // Python "%1.2f" formats the exact double with round-half-even, as std::to_chars fixed does.
-  char Buffer[512];
-  const auto Result = std::to_chars(Buffer, Buffer + sizeof(Buffer), Value, std::chars_format::fixed, 2);
-  return std::string(Buffer, Result.ptr);
+  // Python "%1.2f" formats the exact double with round-half-even. The exact big-integer formatter needs
+  // no floating-point std::to_chars (older Apple libc++ lacks it); diff_writer checks it against
+  // std::to_chars where the standard library has one.
+  return Detail::FormatFixedExact(Value, 2);
 }
 
 void LogShowSummary(DiffSession& S) {
