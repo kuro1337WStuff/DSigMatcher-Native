@@ -257,15 +257,19 @@ dsigmatcher diff    <db1.sqlite> <db2.sqlite> [-o <out.diaphora>] [options]
 dsigmatcher port    <reference.sqlite> <target.sqlite> -o <out.sqlite> [--results <x.diaphora>] [options]
 dsigmatcher update  <labelled.sqlite> <new binary> -o <new-labelled.sqlite> [options]
 dsigmatcher info    <database.sqlite> [--json]
-dsigmatcher version            (also --version, -V)
+dsigmatcher version [--json]   (also --version, -V)
 ```
 
 `dsigmatcher --help` lists the commands and the exit codes. `dsigmatcher <command> --help` lists one
 command's options, and `dsigmatcher <command> --help-all` (or `dsigmatcher --help-all` for every
 command) also lists the developer options: tracing, state snapshots and single-stage replay, used by
 the parity tools. `extract`, `ingest`, `diff`, `port`, `update` and `info` accept `--json`, which
-prints one JSON object with the outcome on stdout instead of the text summary. Paths may contain any
-Unicode character, and on Windows they may be UNC paths (`\\server\share\...`).
+prints one JSON object with the outcome on stdout instead of the text summary; so does
+`version --json`. Paths may contain any Unicode character, and on Windows they may be UNC paths
+(`\\server\share\...`). On Windows IDA's Python cannot start from a work directory whose path is
+not ASCII, so `extract`, `ingest` and `update` then use the directory's 8.3 short form, or, where the
+volume has no short names, a private directory under `%ProgramData%\dsigmatcher\tmp` (see
+`--temp-dir`).
 
 ### `diff`
 
@@ -294,16 +298,16 @@ modified. With `--results`, the rows of that file are applied (from `dsigmatcher
 Diaphora itself). Without it, `port` first runs the same diff as `dsigmatcher diff` and keeps its
 results file beside the output as `<output stem>.diaphora`; the `diff` options
 `--ignore-small-functions`, `--strict-sqlite`, `--allow-sqlite-mismatch` and `--quiet` then apply
-to that diff.
+to that diff. Combined with `--results`, these options and `--no-keep-results` are refused (exit 2).
 
 | Option | Meaning |
 |---|---|
 | `-o, --output <path>` | Required. The labelled copy of the target. |
-| `--results <x.diaphora>` | The results file to apply. Its rows must belong to these two exports, or nothing is written (exit 4). |
+| `--results <x.diaphora>` | The results file to apply. Its rows must belong to these two exports, or nothing is written (exit 4). A results file with no rows is accepted and records a hop with no names; when its `config` names other exports, `port` prints a warning. |
 | `--include-multimatch` | Also apply multimatch rows. |
 | `--include-unreliable` | Also apply unreliable rows. |
 | `--min-ratio <r>` | Skip names whose cumulative confidence would fall below `r` (0.0 to 1.0). |
-| `--max-hops <n>` | Skip names that have already travelled through more than `n` ports. |
+| `--max-hops <n>` | Skip names whose hop count after this port would exceed `n`. A name the reference did not inherit arrives with hop count 1, and every further port adds one. So `1` ports only names the reference did not inherit, and `0` ports no names at all. |
 | `--overwrite-existing` | Replace real names that the target already has (alias `--overwrite`). |
 | `--overwrite-stripped` | With `--overwrite-existing`: let rows from Diaphora's "stripped binary" shortcut replace real names too. |
 | `--store-full-paths` | Record absolute input paths in the provenance tables instead of file names. |
@@ -316,7 +320,8 @@ The whole carry-forward step in one command: the new binary is exported (as `ing
 against the labelled export, and the names are ported into `-o`. The intermediate export, its
 sidecar and the results file are kept beside the output (`<output stem>.ingest.sqlite`,
 `<output stem>.ingest.export.json`, `<output stem>.diaphora`). It takes `ingest`'s `--pdb` /
-`--no-pdb` and tool options, the `port` options, `diff`'s `--ignore-small-functions`,
+`--no-pdb` and tool options, the `port` options except `--results` and `--no-keep-results`,
+`diff`'s `--ignore-small-functions`,
 `--strict-sqlite`, `--allow-sqlite-mismatch` and `--quiet`, and `--json`. Every argument and path
 is checked before the export starts; after that, the first step that fails stops the command with
 that step's exit code, and the files of the steps that finished stay beside the output (see
@@ -340,7 +345,7 @@ Both write the export and a JSON sidecar (`<out stem>.export.json`) describing h
 | `--ida-dir <dir>` | The IDA 9.x installation. |
 | `--diaphora-dir <dir>` | The Diaphora checkout. |
 | `--export-script <file>` | `dsig_export.py`, if it is not in its usual place. |
-| `--temp-dir <dir>` | Where the work directory is created (default: the system temp directory). |
+| `--temp-dir <dir>` | Where the work directory is created (default: the system temp directory). On Windows a directory whose path is not ASCII is replaced by its 8.3 short form, or by a private directory under `%ProgramData%\dsigmatcher\tmp`, because IDA's Python cannot start from it. |
 | `--keep-temp` | Keep the work directory (copies, logs) after the run. |
 | `--timeout <seconds>` | Stop the export after this long (exit 6). |
 | `--allow-no-decompiler` | Export even when the Hex-Rays decompiler is not available, instead of refusing with exit 4. The export then has no pseudo-code, so Diaphora's pseudo-code heuristics find nothing in it, and a diff against it matches fewer functions than a diff against an export made with the decompiler. |
@@ -355,7 +360,9 @@ are. `--json` prints the same as one JSON object.
 
 ### `version`
 
-Prints `dsigmatcher <version>` on the first line and the linked SQLite version on the second.
+Prints `dsigmatcher <version>` on the first line and the linked SQLite version on the second. With
+`--json` it prints one JSON object instead (`schema`, `tool_version`, `command`, `exit_code`,
+`message`, `sqlite_version`); any other option is refused (exit 2).
 
 ---
 
@@ -366,7 +373,7 @@ Prints `dsigmatcher <version>` on the first line and the linked SQLite version o
 | 0 | Success. |
 | 2 | Usage error: bad arguments, or an output path that would overwrite an input. |
 | 3 | Diaphora itself would raise an error on these inputs; nothing is written. |
-| 4 | Unsupported input, configuration or tool: a refused non-default option; an SQLite database that is not a Diaphora export (either input of `diff`; when it is the second one, `db2`, Diaphora first writes an empty results file, and so does `diff`) or not a results file; results that belong to other exports; or a missing tool (Python, IDA, Hex-Rays, Diaphora, `dsig_export.py`). |
+| 4 | Unsupported input, configuration or tool: a refused non-default option; an SQLite database that is not a Diaphora export (either input of `diff`; when it is the second one, `db2`, Diaphora first writes an empty results file, and so does `diff`) or not a results file; results that belong to other exports; or a tool that is missing or cannot be started (Python, IDA, Hex-Rays, Diaphora, `dsig_export.py`). |
 | 5 | SQLite is not 3.51.1 and `--strict-sqlite` was given. |
 | 6 | I/O or environment failure: a missing or unreadable input, a file that is not SQLite at all, an unwritable output, a failed or timed-out export. |
 | 70 | Internal error (a bug; please report it with the command line). |
@@ -422,16 +429,17 @@ ratios, categories and descriptions. This is "L2" parity. Only the `config` row 
 
 It was measured on every finished pair of the reference set: real Diaphora exports of real
 binaries, each diffed by unmodified Diaphora and by `dsigmatcher`, then compared field by field
-with `tools/parity/run_parity.py`.
+with `tools/parity/run_parity.py`. The native times are from parity report 20260923-180032
+(Windows x64); they vary from run to run.
 
 | Pair | Diaphora mode | Rows | Parity | Native time |
 |---|---|---:|---|---:|
-| ls-old → ls (Diaphora's test samples) | normal | 278 | identical | 2.2 s |
-| ls → ls-old | normal | 286 | identical | 1.6 s |
-| userenv 9168 (PDB) → 9278 (no PDB) | normal | 2180 | identical | 63 s (Diaphora: hours) |
-| userenv 9168 (PDB) → 9278 (PDB) | patch diff | 643 | identical | 0.13 s |
-| win32u 9168 (hand-labelled `.i64`) → 9444 (no PDB) | stripped binary | 1510 | identical | 0.15 s |
-| cryptbase 1 (PDB) → 8875 (no PDB) | normal | 29 | identical | 0.2 s |
+| ls-old → ls (Diaphora's test samples) | normal | 278 | identical | 1.45 s |
+| ls → ls-old | normal | 286 | identical | 1.12 s |
+| userenv 9168 (PDB) → 9278 (no PDB) | normal | 2180 | identical | 39.6 s (Diaphora: hours) |
+| userenv 9168 (PDB) → 9278 (PDB) | patch diff | 643 | identical | 0.12 s |
+| win32u 9168 (hand-labelled `.i64`) → 9444 (no PDB) | stripped binary | 1510 | identical | 0.11 s |
+| cryptbase 1 (PDB) → 8875 (no PDB) | normal | 29 | identical | 0.15 s |
 | cryptbase 8875 (PDB) → 9444 (no PDB) | stripped binary | 43 | identical | 0.03 s |
 
 Conditions:
@@ -481,7 +489,8 @@ count as placeholders, so the real name from the reference replaces them.
 - **`extract`, `ingest` and `update` need IDA.** There is no native exporter yet.
 - **"Stripped binary" mode inherits Diaphora's shortcut.** When Diaphora decides two exports are
   the same binary with symbols stripped, it pairs functions by address. On a build where functions
-  moved, many of those best rows are wrong (1172 of 1509 on the win32u pair). `port` never lets
+  moved, many of those rows are wrong (1172 of the 1329 "Same binary with symbols stripped" rows
+  on the win32u pair). `port` never lets
   those rows replace a real name unless asked twice (`--overwrite-existing --overwrite-stripped`),
   but review stripped-mode results before porting them into an unnamed target.
 - **Multimatch rows are opt-in** because most of them were wrong on the reference pairs (73
