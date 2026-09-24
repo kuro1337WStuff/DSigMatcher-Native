@@ -146,19 +146,48 @@ def ReportDir(Corpus, Kind, Out=None):
     return os.path.abspath(Directory)
 
 
-def CleanEnv():
-    """build_oracle.CleanEnv(): the caller's environment minus DIAPHORA_*, with PYTHONDONTWRITEBYTECODE=1."""
-    Env = {Key: Value for Key, Value in os.environ.items() if not Key.upper().startswith("DIAPHORA_")}
-    Env["PYTHONDONTWRITEBYTECODE"] = "1"
+def FindProgramOnPath(Name):
+    """The absolute path of program Name found in an ABSOLUTE PATH entry, or None.
+
+    Never the current directory: on Windows, CreateProcess (and so subprocess with a bare "git") and
+    shutil.which before Python 3.12 look there first, and the current directory may hold a planted
+    git.exe (audit F16). Empty and relative PATH entries ("", ".", "bin") are skipped for the same
+    reason. tools/export/dsig_export.py FindProgramOnPath is the same function."""
+    Names = [Name + ".exe"] if sys.platform == "win32" and not os.path.splitext(Name)[1] else [Name]
+    for Entry in os.environ.get("PATH", "").split(os.pathsep):
+        Entry = Entry.strip().strip('"')
+        if not Entry or not os.path.isabs(Entry):
+            continue
+        for Candidate in (os.path.join(Entry, Each) for Each in Names):
+            if os.path.isfile(Candidate) and (sys.platform == "win32" or os.access(Candidate, os.X_OK)):
+                return os.path.abspath(Candidate)
+    return None
+
+
+def ChildEnv(Base=None):
+    """Base (default: this process's environment) with NoDefaultCurrentDirectoryInExePath=1, so no child
+    resolves a program started by a bare name in its current directory (audit F16)."""
+    Env = dict(os.environ if Base is None else Base)
+    Env["NoDefaultCurrentDirectoryInExePath"] = "1"
     return Env
 
 
+def CleanEnv():
+    """build_oracle.CleanEnv(): the caller's environment minus DIAPHORA_*, with PYTHONDONTWRITEBYTECODE=1
+    and NoDefaultCurrentDirectoryInExePath=1."""
+    Env = {Key: Value for Key, Value in os.environ.items() if not Key.upper().startswith("DIAPHORA_")}
+    Env["PYTHONDONTWRITEBYTECODE"] = "1"
+    return ChildEnv(Env)
+
+
 def RunLogged(Command, LogPath, Cwd=None, Env=None):
+    """Runs Command (its program an absolute path) with its output in LogPath. The child environment is
+    Env, or this process's, always with NoDefaultCurrentDirectoryInExePath=1."""
     Started = time.monotonic()
     with open(LogPath, "w", encoding="utf-8", errors="replace") as Handle:
         Handle.write("$ %s\n" % subprocess.list2cmdline(Command))
         Handle.flush()
-        Code = subprocess.call(Command, cwd=Cwd, env=Env, stdout=Handle, stderr=subprocess.STDOUT)
+        Code = subprocess.call(Command, cwd=Cwd, env=ChildEnv(Env), stdout=Handle, stderr=subprocess.STDOUT)
     return Code, round(time.monotonic() - Started, 3)
 
 
@@ -235,11 +264,19 @@ def WriteText(Path, Text):
 
 
 def GitState(Directory):
-    """`git describe` and `git status --porcelain` of a checkout (the Diaphora reference must stay clean)."""
+    """`git describe` and `git status --porcelain` of a checkout (the Diaphora reference must stay clean).
+
+    git is resolved from absolute PATH entries only (FindProgramOnPath), never the current directory;
+    without one both values are None. GIT_OPTIONAL_LOCKS=0: the checkout's index is never rewritten."""
+    GitPath = FindProgramOnPath("git")
+
     def Git(*Arguments):
+        if GitPath is None:
+            return None
         try:
-            return subprocess.run(["git", "-C", Directory] + list(Arguments), capture_output=True, text=True,
-                                  timeout=60).stdout.strip()
+            return subprocess.run([GitPath, "-C", Directory] + list(Arguments), capture_output=True, text=True,
+                                  env=ChildEnv(dict(os.environ, GIT_OPTIONAL_LOCKS="0")),
+                                  stdin=subprocess.DEVNULL, timeout=60).stdout.strip()
         except (OSError, subprocess.SubprocessError):
             return None
     return {"describe": Git("describe", "--tags", "--always"), "status": Git("status", "--porcelain")}

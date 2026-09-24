@@ -78,11 +78,13 @@ void PrintGlobalUsage(std::FILE* Out) {
   std::fprintf(Out, "\n");
   std::fprintf(Out, "exit codes (every command):\n");
   std::fprintf(Out, "   0  ok\n");
-  std::fprintf(Out, "   2  usage error, or refused (an output that would overwrite an input)\n");
+  std::fprintf(Out, "   2  usage error, or refused (a path that would overwrite an input; nothing is changed)\n");
   std::fprintf(Out, "   3  Diaphora itself would raise on this input (no output written)\n");
-  std::fprintf(Out, "   4  unsupported input or configuration (e.g. not a Diaphora export), or a tool is missing\n");
+  std::fprintf(Out, "   4  unsupported input or configuration, or a tool is missing; for diff: db2 is not a\n");
+  std::fprintf(Out, "      Diaphora export (Diaphora's empty results are still written, as Diaphora would)\n");
   std::fprintf(Out, "   5  SQLite is not the oracle's 3.51.1 and --strict-sqlite was given\n");
-  std::fprintf(Out, "   6  I/O or environment failure (missing, unreadable or unwritable file, not SQLite)\n");
+  std::fprintf(Out, "   6  I/O or environment failure (missing, unreadable or unwritable file, not SQLite,\n");
+  std::fprintf(Out, "      a tool that cannot be started or fails, a timeout)\n");
   std::fprintf(Out, "  70  internal error (a bug, or out of memory)\n");
   std::fprintf(Out, "\n");
   std::fprintf(Out, "paths: any UTF-8 / Unicode path, including UNC paths (\\\\server\\share\\...).\n");
@@ -119,17 +121,25 @@ void PrintPortOptions(std::FILE* Out, bool InUpdate) {
   std::fprintf(Out, "      --json                       print one JSON object with the outcome on stdout\n");
 }
 
-void PrintToolOptions(std::FILE* Out) {
+void PrintToolOptions(std::FILE* Out, bool InUpdate) {
   std::fprintf(Out, "      --python <exe>               Python with idalib (else DSIG_PYTHON, else PATH)\n");
   std::fprintf(Out, "      --ida-dir <dir>              IDA installation (else DSIG_IDADIR)\n");
   std::fprintf(Out, "      --diaphora-dir <dir>         Diaphora checkout (else DSIG_DIAPHORA_DIR)\n");
   std::fprintf(Out, "      --temp-dir <dir>             where the working copy is analysed (else the system temp)\n");
   std::fprintf(Out, "      --keep-temp                  keep that working directory\n");
-  std::fprintf(Out, "      --timeout <seconds>          stop the export after this long (0..604800; 0: none)\n");
-  std::fprintf(Out, "      --export-script <path>       dsig_export.py (else DSIG_EXPORT_SCRIPT, else found beside\n");
-  std::fprintf(Out, "                                   the executable, in <exe dir>/share/dsigmatcher/tools/export,\n");
-  std::fprintf(Out, "                                   in <exe dir>/../share/dsigmatcher/tools/export, or in\n");
-  std::fprintf(Out, "                                   tools/export of the executable's directory or an ancestor)\n");
+  std::fprintf(Out, "      --timeout <seconds>          stop the export after this long (0..%d, 30 days; 0: none)\n",
+               Cli::kMaxExportTimeoutSeconds);
+  std::fprintf(Out, "      --allow-no-decompiler        export even when the Hex-Rays decompiler is unavailable\n");
+  std::fprintf(Out, "                                   (no pseudo-code; never diff such an export against one\n");
+  std::fprintf(Out, "                                   made with Hex-Rays)\n");
+  std::fprintf(Out, "      --export-script <path>       dsig_export.py; else DSIG_EXPORT_SCRIPT, else beside the\n");
+  std::fprintf(Out, "                                   executable, else <prefix>/share/dsigmatcher/tools/export\n");
+  std::fprintf(Out, "                                   (<prefix>: the executable's directory, then its parent)\n");
+  if (!InUpdate) {
+    std::fprintf(Out, "      --quiet                      do not stream the export tool's progress to stderr; on\n");
+    std::fprintf(Out, "                                   failure only the final error line is printed\n");
+    std::fprintf(Out, "      --json                       print one JSON object with the outcome on stdout\n");
+  }
 }
 
 void PrintCommandUsage(std::FILE* Out, const std::string& Command, bool All) {
@@ -138,7 +148,10 @@ void PrintCommandUsage(std::FILE* Out, const std::string& Command, bool All) {
     std::fprintf(Out, "Runs Diaphora's diff natively (the parity engine) and writes Diaphora's .diaphora results\n");
     std::fprintf(Out, "file. Without -o the name is <stem(db1)>_vs_<stem(db2)>.diaphora, as `python diaphora.py\n");
     std::fprintf(Out, "db1 db2` would choose.\n\n");
-    std::fprintf(Out, "  -o, --output <path>              results file (replaced; must not be an input)\n");
+    std::fprintf(Out, "  -o, --output <path>              results file, replaced only on success; an existing file\n");
+    std::fprintf(Out, "                                   is left as it was on a non-zero exit (except exit 4 for a\n");
+    std::fprintf(Out, "                                   db2 that is not a Diaphora export, which writes Diaphora's\n");
+    std::fprintf(Out, "                                   empty results); must not be an input\n");
     PrintDiaphoraDiffOptions(Out);
     std::fprintf(Out, "      --checkpoint-dir <dir>       save the engine state after every stage (created if\n");
     std::fprintf(Out, "                                   missing; removed again once the results are written)\n");
@@ -181,12 +194,12 @@ void PrintCommandUsage(std::FILE* Out, const std::string& Command, bool All) {
     std::fprintf(Out, "the labels. Kept beside the output (<stem> = the output without its extension):\n");
     std::fprintf(Out, "<stem>.ingest.sqlite (the new binary's export), <stem>.ingest.export.json (its sidecar)\n");
     std::fprintf(Out, "and <stem>.diaphora (the diff's results). The first failing step stops the command with\n");
-    std::fprintf(Out, "that step's exit code.\n\n");
+    std::fprintf(Out, "that step's exit code. --quiet also stops the ingest's progress stream on stderr.\n\n");
     std::fprintf(Out, "  -o, --output <path>              required; the labelled export of the new binary (replaced)\n");
     std::fprintf(Out, "      --pdb <file>                 load this PDB (default: no PDB, no symbol server)\n");
     std::fprintf(Out, "      --no-pdb                     explicitly no PDB\n");
     std::fprintf(Out, "  ingest tool options:\n");
-    PrintToolOptions(Out);
+    PrintToolOptions(Out, true);
     std::fprintf(Out, "  port options:\n");
     PrintPortOptions(Out, true);
     return;
@@ -206,7 +219,7 @@ void PrintCommandUsage(std::FILE* Out, const std::string& Command, bool All) {
       std::fprintf(Out, "      --pdb <file>                 load this PDB\n");
       std::fprintf(Out, "      --no-pdb                     explicitly no PDB (the default)\n");
     }
-    PrintToolOptions(Out);
+    PrintToolOptions(Out, false);
     return;
   }
   if (Command == "info") {
@@ -261,7 +274,7 @@ const std::vector<OptionSpec>& OptionsFor(const std::string& Command) {
       {"--output", "-o", true},    {"--pdb", nullptr, true},      {"--no-pdb", nullptr, false},
       {"--python", nullptr, true}, {"--ida-dir", nullptr, true},  {"--diaphora-dir", nullptr, true},
       {"--temp-dir", nullptr, true}, {"--keep-temp", nullptr, false}, {"--timeout", nullptr, true},
-      {"--export-script", nullptr, true},
+      {"--export-script", nullptr, true}, {"--allow-no-decompiler", nullptr, false},
       {"--include-multimatch", nullptr, false}, {"--include-unreliable", nullptr, false},
       {"--overwrite-existing", nullptr, false}, {"--overwrite", nullptr, false},
       {"--overwrite-stripped", nullptr, false}, {"--min-ratio", nullptr, true},  {"--max-hops", nullptr, true},
@@ -271,12 +284,14 @@ const std::vector<OptionSpec>& OptionsFor(const std::string& Command) {
   static const std::vector<OptionSpec> Extract = {
       {"--output", "-o", true},    {"--python", nullptr, true},   {"--ida-dir", nullptr, true},
       {"--diaphora-dir", nullptr, true}, {"--temp-dir", nullptr, true}, {"--keep-temp", nullptr, false},
-      {"--timeout", nullptr, true}, {"--export-script", nullptr, true}};
+      {"--timeout", nullptr, true}, {"--export-script", nullptr, true}, {"--allow-no-decompiler", nullptr, false},
+      {"--quiet", nullptr, false},  {"--json", nullptr, false}};
   static const std::vector<OptionSpec> Ingest = {
       {"--output", "-o", true},    {"--python", nullptr, true},   {"--ida-dir", nullptr, true},
       {"--diaphora-dir", nullptr, true}, {"--temp-dir", nullptr, true}, {"--keep-temp", nullptr, false},
       {"--timeout", nullptr, true}, {"--pdb", nullptr, true},     {"--no-pdb", nullptr, false},
-      {"--export-script", nullptr, true}};
+      {"--export-script", nullptr, true}, {"--allow-no-decompiler", nullptr, false},
+      {"--quiet", nullptr, false},  {"--json", nullptr, false}};
   static const std::vector<OptionSpec> Info = {{"--json", nullptr, false}};
   static const std::vector<OptionSpec> None = {};
   if (Command == "diff") {
@@ -668,9 +683,6 @@ int RunDiffCommand(const Parsed& Arguments) {
       Report.Report.push_back("resumed after    : " + Outcome.ResumedAfter);
     }
   }
-  if (!Outcome.Skipped.empty()) {
-    Report.Report.push_back("stages skipped   : " + std::to_string(Outcome.Skipped.size()) + " (not implemented yet)");
-  }
   return ReportCommand(Arguments, Report);
 }
 
@@ -738,9 +750,12 @@ bool ToolOptions(const Parsed& Arguments, Cli::ExportToolOptions& Tools) {
   Tools.TempDir = Arguments.Value("--temp-dir");
   Tools.KeepTemp = Arguments.Has("--keep-temp");
   Tools.ExportScript = Arguments.Value("--export-script");
+  Tools.AllowNoDecompiler = Arguments.Has("--allow-no-decompiler");
+  Tools.Quiet = Arguments.Has("--quiet");
   if (Arguments.Has("--timeout")) {
-    // At most a week: the bridge converts it to milliseconds and adds a backstop.
-    const auto Value = ParseInteger(Arguments.Value("--timeout"), 0, 604800);
+    // Parsed as a 64-bit integer and range-checked BEFORE it is narrowed to int, on every platform, so a
+    // value such as 4294967301 is refused instead of wrapping to 5 (audit F42).
+    const auto Value = ParseInteger(Arguments.Value("--timeout"), 0, Cli::kMaxExportTimeoutSeconds);
     if (!Value) {
       return false;
     }
@@ -749,7 +764,10 @@ bool ToolOptions(const Parsed& Arguments, Cli::ExportToolOptions& Tools) {
   return true;
 }
 
-constexpr const char* kTimeoutError = "--timeout must be an integer number of seconds from 0 to 604800";
+std::string TimeoutError() {
+  return "--timeout must be an integer number of seconds from 0 to " + std::to_string(Cli::kMaxExportTimeoutSeconds) +
+         " (30 days)";
+}
 
 int RunUpdateCommand(const Parsed& Arguments) {
   Cli::UpdateArgs Args;
@@ -758,7 +776,7 @@ int RunUpdateCommand(const Parsed& Arguments) {
     return UsageError(Arguments, Error);
   }
   if (!ToolOptions(Arguments, Args.Tools)) {
-    return UsageError(Arguments, kTimeoutError);
+    return UsageError(Arguments, TimeoutError());
   }
   if (Arguments.Has("--pdb") && Arguments.Has("--no-pdb")) {
     return UsageError(Arguments, "--pdb and --no-pdb are exclusive");
@@ -776,7 +794,7 @@ int RunExtractCommand(const Parsed& Arguments) {
   Args.Input = Arguments.Positional[0];
   Args.Output = Arguments.Value("--output");
   if (!ToolOptions(Arguments, Args.Tools)) {
-    return UsageError(Arguments, kTimeoutError);
+    return UsageError(Arguments, TimeoutError());
   }
   return ReportCommand(Arguments, Cli::RunExtract(Args));
 }
@@ -791,7 +809,7 @@ int RunIngestCommand(const Parsed& Arguments) {
   Args.Pdb = Arguments.Value("--pdb");
   Args.NoPdb = Arguments.Has("--no-pdb");
   if (!ToolOptions(Arguments, Args.Tools)) {
-    return UsageError(Arguments, kTimeoutError);
+    return UsageError(Arguments, TimeoutError());
   }
   return ReportCommand(Arguments, Cli::RunIngest(Args));
 }
@@ -1038,6 +1056,9 @@ int RunUtf8(std::vector<std::string> Arguments) {
 #if defined(_WIN32) && defined(_MSC_VER)
 // MSVC and clang-cl: the CRT splits the wide command line with the same rules it uses for argv.
 int wmain(int Argc, wchar_t** Argv) {
+  // Before anything can load a DLL or start a child: no loader, crash or missing-file dialog, here or in
+  // Python and IDA, which inherit the mode.
+  DSig::Cli::DisableErrorDialogs();
   try {
     std::vector<std::string> Arguments;
     Arguments.reserve(static_cast<size_t>(Argc));
@@ -1052,6 +1073,7 @@ int wmain(int Argc, wchar_t** Argv) {
 }
 #else
 int main(int Argc, char** Argv) {
+  DSig::Cli::DisableErrorDialogs();  // as in wmain; nothing on POSIX
 #ifdef _WIN32
   // Other Windows toolchains (MinGW without -municode): split GetCommandLineW() ourselves.
   int Count = 0;

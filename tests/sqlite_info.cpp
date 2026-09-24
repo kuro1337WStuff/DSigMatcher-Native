@@ -14,6 +14,8 @@
 
 #include <sqlite3.h>
 
+#include "NoErrorDialogs.h"
+
 namespace {
 
 int ChecksRun = 0;
@@ -133,6 +135,7 @@ void CheckOracleBuild(const std::vector<std::string>& Options) {
 }  // namespace
 
 int main() {
+  DSig::Test::DisableErrorDialogs();  // first: no loader, crash or missing-file dialog (Windows)
   const std::vector<std::string> Options = CompileOptions();
 #ifdef DSIG_VENDORED_SQLITE
   const char* Origin = "bundled (DSIG_VENDORED_SQLITE=ON)";

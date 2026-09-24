@@ -22,6 +22,18 @@
 #include "dsigmatcher/Provenance.h"
 #include "dsigmatcher/Sha256.h"
 
+#include "NoErrorDialogs.h"
+
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
 namespace {
 
 using namespace DSig;
@@ -666,6 +678,7 @@ void TestUnicodePort() {
 }
 
 int main() {
+  DSig::Test::DisableErrorDialogs();  // first: no loader, crash or missing-file dialog (Windows)
   TestSha256();
   TestMd5();
   TestBigUIntBasics();

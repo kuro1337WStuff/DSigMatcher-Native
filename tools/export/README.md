@@ -13,8 +13,12 @@ dsigmatcher extract <in.i64|in.idb> -o <out.sqlite> [tool options]
 dsigmatcher ingest  <in.exe|dll|elf> -o <out.sqlite> [--pdb <file> | --no-pdb] [tool options]
 
 tool options: --python <exe> --ida-dir <dir> --diaphora-dir <dir> --export-script <dsig_export.py>
-              --temp-dir <dir> --keep-temp --timeout <seconds>
+              --temp-dir <dir> --keep-temp --timeout <seconds> --allow-no-decompiler
+              --quiet --json
 ```
+
+`dsigmatcher update` takes the same tool options for its ingest step (and passes `--quiet` and
+`--json` through: its JSON object holds the ingest's outcome under `ingest.outcome`).
 
 It can also be run directly:
 
@@ -93,10 +97,10 @@ in the oracle. The resolved values go into the sidecar. The ones that matter mos
   therefore show more functions than the export has: the user's win32u database has 1516 in IDA and
   1510 in the export (1 library function and 5 thunks). The sidecar records both counts.
 - Pseudo-code and microcode come from Hex-Rays. Without Hex-Rays the run is refused (exit 13),
-  because such an export is not comparable with one that has them. `DSIG_EXPORT_ALLOW_NO_DECOMPILER=1`
-  exports anyway and records it; it works through `dsigmatcher extract`/`ingest`, which pass the
-  environment on. `--allow-no-decompiler` does the same, but only when `dsig_export.py` is run
-  directly: it is not a `dsigmatcher` option.
+  because such an export is not comparable with one that has them. `--allow-no-decompiler` exports
+  anyway and records it; `dsigmatcher extract`, `ingest` and `update` forward their own
+  `--allow-no-decompiler` to the script. `DSIG_EXPORT_ALLOW_NO_DECOMPILER=1` in the environment does
+  the same (the launcher passes the environment on).
 - IDA must find at least one function. A file IDA loads but finds no code in (a text file, a data
   blob) is refused with exit 15 (`dsigmatcher` exit 4), "IDA found no functions".
 - Diaphora's own size defaults still apply and are reported as warnings: microcode export is off
@@ -195,7 +199,7 @@ Diaphora is missing (and for the Windows Store `python` placeholder, exit 9009),
 is missing, the process cannot be started, the backstop timeout (`--timeout` + 120 s) kills the
 process tree, or the sidecar does not match the run. Its message always ends with the script's own
 `dsig_export: error: ...` line when there is one. After exit 13 it adds how to export anyway
-(`DSIG_EXPORT_ALLOW_NO_DECOMPILER=1`).
+(`--allow-no-decompiler`, or `DSIG_EXPORT_ALLOW_NO_DECOMPILER=1`).
 
 `--timeout` accepts 0 (none) to 2592000 seconds (30 days) in both the launcher and the script. Longer
 waits cannot be expressed on every platform: a Windows wait is 32-bit milliseconds.
@@ -218,9 +222,18 @@ waits cannot be expressed on every platform: a Windows wait is 32-bit millisecon
   the launcher are forwarded to the group, because the group is no longer the terminal's foreground
   group. If the launcher itself dies, the script notices that it has been re-parented, kills the
   worker and publishes nothing (exit 130).
-- The script's output (IDA's console, Diaphora's log) is streamed to stderr. On success `dsigmatcher`
-  prints a summary to stdout: output, function counts, the unchanged input sha256, the PDB, the tool
-  versions and the sidecar path.
+- The script's output (IDA's console, Diaphora's log) is streamed to stderr; with `--quiet` it is not,
+  and a failure prints only the final `error: ...` line (which still ends with the script's own error
+  line). On success `dsigmatcher` prints a summary to stdout: output, function counts, the unchanged
+  input sha256, the PDB, the tool versions and the sidecar path. With `--json` it prints one JSON
+  object on stdout instead, on success and on failure (`exit_code`, `message`, `input`, `output`,
+  `sidecar`, `input_sha256`, `tool_exit_code`, and on success the counts and tool versions).
+- No Windows dialogs: `dsigmatcher` adds `SEM_FAILCRITICALERRORS`, `SEM_NOGPFAULTERRORBOX` and
+  `SEM_NOOPENFILEERRORBOX` to its error mode before anything else, the script does the same before
+  it starts the IDA worker, and no child is created with `CREATE_DEFAULT_ERROR_MODE`. A broken or
+  foreign `idalib.dll` therefore fails the run (exit 11, `dsigmatcher` exit 4) instead of blocking it
+  behind a modal "Bad Image" dialog, and a crash ends the process instead of waiting on the Windows
+  Error Reporting dialog.
 - Arguments are UTF-8. On Windows the CLI's narrow `argv` is in the ANSI code page; text that is not
   valid UTF-8 is read in that code page, so characters outside it cannot reach the bridge from the
   command line (library callers pass UTF-8 and are not affected).
@@ -230,7 +243,11 @@ waits cannot be expressed on every platform: a Windows wait is 32-bit millisecon
 - `ctest -R cli_export_bridge` (C++, `tests/cli/export_bridge_tests.cpp`) needs neither Python nor
   IDA: the test executable plays the child process (echo, sleep and a fake `dsig_export.py`), which
   covers argument quoting round trips, UTF-8 paths with spaces, output capture, timeouts, discovery,
-  bogus-path errors, the exit-code map and the sidecar checks.
+  bogus-path errors, the exit-code map and the sidecar checks. It also runs the bridge against a
+  deliberately broken `idalib.dll` with the error mode cleared to 0 first and requires a clean exit 4
+  within the timeout (no dialog). `ctest -R cli_commands` checks `--json`, `--quiet`,
+  `--allow-no-decompiler` and `--timeout` through the built executable, again with a stand-in
+  `dsig_export.py`, and repeats the broken-`idalib.dll` run through `dsigmatcher.exe` itself.
 - With `DSIG_EXPORT_TESTS=1`, `DSIG_IDADIR`, `DSIG_DIAPHORA_DIR` (and `DSIG_PYTHON` or a `python` on
   `PATH`) and the corpus (`DSIG_CORPUS_ROOT`), the same suite also runs three real exports and
   requires each to equal the oracle export table for table: `ingest --pdb` of cryptbase 10.0.26100.8875

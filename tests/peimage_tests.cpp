@@ -9,6 +9,8 @@
 
 #include "dsigmatcher/PeImage.h"
 
+#include "NoErrorDialogs.h"
+
 namespace {
 
 using namespace DSig;
@@ -966,6 +968,7 @@ const RealImageExpectation ExpectedNewerWin32u = {
 }
 
 int main() {
+  DSig::Test::DisableErrorDialogs();  // first: no loader, crash or missing-file dialog (Windows)
   std::printf("peimage tests\n");
   std::printf("real image export expectations are taken from the PE export table,\n");
   std::printf("cross-checked against the independent pefile implementation\n\n");

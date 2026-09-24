@@ -9,7 +9,12 @@
 #include <string>
 #include <string_view>
 
+#include "../NoErrorDialogs.h"
+
 namespace DSig::Test {
+
+// Every suite starts with Windows' error dialogs off, before main() (tests/NoErrorDialogs.h).
+[[maybe_unused]] static const bool kErrorDialogsDisabled = DisableErrorDialogs();
 
 inline int ChecksRun = 0;
 inline int ChecksFailed = 0;

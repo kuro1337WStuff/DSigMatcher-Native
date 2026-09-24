@@ -183,6 +183,10 @@ def DefaultSidecar(Output):
     return (Root if Extension else Output) + ".export.json"
 
 
+# Windows creation flags of the IDA worker: none. In particular never CREATE_DEFAULT_ERROR_MODE
+# (0x04000000), which would give the worker the default error mode, with "Bad Image" and crash dialogs.
+WORKER_CREATION_FLAGS = 0
+
 # The only PYTHON* variables the IDA worker gets; every other one is removed by CleanEnv.
 WORKER_PYTHON_ENV = {"PYTHONDONTWRITEBYTECODE": "1", "PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1",
                      "PYTHONUNBUFFERED": "1"}
@@ -525,8 +529,8 @@ def ParseArgs(Argv):
     Common.add_argument("--allow-no-decompiler", action="store_true",
                         default=os.environ.get("DSIG_EXPORT_ALLOW_NO_DECOMPILER") == "1",
                         help="export even without Hex-Rays (no pseudo-code or microcode); such an export "
-                        "must not be diffed against one that has them (through dsigmatcher: set "
-                        "DSIG_EXPORT_ALLOW_NO_DECOMPILER=1)")
+                        "must not be diffed against one that has them (dsigmatcher extract/ingest/update "
+                        "forward their own --allow-no-decompiler; default: DSIG_EXPORT_ALLOW_NO_DECOMPILER=1)")
     Idb = Modes.add_parser("idb", parents=[Common], help="export an existing .i64/.idb (copied, never saved)")
     Idb.add_argument("input", help="IDA database (.i64 or .idb)")
     Binary = Modes.add_parser("binary", parents=[Common], help="analyse a raw binary and export it")
@@ -1006,8 +1010,12 @@ def Drive(Args):
         Log("%s: %s -> %s (IDA %s, Diaphora %s %s)" % (Args.mode, Input, Output, IdaDir,
                                                        Diaphora["version_value"], Diaphora["git_describe"]))
         WorkerStarted = time.monotonic()
+        # The worker inherits the error mode: set it again right before the start (Main already did;
+        # this keeps a caller that imports Drive covered) and never ask for CREATE_DEFAULT_ERROR_MODE.
+        QuietHardErrors()
         Worker = subprocess.Popen(Command, cwd=WorkDir, env=Env, stdin=subprocess.DEVNULL,
-                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                  creationflags=WORKER_CREATION_FLAGS)
         Watch.Worker = Worker
         try:
             WriteOwner(TempRoot, Worker)
@@ -1334,8 +1342,9 @@ def RunWorker(SpecPath):
             if not Spec["allow_no_decompiler"]:
                 raise ExportError(EXIT_HEXRAYS, "the Hex-Rays decompiler is not available for this binary; an "
                                   "export without pseudo-code and microcode is not comparable with one that "
-                                  "has them (to export anyway set DSIG_EXPORT_ALLOW_NO_DECOMPILER=1, or pass "
-                                  "--allow-no-decompiler when running dsig_export.py directly)")
+                                  "has them (to export anyway pass --allow-no-decompiler to dsigmatcher "
+                                  "extract/ingest/update or to dsig_export.py, or set "
+                                  "DSIG_EXPORT_ALLOW_NO_DECOMPILER=1)")
             Result["warnings"].append("exported WITHOUT Hex-Rays: no pseudo-code or microcode")
 
         # A file IDA loads but finds no code in (a text file, data) would otherwise surface as Diaphora's
@@ -1435,16 +1444,19 @@ def RunWorker(SpecPath):
 # ----------------------------------------------------------------------------- entry
 
 SEM_FAILCRITICALERRORS = 0x0001
+SEM_NOGPFAULTERRORBOX = 0x0002
 SEM_NOOPENFILEERRORBOX = 0x8000
+NO_ERROR_DIALOGS = SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX
 
 
 def QuietHardErrors():
-    """Windows: a failed DLL load fails instead of raising a modal dialog.
+    """Windows: a failed DLL load or a crash fails instead of raising a modal dialog.
 
     Under cmd.exe, PowerShell or Explorer a process may show critical-error dialogs. When idapro then
     loads a broken or foreign idalib, Windows raises a modal "Bad Image" hard error and the headless
-    run blocks until someone clicks it. The worker started by the driver inherits this mode. Returns
-    the new mode (None elsewhere, or when it cannot be set)."""
+    run blocks until someone clicks it; a crash shows the Windows Error Reporting dialog. The worker
+    started by the driver inherits this mode (it is never started with CREATE_DEFAULT_ERROR_MODE).
+    Returns the new mode (None elsewhere, or when it cannot be set)."""
     if sys.platform != "win32":
         return None
     try:
@@ -1452,7 +1464,7 @@ def QuietHardErrors():
         Kernel32 = ctypes.WinDLL("kernel32")
         Kernel32.GetErrorMode.restype = ctypes.c_uint
         Kernel32.SetErrorMode.argtypes = (ctypes.c_uint,)
-        Kernel32.SetErrorMode(Kernel32.GetErrorMode() | SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX)
+        Kernel32.SetErrorMode(Kernel32.GetErrorMode() | NO_ERROR_DIALOGS)
         return Kernel32.GetErrorMode()
     except (OSError, AttributeError):
         return None

@@ -11,6 +11,8 @@
 #include "dsigmatcher/ControlFlowGraph.h"
 #include "dsigmatcher/PeImage.h"
 
+#include "NoErrorDialogs.h"
+
 namespace {
 
 using namespace DSig;
@@ -1436,6 +1438,7 @@ void TestRealBinaryCodeSection() {
 }
 
 int main() {
+  DSig::Test::DisableErrorDialogs();  // first: no loader, crash or missing-file dialog (Windows)
   TestStraightLine();
   TestSimpleIfDiamond();
   TestCountedLoop();

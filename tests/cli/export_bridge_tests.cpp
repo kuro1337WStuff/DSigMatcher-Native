@@ -7,8 +7,10 @@
 //     fake-export), so argument passing, output capture, timeouts, tool discovery, error messages and
 //     the sidecar checks are exercised end to end without Python or IDA (ctest never needs either);
 //   * the v1.0.0 audit regressions (F02 path aliasing, F15 batch-file interpreters, F16 working
-//     directory and program lookup, F42 long timeouts, F45 script discovery, F46 Hex-Rays advice, F57 c
-//     messages, F64 error-line parsing, F66 PYTHON* isolation), with the same child modes; and, when a
+//     directory and program lookup, F42 long timeouts, F45 script discovery, F46 Hex-Rays advice and
+//     --allow-no-decompiler, F57 c messages, F64 error-line parsing, F66 PYTHON* isolation) and the
+//     no-dialog guarantee (a broken idalib.dll with the error mode cleared to 0 first must end the run
+//     with exit 4, not a modal "Bad Image" dialog), with the same child modes; and, when a
 //     Python is available (DSIG_PYTHON or python on PATH; skipped otherwise), dsig_export.py's own
 //     selftest (F02, F16, F42, F43, F44, F46, F57 d, F66 on the script side) and a run of the real script
 //     under a hostile PYTHONPATH;
@@ -20,6 +22,7 @@
 
 #include <sqlite3.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
@@ -150,6 +153,26 @@ std::vector<std::string> ChildArguments(int Argc, char** Argv) {
   return Result;
 }
 
+std::string JsonText(const Diff::JsonValue& Root, std::initializer_list<const char*> Keys) {
+  const Diff::JsonValue* Value = &Root;
+  for (const char* Key : Keys) {
+    Value = Value->IsObject() ? Value->Find(Key) : nullptr;
+    if (Value == nullptr) {
+      return "<missing>";
+    }
+  }
+  if (Value->IsString()) {
+    return Value->AsString();
+  }
+  if (Value->IsNumber()) {
+    return Value->NumberText();
+  }
+  if (Value->IsBool()) {
+    return Value->AsBool() ? "true" : "false";
+  }
+  return Value->IsNull() ? "null" : "<complex>";
+}
+
 int EnvInt(const char* Name, int Default) {
   const auto Value = GetEnvUtf8(Name);
   return Value ? std::atoi(Value->c_str()) : Default;
@@ -262,6 +285,26 @@ int RunChild(const std::string& Mode, int Argc, char** Argv) {
   if (Mode == "error-mode") {
     std::printf("ERRORMODE %u\n", GetErrorMode());
     return 0;
+  }
+  if (Mode == "bad-idalib") {
+    // Plays dsig_export.py's IDA worker at the moment idapro loads idalib from --ida-dir. The error mode
+    // is the one inherited through the bridge (DSIG_TEST_KEEP_ERROR_MODE keeps the harness from
+    // setting its own): with critical-error dialogs on, LoadLibraryW blocks on a modal "Bad Image".
+    const fs::path Library = PathFromUtf8(ArgumentAfter(Arguments, "--ida-dir")) / "idalib.dll";
+    const UINT Inherited = GetErrorMode();
+    const HMODULE Module = LoadLibraryW(Library.c_str());
+    const DWORD Error = Module == nullptr ? GetLastError() : 0;
+    if (Module != nullptr) {
+      FreeLibrary(Module);
+    }
+    if (const auto Record = GetEnvUtf8("DSIG_TEST_CHILD_RECORD")) {
+      WriteFile(PathFromUtf8(*Record), "ERRORMODE " + std::to_string(Inherited) + "\nLOADED " +
+                                           std::to_string(Module != nullptr ? 1 : 0) + "\n");
+    }
+    std::printf("[dsig_export] loading %s\n", PathToUtf8(Library).c_str());
+    std::printf("dsig_export: error: IDA not usable: cannot load %s (error %lu)\n", PathToUtf8(Library).c_str(),
+                static_cast<unsigned long>(Error));
+    return kToolIda;
   }
   if (Mode == "load-bad-image" && !Arguments.empty()) {
     // What idapro does with a broken idalib. With critical-error dialogs on, this blocks on a modal
@@ -496,7 +539,8 @@ void TestRunProcess(const std::string& Scratch) {
   Test::Suite("process launch: no hard-error dialogs in the child");
   const UINT SavedMode = GetErrorMode();
   SetErrorMode(0);
-  const ProcessResult ModeRun = RunProcess({PathToUtf8(Self)}, {{"DSIG_TEST_CHILD_MODE", "error-mode"}}, 60, nullptr);
+  const ProcessResult ModeRun = RunProcess(
+      {PathToUtf8(Self)}, {{"DSIG_TEST_CHILD_MODE", "error-mode"}, {"DSIG_TEST_KEEP_ERROR_MODE", "1"}}, 60, nullptr);
   CHECK_NUM_EQ(GetErrorMode(), 0u);  // this process's own mode is restored
   unsigned ChildMode = 0;
   for (const std::string& Line : SplitLines(ModeRun.Tail)) {
@@ -505,14 +549,16 @@ void TestRunProcess(const std::string& Scratch) {
     }
   }
   CHECK(ModeRun.Started);
-  CHECK_NUM_EQ(ChildMode & (SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX),
-               static_cast<unsigned>(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX));
+  CHECK_NUM_EQ(ChildMode & kNoErrorDialogs, kNoErrorDialogs);
+  CHECK_NUM_EQ(kNoErrorDialogs,
+               static_cast<unsigned>(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX));
   const fs::path BadImage = PathFromUtf8(Scratch) / "bad image" / "idalib.dll";
   std::error_code Error;
   fs::create_directories(BadImage.parent_path(), Error);
   WriteFile(BadImage, "x");
-  const ProcessResult Load = RunProcess({PathToUtf8(Self), PathToUtf8(BadImage)},
-                                        {{"DSIG_TEST_CHILD_MODE", "load-bad-image"}}, 60, nullptr);
+  const ProcessResult Load =
+      RunProcess({PathToUtf8(Self), PathToUtf8(BadImage)},
+                 {{"DSIG_TEST_CHILD_MODE", "load-bad-image"}, {"DSIG_TEST_KEEP_ERROR_MODE", "1"}}, 60, nullptr);
   CHECK(Load.Started);
   CHECK(!Load.TimedOut);
   CHECK_NUM_EQ(Load.ExitCode, 0);
@@ -696,6 +742,24 @@ void TestFakeExports(const std::string& Scratch) {
     CHECK(Unchanged);
     CHECK(NoPdbLine);
     CHECK(Functions);
+    // --json: the outcome's fields
+    CHECK(Outcome.Data.IsObject());
+    if (Outcome.Data.IsObject()) {
+      CHECK_TEXT_EQ(JsonText(Outcome.Data, {"mode"}), "binary");
+      CHECK_TEXT_EQ(JsonText(Outcome.Data, {"output"}), PathToUtf8(Fake.Output));
+      CHECK_TEXT_EQ(JsonText(Outcome.Data, {"sidecar"}), PathToUtf8(SidecarPathFor(Fake.Output)));
+      CHECK_TEXT_EQ(JsonText(Outcome.Data, {"input_sha256"}), *FileSha256(Fake.Input));
+      CHECK_TEXT_EQ(JsonText(Outcome.Data, {"output_sha256"}), *FileSha256(Fake.Output));
+      CHECK_TEXT_EQ(JsonText(Outcome.Data, {"tool_exit_code"}), "0");
+      CHECK_TEXT_EQ(JsonText(Outcome.Data, {"functions"}), "3");
+      CHECK_TEXT_EQ(JsonText(Outcome.Data, {"functions_with_pseudocode"}), "3");
+      CHECK_TEXT_EQ(JsonText(Outcome.Data, {"ida_functions"}), "4");
+      CHECK_TEXT_EQ(JsonText(Outcome.Data, {"pdb_applied"}), "false");
+      CHECK_TEXT_EQ(JsonText(Outcome.Data, {"pdb"}), "null");
+      CHECK_TEXT_EQ(JsonText(Outcome.Data, {"allow_no_decompiler"}), "false");
+      CHECK_TEXT_EQ(JsonText(Outcome.Data, {"hexrays_version"}), "9.9.0.1");
+      CHECK_TEXT_EQ(JsonText(Outcome.Data, {"diaphora_version"}), "3.4");
+    }
     const std::vector<std::string> Expected = {
         "-E", "-X", "utf8", "-B", "-u", PathToUtf8(Fake.Script), "binary", PathToUtf8(Fake.Input), "-o",
         PathToUtf8(Fake.Output),
@@ -743,6 +807,51 @@ void TestFakeExports(const std::string& Scratch) {
     Args.Tools.TimeoutSeconds = kMaxTimeoutSeconds;
     CHECK_NUM_EQ(RunIngest(Args).ExitCode, kExitOk);
     CHECK(ArgumentAfter(RecordedArguments(Fake), Hex("--timeout")) == Hex("2592000"));
+  }
+
+  // F46: --allow-no-decompiler is forwarded to the script (and only when given), for both modes
+  {
+    for (const bool Allow : {true, false}) {
+      ClearRecord(Fake);
+      IngestArgs Args;
+      Args.Input = PathToUtf8(Fake.Input);
+      Args.Output = PathToUtf8(Fake.Output);
+      Args.Tools = FakeOptions(Fake);
+      Args.Tools.AllowNoDecompiler = Allow;
+      const CommandOutcome Outcome = RunIngest(Args);
+      CHECK_NUM_EQ(Outcome.ExitCode, kExitOk);
+      const std::vector<std::string> Recorded = RecordedArguments(Fake);
+      CHECK((std::find(Recorded.begin(), Recorded.end(), Hex("--allow-no-decompiler")) != Recorded.end()) == Allow);
+      CHECK_TEXT_EQ(JsonText(Outcome.Data, {"allow_no_decompiler"}), Allow ? "true" : "false");
+    }
+    ClearRecord(Fake);
+    ExtractArgs Args;
+    Args.Input = PathToUtf8(Fake.Database);
+    Args.Output = PathToUtf8(Fake.Output);
+    Args.Tools = FakeOptions(Fake);
+    Args.Tools.AllowNoDecompiler = true;
+    CHECK_NUM_EQ(RunExtract(Args).ExitCode, kExitOk);
+    const std::vector<std::string> Recorded = RecordedArguments(Fake);
+    CHECK(std::find(Recorded.begin(), Recorded.end(), Hex("--allow-no-decompiler")) != Recorded.end());
+  }
+
+  // --quiet changes only what is streamed: the outcome, its message and its fields are the same
+  {
+    ClearRecord(Fake);
+    IngestArgs Args;
+    Args.Input = PathToUtf8(Fake.Input);
+    Args.Output = PathToUtf8(Fake.Output);
+    Args.Tools = FakeOptions(Fake);
+    Args.Tools.Quiet = true;
+    const CommandOutcome Outcome = RunIngest(Args);
+    CHECK_NUM_EQ(Outcome.ExitCode, kExitOk);
+    CHECK(!Outcome.Report.empty());
+    SetEnv("DSIG_TEST_CHILD_EXIT", std::to_string(kToolExport));
+    ClearRecord(Fake);
+    const CommandOutcome Failed = RunIngest(Args);
+    SetEnv("DSIG_TEST_CHILD_EXIT", std::nullopt);
+    CHECK_NUM_EQ(Failed.ExitCode, kExitIo);
+    CHECK(Contains(Failed.Message, "fake failure " + std::to_string(kToolExport)));
   }
 
   // F15: a sample whose name holds cmd metacharacters reaches the interpreter as one literal argument
@@ -870,8 +979,13 @@ void TestFakeExports(const std::string& Scratch) {
     CHECK(Contains(Outcome.Message, Each.Text));
     CHECK(Contains(Outcome.Message, "fake failure " + std::to_string(Each.ToolExit)));
     CHECK(Contains(Outcome.Message, "(dsig_export.py exit " + std::to_string(Each.ToolExit) + ")"));
-    // F46: the advice names what works through dsigmatcher, not the script-only flag
+    // F46: the advice names what works through dsigmatcher: its own flag, and the variable
+    CHECK(Contains(Outcome.Message, "pass --allow-no-decompiler") == (Each.ToolExit == kToolHexRays));
     CHECK(Contains(Outcome.Message, "DSIG_EXPORT_ALLOW_NO_DECOMPILER=1") == (Each.ToolExit == kToolHexRays));
+    // --json on failure: what the script said and how it ended
+    CHECK_TEXT_EQ(JsonText(Outcome.Data, {"tool_exit_code"}), std::to_string(Each.ToolExit));
+    CHECK_TEXT_EQ(JsonText(Outcome.Data, {"tool_error"}), "fake failure " + std::to_string(Each.ToolExit));
+    CHECK_TEXT_EQ(JsonText(Outcome.Data, {"input_sha256"}), *FileSha256(Fake.Input));
   }
   SetEnv("DSIG_TEST_CHILD_EXIT", std::nullopt);
 
@@ -1193,6 +1307,61 @@ void TestScriptDiscovery(const std::string& Scratch) {
   CHECK(Contains(Run.Tail, "SCRIPT " + Hex(PathToUtf8(Bin / "dsig_export.py"))));
 }
 
+// No Windows dialogs, ever: with the error mode cleared to 0 first (what cmd.exe and ctest leave), the
+// bridge runs a stand-in worker that loads a deliberately broken idalib.dll, the moment a real run would
+// raise a modal "Bad Image" dialog. The run must end on its own, well within its timeout, with exit 4
+// and the worker's error line; the worker must have inherited the no-dialog mode.
+void TestBrokenIdalibNoDialog(const std::string& Scratch) {
+#ifndef _WIN32
+  (void)Scratch;
+  Test::Skip("broken idalib.dll: no dialog", "Windows only: POSIX has no hard-error dialogs");
+#else
+  Test::Suite("broken idalib.dll with the error mode cleared: exit 4, no dialog");
+  const FakeTools Fake = MakeFakeTools(Scratch);
+  ClearRecord(Fake);
+  WriteFile(Fake.IdaDir / "idalib.dll", "this is not a PE image");  // STATUS_INVALID_IMAGE_NOT_MZ on load
+  const UINT SavedMode = GetErrorMode();
+  SetErrorMode(0);
+  SetEnv("DSIG_TEST_CHILD_MODE", "bad-idalib");
+  SetEnv("DSIG_TEST_CHILD_RECORD", PathToUtf8(Fake.Record));
+  SetEnv("DSIG_TEST_KEEP_ERROR_MODE", "1");
+  IngestArgs Args;
+  Args.Input = PathToUtf8(Fake.Input);
+  Args.Output = PathToUtf8(Fake.Output);
+  Args.Tools = FakeOptions(Fake);
+  Args.Tools.TimeoutSeconds = 60;  // a dialog would hold the run until the backstop (180 s) kills it
+  const auto Begin = std::chrono::steady_clock::now();
+  const CommandOutcome Outcome = RunIngest(Args);
+  const auto Seconds =
+      std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - Begin).count();
+  CHECK_NUM_EQ(GetErrorMode(), 0u);  // the bridge restores the caller's own mode
+  SetErrorMode(SavedMode);
+  SetEnv("DSIG_TEST_CHILD_MODE", std::nullopt);
+  SetEnv("DSIG_TEST_CHILD_RECORD", std::nullopt);
+  SetEnv("DSIG_TEST_KEEP_ERROR_MODE", std::nullopt);
+  CHECK_NUM_EQ(Outcome.ExitCode, kExitUnsupported);
+  CHECK(Contains(Outcome.Message, "IDA not found or not usable (dsig_export.py exit 11)"));
+  CHECK(Contains(Outcome.Message, "IDA not usable: cannot load"));
+  CHECK(!Contains(Outcome.Message, "timeout"));
+  CHECK(Seconds < 60);
+  CHECK(!fs::exists(Fake.Output));
+  unsigned ChildMode = 0;
+  bool Loaded = true;
+  for (const std::string& Line : SplitLines(ReadFile(Fake.Record))) {
+    if (Line.rfind("ERRORMODE ", 0) == 0) {
+      ChildMode = static_cast<unsigned>(std::strtoul(Line.c_str() + 10, nullptr, 10));
+    } else if (Line.rfind("LOADED ", 0) == 0) {
+      Loaded = Line != "LOADED 0";
+    }
+  }
+  CHECK_NUM_EQ(ChildMode & kNoErrorDialogs, kNoErrorDialogs);
+  CHECK(!Loaded);
+  if (Outcome.ExitCode != kExitUnsupported) {
+    Test::Note("message: " + Outcome.Message);
+  }
+#endif
+}
+
 // With a real Python: dsig_export.py's selftest (the script-side regressions) and the real script under
 // a PYTHONPATH whose sitecustomize kills any interpreter that loads it (F66).
 void TestWithRealPython(const std::string& Scratch, const std::optional<std::string>& PythonHint) {
@@ -1215,6 +1384,19 @@ void TestWithRealPython(const std::string& Scratch, const std::optional<std::str
   if (Selftest.ExitCode != 0) {
     const size_t Keep = 4000;
     Test::Note(Selftest.Tail.size() > Keep ? Selftest.Tail.substr(Selftest.Tail.size() - Keep) : Selftest.Tail);
+  }
+  // tools/e2e/selftest_e2e.py: its scoring cases, and git never taken from the current directory in
+  // e2e_common.py and tools/oracle/build_oracle.py (F16).
+  const fs::path E2e = Tools.parent_path() / "e2e" / "selftest_e2e.py";
+  if (fs::is_regular_file(E2e)) {
+    Test::Suite("tools/e2e selftest with a real Python (F16: git lookup in e2e_common and build_oracle)");
+    const ProcessResult E2eRun = RunProcess({PathToUtf8(Python.Path), "-B", PathToUtf8(E2e)}, {}, 300, nullptr);
+    CHECK(E2eRun.Started);
+    CHECK_NUM_EQ(E2eRun.ExitCode, 0);
+    CHECK(Contains(E2eRun.Tail, "selftest_e2e: PASSED"));
+    if (E2eRun.ExitCode != 0) {
+      Test::Note(E2eRun.Tail);
+    }
   }
 
   Test::Suite("the real dsig_export.py ignores the caller's PYTHONPATH (F66)");
@@ -1427,7 +1609,8 @@ RealConfig ReadRealConfig() {
 
 void ClearToolEnvironment() {
   for (const char* Name : {"DSIG_PYTHON", "DSIG_IDADIR", "DSIG_DIAPHORA_DIR", "DSIG_EXPORT_SCRIPT", "DSIG_TEST_CHILD_MODE",
-                           "DSIG_TEST_CHILD_EXIT", "DSIG_TEST_CHILD_RECORD"}) {
+                           "DSIG_TEST_CHILD_EXIT", "DSIG_TEST_CHILD_RECORD", "DSIG_TEST_KEEP_ERROR_MODE",
+                           "DSIG_EXPORT_ALLOW_NO_DECOMPILER"}) {
     SetEnv(Name, std::nullopt);
   }
 }
@@ -1438,26 +1621,6 @@ std::optional<Diff::JsonValue> ReadSidecar(const fs::path& Output) {
   } catch (const Diff::JsonError&) {
     return std::nullopt;
   }
-}
-
-std::string JsonText(const Diff::JsonValue& Root, std::initializer_list<const char*> Keys) {
-  const Diff::JsonValue* Value = &Root;
-  for (const char* Key : Keys) {
-    Value = Value->IsObject() ? Value->Find(Key) : nullptr;
-    if (Value == nullptr) {
-      return "<missing>";
-    }
-  }
-  if (Value->IsString()) {
-    return Value->AsString();
-  }
-  if (Value->IsNumber()) {
-    return Value->NumberText();
-  }
-  if (Value->IsBool()) {
-    return Value->AsBool() ? "true" : "false";
-  }
-  return Value->IsNull() ? "null" : "<complex>";
 }
 
 void TestRealExports(const RealConfig& Config, const std::string& Scratch) {
@@ -1609,6 +1772,7 @@ int main(int Argc, char** Argv) {
   TestFakeExports(Scratch);
   TestValidationAndMissingTools(Scratch);
   TestScriptDiscovery(Scratch);
+  TestBrokenIdalibNoDialog(Scratch);
   TestWithRealPython(Scratch, PythonHint);
   TestRealExports(Real, Scratch);
 
