@@ -957,6 +957,7 @@ void TestFixtureIngest() {
     CHECK(!Rows.Next(Out));
     CHECK_NUM_EQ(Rows.Fetched(), 2);
   }
+  S.Db().Close();  // Windows cannot delete a database file that is still open
   DSig::Test::RemoveScratchDir(Pair.Dir);
 }
 
@@ -1011,6 +1012,7 @@ void TestIngestQuirks() {
   CHECK(!IsValidUtf8("\xed\xa0\x80"));      // surrogate
   CHECK(!IsValidUtf8("\xf4\x90\x80\x80"));  // above U+10FFFF
   CHECK(!IsValidUtf8("abcdefgh\x80"));
+  S.Db().Close();  // Windows cannot delete a database file that is still open
   DSig::Test::RemoveScratchDir(Pair.Dir);
 
   // an export without `functions` columns is recorded, then refused after the version check
@@ -1018,7 +1020,8 @@ void TestIngestQuirks() {
                                               "drop index idx_22;\nalter table functions drop column switches;\n");
   CHECK(Broken.Ok);
   if (Broken.Ok) {
-    DiffSession B;
+    auto Session = std::make_unique<DiffSession>();  // closed before the scratch directory is removed
+    DiffSession& B = *Session;
     B.Open(Broken.Main, Broken.Diff);
     CHECK_NUM_EQ(B.Main().Problems.size(), 1);
     CHECK(B.Diff().Problems.empty());
@@ -1037,6 +1040,7 @@ void TestIngestQuirks() {
     const DiffOutcome Outcome = RunDiff(Args);
     CHECK(Outcome.Status == DiffStatus::Unsupported);
     CHECK(!Outcome.OutputWritten);
+    Session.reset();
     DSig::Test::RemoveScratchDir(Broken.Dir);
   }
 }
@@ -1533,6 +1537,7 @@ void TestMissingSideTables() {
       DiffSession S;
       S.Open(Pair.Main, Pair.Diff);
       CHECK(S.Main().Problems.empty() && S.Diff().Problems.empty());
+      S.Db().Close();  // Windows cannot delete a database file that is still open
       DSig::Test::RemoveScratchDir(Pair.Dir);
     }
   }
@@ -3352,12 +3357,14 @@ void TestErrorContext() {
   if (!Pair.Ok) {
     return;
   }
-  DiffSession S;
-  S.Open(Pair.Main, Pair.Diff);
   bool Named = false;
-  for (const std::string& Problem : S.Main().Problems) {
-    Named = Named || (Problem.find("functions.name row with id ") != std::string::npos &&
-                      Problem.find("holds a number in a TEXT column") != std::string::npos);
+  {
+    DiffSession S;  // closed before the scratch directory is removed
+    S.Open(Pair.Main, Pair.Diff);
+    for (const std::string& Problem : S.Main().Problems) {
+      Named = Named || (Problem.find("functions.name row with id ") != std::string::npos &&
+                        Problem.find("holds a number in a TEXT column") != std::string::npos);
+    }
   }
   CHECK(Named);
   DSig::Test::RemoveScratchDir(Pair.Dir);

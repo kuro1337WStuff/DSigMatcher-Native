@@ -1097,7 +1097,8 @@ void TestP1AuditGaps(const FixturePair& Pair) {
                                                        "where id = 2;\n");
     CHECK(Bad.Ok);
     if (Bad.Ok) {
-      DiffSession S;
+      auto Session = std::make_unique<DiffSession>();  // closed before the scratch directory is removed
+      DiffSession& S = *Session;
       S.Open(Bad.Main, Bad.Diff);
       std::string Message;
       try {
@@ -1123,8 +1124,10 @@ void TestP1AuditGaps(const FixturePair& Pair) {
       const std::string BetaAddr(S.Ids().AddrText(S.Main().Functions.AddrIdOf[1]));
       CHECK(Message.find("Could not decode to UTF-8") == 0);
       CHECK(!BetaAddr.empty() && Message.find("of the function at address " + BetaAddr) != std::string::npos);
-      DSig::Test::RemoveScratchDir(Bad.Dir);
+      Session.reset();
     }
+    DSig::Test::RemoveScratchDir(Bad.Dir);
+    CHECK(!Exists(Bad.Dir));
   }
 }
 
