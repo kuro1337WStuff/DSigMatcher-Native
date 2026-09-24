@@ -1,4 +1,4 @@
-// UTF-8 file access (lane R0, orchestrator decision (f)); see FileIo.h.
+// UTF-8 file access (lane R0, design decision (f)); see FileIo.h.
 
 #include "FileIo.h"
 

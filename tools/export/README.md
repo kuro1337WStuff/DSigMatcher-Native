@@ -160,7 +160,13 @@ in the oracle. The resolved values go into the sidecar. The ones that matter mos
   tester's per-table counts), `timing` and `warnings`. The C++ launcher re-checks the input and
   output hashes it records.
 - The work directory (`--temp-dir`, else the system temp directory) holds the copies, the private
-  `IDAUSR` and the worker log. It is removed unless `--keep-temp`.
+  `IDAUSR` and the worker log. It is removed unless `--keep-temp`. On Windows its path must be
+  ASCII: IDA hands `IDAUSR` to IDAPython in the ANSI code page, IDAPython decodes it as UTF-8, and
+  the worker then crashes (0xC0000005). A non-ASCII root (for example the temp directory of a user
+  whose name is not ASCII) is therefore replaced by its 8.3 short form or, without one, by
+  `%ProgramData%\dsigmatcher\tmp\<user SID>`, which the script restricts to that user, SYSTEM and
+  Administrators. When neither is available the run is refused (exit 2) and asks for an ASCII
+  `--temp-dir`.
 - A run that is killed (the launcher terminated, a crash, a power cut) cannot remove its work
   directory, which may hold a copy of the user's database. Each work directory therefore has an
   `owner.json` naming the driver and worker processes (pid and start time). Every run first removes
@@ -195,9 +201,10 @@ before anything runs, and leaves all files as they were. Both the launcher and t
 | 130 | interrupted, or the launcher went away (nothing is published) | 6 |
 
 The launcher itself also returns 2 for its own argument checks, 4 when Python, the script, IDA or
-Diaphora is missing (and for the Windows Store `python` placeholder, exit 9009), and 6 when the input
-is missing, the process cannot be started, the backstop timeout (`--timeout` + 120 s) kills the
-process tree, or the sidecar does not match the run. Its message always ends with the script's own
+Diaphora is missing or Python cannot be started (and for the Windows Store `python` placeholder,
+exit 9009), and 6 when the input is missing, the backstop timeout (`--timeout` + 120 s) kills the
+process tree, or the sidecar does not match the run. With `--json`, `timed_out` is true after
+either timeout: the script's own (exit 18) and the backstop kill. Its message always ends with the script's own
 `dsig_export: error: ...` line when there is one. After exit 13 it adds how to export anyway
 (`--allow-no-decompiler`, or `DSIG_EXPORT_ALLOW_NO_DECOMPILER=1`).
 

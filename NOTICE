@@ -47,6 +47,10 @@ The work was done in September 2026, for the v1.0.0 release.
     verbatim: the 50 heuristic queries of diaphora_heuristics.py and the stage
     queries of diaphora.py. They are generated from an unmodified Diaphora
     checkout by tools/parity/gen_registry.py.
+  * src/KghHash.cpp and include/dsigmatcher/KghHash.h (with the test-vector
+    script tools/kgh_vectors.py) reimplement Diaphora's KOKA graph hash
+    (jkutils/graph_hashes.py, Copyright (c) 2018-2019 Joxean Koret) in C++,
+    including its prime table and feature set.
   * The result-porting command (src/cli/PortResults.cpp) reads Diaphora's
     results-file layout.
   * The design documents under docs/parity/ quote Diaphora's source code.

@@ -353,7 +353,7 @@ void IngestExport(const DiffDatabase& Db, Side Which, Interners& Ids, ExportData
   LoadSideTables(Db, Which, Out.Tables);
   const std::string Schema(SchemaName(Which));
 
-  // Orchestrator decision (lane R0 (d)): a side table the default diff reads must exist on both sides,
+  // Design decision (lane R0 (d)): a side table the default diff reads must exist on both sides,
   // else the input is refused with UnsupportedInput naming the table (exit 4) instead of surfacing a
   // raw "no such table" SQL error from whichever stage first reads it. `version` is not listed: a
   // missing diff.version is Diaphora's empty-result path (D:3577-3591), main.version is never read.

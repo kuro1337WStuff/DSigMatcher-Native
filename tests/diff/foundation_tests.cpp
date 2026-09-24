@@ -616,7 +616,7 @@ void TestTrace() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Final results (orchestrator decision R0 (b)): D:3689 computes percent, and raises ZeroDivisionError
+// Final results (design decision R0 (b)): D:3689 computes percent, and raises ZeroDivisionError
 // when total_functions1 is 0, BEFORE D:3690 logs "Final results".
 
 void TestFinalResults() {
@@ -1479,7 +1479,7 @@ void TestPipeline() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Missing side tables (orchestrator decision R0 (d)): refused with UnsupportedInput, exit 4, naming the
+// Missing side tables (design decision R0 (d)): refused with UnsupportedInput, exit 4, naming the
 // table, never a raw "no such table" SQL error.
 
 void TestMissingSideTables() {
@@ -1544,7 +1544,7 @@ void TestMissingSideTables() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// The SQLite version warning is not silenced by --quiet (orchestrator decision R0 (c)).
+// The SQLite version warning is not silenced by --quiet (design decision R0 (c)).
 
 // Runs F with file descriptor 2 redirected into `File` and returns what was written to it.
 std::string CaptureStderr(const std::string& File, const std::function<void()>& F) {
@@ -1627,7 +1627,7 @@ void TestSqliteWarning() {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Unicode and UNC paths (orchestrator decision R0 (f)), in process and through the CLI binary.
+// Unicode and UNC paths (design decision R0 (f)), in process and through the CLI binary.
 
 #ifdef DSIG_CLI_PATH
 #ifdef _WIN32
@@ -1858,7 +1858,7 @@ void TestUnicodePaths() {
     CHECK(Broken.Ok);
     CHECK_NUM_EQ(RunCli({"diff", Broken.Main, Broken.Diff, "-o", Join(Dir, "broken.diaphora"), "--quiet"}, Log), 4);
     CHECK(ReadFile(Log).find("main.constants: table is missing") != std::string::npos);
-    // --help documents that DIAPHORA_* variables are ignored (orchestrator decision R0 (e))
+    // --help documents that DIAPHORA_* variables are ignored (design decision R0 (e))
     CHECK_NUM_EQ(RunCli({"--help"}, Log), 0);
     CHECK(ReadFile(Log).find("DIAPHORA_* variables are deliberately ignored") != std::string::npos);
     DSig::Test::Note("CLI ran with Unicode path arguments (exit 0), a refused input (exit 4) and --help");
@@ -2219,7 +2219,7 @@ void TestRowSequenceCensus() {
     DSig::Test::Skip("row-sequence-census", "SQLite " + DiffDatabase::LibVersion() + " is not the oracle's 3.51.1");
     return;
   }
-  // Orchestrator decision R0 (a): DSIG_CORPUS_ROOT set but the exports absent is a skip, not a failure.
+  // Design decision R0 (a): DSIG_CORPUS_ROOT set but the exports absent is a skip, not a failure.
   bool AnyPair = false;
   for (const CensusSequence& Seq : kCensusSequences) {
     AnyPair = AnyPair || (DSig::Test::ExportAvailable(Seq.Main) && DSig::Test::ExportAvailable(Seq.Diff));
@@ -2310,7 +2310,7 @@ void TestSameNamePlan() {
     DSig::Test::Skip("same-name-plan", "needs DSIG_CORPUS_ROOT and SQLite 3.51.1");
     return;
   }
-  // Orchestrator decision R0 (a): DSIG_CORPUS_ROOT set but the exports absent is a skip, not a failure.
+  // Design decision R0 (a): DSIG_CORPUS_ROOT set but the exports absent is a skip, not a failure.
   size_t Available = 0;
   for (const CensusPlan& Plan : kCensusSameNamePlans) {
     Available += DSig::Test::ExportAvailable(Plan.Main) && DSig::Test::ExportAvailable(Plan.Diff) ? 1 : 0;

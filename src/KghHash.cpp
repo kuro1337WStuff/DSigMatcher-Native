@@ -1,3 +1,5 @@
+// Diaphora's KOKA graph hash (jkutils/graph_hashes.py, Copyright (c) 2018-2019 Joxean Koret, AGPL),
+// reimplemented in C++; see NOTICE.
 #include "dsigmatcher/KghHash.h"
 
 #include <cstdio>
