@@ -294,8 +294,9 @@ void TestFormatFixed2() {
   CHECK_TEXT_EQ(Detail::FormatFixedExact(1.5, 1), "1.5");
   CHECK_TEXT_EQ(Detail::FormatFixedExact(0.25, 1), "0.2");               // an exact tie, to even
   CHECK_TEXT_EQ(Detail::FormatFixedExact(123.456, 9), "123.456000000");
-#if defined(__cpp_lib_to_chars) && __cpp_lib_to_chars >= 201611L
-  // Where the standard library has floating-point to_chars, it must agree everywhere.
+#if defined(__cpp_lib_to_chars) && __cpp_lib_to_chars >= 201611L && !defined(__APPLE__)
+  // Where the standard library has floating-point to_chars, it must agree everywhere (not on Apple
+  // platforms, where the overloads are unavailable before macOS 13.3).
   size_t Count = 0;
   size_t Mismatch = 0;
   std::string First;

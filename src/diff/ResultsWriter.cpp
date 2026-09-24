@@ -37,7 +37,10 @@
 
 // Floating-point std::to_chars (P0067R5) where the standard library has it (MSVC STL, libstdc++ 11+);
 // the exact big-integer formatter otherwise (for example libc++ builds that do not define the macro).
-#if defined(__cpp_lib_to_chars) && __cpp_lib_to_chars >= 201611L
+// Never on Apple platforms: Apple's libc++ marks the floating-point overloads unavailable before
+// macOS 13.3, so a build for an older deployment target must not reference them even where the
+// feature macro is defined.
+#if defined(__cpp_lib_to_chars) && __cpp_lib_to_chars >= 201611L && !defined(__APPLE__)
 #define DSIG_WRITER_HAVE_FP_TO_CHARS 1
 #else
 #define DSIG_WRITER_HAVE_FP_TO_CHARS 0
