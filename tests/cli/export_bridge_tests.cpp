@@ -986,8 +986,27 @@ void TestFakeExports(const std::string& Scratch) {
     CHECK_TEXT_EQ(JsonText(Outcome.Data, {"tool_exit_code"}), std::to_string(Each.ToolExit));
     CHECK_TEXT_EQ(JsonText(Outcome.Data, {"tool_error"}), "fake failure " + std::to_string(Each.ToolExit));
     CHECK_TEXT_EQ(JsonText(Outcome.Data, {"input_sha256"}), *FileSha256(Fake.Input));
+    // the script's own --timeout expiry is a timeout too, not only the backstop kill
+    CHECK_TEXT_EQ(JsonText(Outcome.Data, {"timed_out"}), Each.ToolExit == kToolTimeout ? "true" : "false");
   }
   SetEnv("DSIG_TEST_CHILD_EXIT", std::nullopt);
+
+#ifdef _WIN32
+  // a Python that exists but cannot be started (not a valid program): exit 4, as --help documents
+  {
+    ClearRecord(Fake);
+    const fs::path Broken = Fake.Root / "not a program.exe";
+    WriteFile(Broken, "MZjunk");
+    IngestArgs Args;
+    Args.Input = PathToUtf8(Fake.Input);
+    Args.Output = PathToUtf8(Fake.Output);
+    Args.Tools = FakeOptions(Fake);
+    Args.Tools.Python = PathToUtf8(Broken);
+    const CommandOutcome Outcome = RunIngest(Args);
+    CHECK_NUM_EQ(Outcome.ExitCode, kExitUnsupported);
+    CHECK(Contains(Outcome.Message, "cannot start Python"));
+  }
+#endif
 
   // success claimed but no output, a sidecar that does not match, and an input changed behind our back
   {

@@ -1260,7 +1260,7 @@ DiffOutcome RunDiff(const DiffArgs& Args) {
                           std::string(DiffDatabase::kOracleSqliteVersion) + " (--strict-sqlite)";
         return Outcome;
       }
-      // Orchestrator decision (lane R0 (c)): --quiet silences only Diaphora's summary lines, never
+      // Design decision (lane R0 (c)): --quiet silences only Diaphora's summary lines, never
       // this warning; --allow-sqlite-mismatch is the explicit way to acknowledge it.
       if (!Args.AllowSqliteMismatch) {
         std::fprintf(stderr, "%s\n", SqliteMismatchWarning(Outcome.SqliteVersion).c_str());
@@ -1327,7 +1327,6 @@ DiffOutcome RunDiff(const DiffArgs& Args) {
     CheckpointBinding Binding;
     if (!CheckpointDir.empty()) {
       Store.emplace(CheckpointDir);
-      Outcome.CheckpointDir = CheckpointDir;
       if (Resuming) {
         Loaded = Store->Load();
         (void)Store->Prepare();
@@ -1366,6 +1365,7 @@ DiffOutcome RunDiff(const DiffArgs& Args) {
                                  " (resume with the same inputs and options, or run again without --resume)");
         }
       }
+      Outcome.CheckpointDir = CheckpointDir;  // only once the directory was accepted
     }
 
     DiffSession S(Args.Config);

@@ -438,8 +438,13 @@ void TestHelp() {
   CHECK(!Contains(Diff.Out, "stages skipped"));
   CHECK(Contains(Global.Out, "2  usage error, or refused (a path that would overwrite an input"));
   CHECK(Contains(NoCr(Global.Out),
-                 "for diff: db2 is not a\n      Diaphora export (Diaphora's empty results are still written"));
+                 "for\n      diff: db2 is not a Diaphora export (Diaphora's empty results are still written"));
   CHECK(Contains(Global.Out, "6  I/O or environment failure"));
+  // a tool that cannot be started is exit 4 (as the launcher returns), not 6
+  CHECK(Contains(Global.Out, "a tool is missing or cannot be started"));
+  CHECK(!Contains(Global.Out, "a tool that cannot be started"));
+  // --max-hops counts the hop this port makes
+  CHECK(Contains(Port.Out, "drop names whose hop count after this port would exceed n"));
   const CliRun HelpPort = Run({"help", "port"});
   CHECK_TEXT_EQ(HelpPort.Out, Port.Out);
 
@@ -665,6 +670,47 @@ void TestJson(const Fixture& F) {
   const auto UpdateJson = ParseJson(UpdateFailed.Out);
   CHECK(UpdateJson.has_value() && Field(*UpdateJson, "command") == "update" &&
         Field(*UpdateJson, "export") == Join(F.Dir, "u.ingest.sqlite"));
+  // every path update reports is absolute and native, whatever the spelling on the command line
+  const CliRun UpdateMixed = Run({"update", F.Dir + "/none.sqlite", F.Text, "-o", F.Dir + "/./u2.sqlite", "--json"});
+  Expect("update --json, mixed path spellings", UpdateMixed, 6);
+  const auto MixedJson = ParseJson(UpdateMixed.Out);
+  CHECK(MixedJson.has_value());
+  if (MixedJson) {
+    CHECK_TEXT_EQ(Field(*MixedJson, "labelled"), Join(F.Dir, "none.sqlite"));
+    CHECK_TEXT_EQ(Field(*MixedJson, "binary"), F.Text);
+    CHECK_TEXT_EQ(Field(*MixedJson, "output"), Join(F.Dir, "u2.sqlite"));
+    CHECK_TEXT_EQ(Field(*MixedJson, "export"), Join(F.Dir, "u2.ingest.sqlite"));
+    CHECK_TEXT_EQ(Field(*MixedJson, "export_sidecar"), Join(F.Dir, "u2.ingest.export.json"));
+    CHECK_TEXT_EQ(Field(*MixedJson, "results"), Join(F.Dir, "u2.diaphora"));
+  }
+
+  // a diff that never ran (a refused --resume) has no mode, no diff() return value and no checkpoint dir
+  const CliRun Refused = Run({"diff", F.Main, F.Diff, "-o", Join(F.Dir, "refused.diaphora"), "--resume",
+                              Join(F.Dir, "no-such-checkpoint"), "--json", "--quiet"});
+  CHECK(Refused.Code != 0);
+  const auto RefusedJson = ParseJson(Refused.Out);
+  CHECK(RefusedJson.has_value());
+  if (RefusedJson) {
+    CHECK_TEXT_EQ(Field(*RefusedJson, "diff_returned"), "false");
+    CHECK_TEXT_EQ(Field(*RefusedJson, "mode"), "null");
+    CHECK_TEXT_EQ(Field(*RefusedJson, "checkpoint_dir"), "null");
+    CHECK_TEXT_EQ(Field(*RefusedJson, "output_written"), "false");
+  }
+
+  // --version --json: one object with the tool and SQLite versions; other options are refused
+  for (const char* Spelling : {"--version", "-V", "version"}) {
+    const CliRun Version = Run({Spelling, "--json"});
+    Expect(std::string(Spelling) + " --json", Version, 0);
+    const auto VersionJson = ParseJson(Version.Out);
+    CHECK(VersionJson.has_value());
+    if (VersionJson) {
+      CHECK_TEXT_EQ(Field(*VersionJson, "schema"), "1");
+      CHECK_TEXT_EQ(Field(*VersionJson, "command"), "version");
+      CHECK(Field(*VersionJson, "tool_version") != "<absent>" && !Field(*VersionJson, "tool_version").empty());
+      CHECK(Field(*VersionJson, "sqlite_version").rfind("3.", 0) == 0);
+    }
+  }
+  Expect("version --bogus", Run({"version", "--bogus"}), 2, "unknown option '--bogus'");
 }
 
 // ---------------------------------------------------------------------------------------------

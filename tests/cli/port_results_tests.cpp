@@ -644,6 +644,22 @@ void TestChain(const std::string& Dir) {
   CHECK_TEXT_EQ(Report(CappedOutcome, "skipped hop cap"), "skipped hop cap  : 2");
   CHECK_TEXT_EQ(Report(CappedOutcome, "names applied"),
                 "names applied    : 1 (best 1, partial 0, unreliable 0, multimatch 0)");
+  // n is the hop count a name may have AFTER this port (README, --help): --max-hops 2 admits these
+  // second hops, and --max-hops 0 admits nothing, not even a first hop.
+  Cli::PortFromResultsArgs Two = Args(Hop1, V3, (std::filesystem::path(Dir) / "hop2_two.sqlite").string(), Results2);
+  Two.MaxHops = 2;
+  const Cli::CommandOutcome TwoOutcome = Cli::RunPortFromResults(Two);
+  CHECK_NUM_EQ(TwoOutcome.ExitCode, Cli::kExitOk);
+  CHECK_TEXT_EQ(Report(TwoOutcome, "skipped hop cap"), "skipped hop cap  : 0");
+  CHECK_TEXT_EQ(NameAt(Two.Output, U(1)), "Alpha");
+  Cli::PortFromResultsArgs Zero = Args(S.Ref, S.Target, (std::filesystem::path(Dir) / "hop1_zero.sqlite").string(),
+                                       S.Results);
+  Zero.MaxHops = 0;
+  const Cli::CommandOutcome ZeroOutcome = Cli::RunPortFromResults(Zero);
+  CHECK_NUM_EQ(ZeroOutcome.ExitCode, Cli::kExitOk);
+  CHECK(Report(ZeroOutcome, "names applied").rfind("names applied    : 0 ", 0) == 0);
+  const std::string ZeroSkipped = Report(ZeroOutcome, "skipped hop cap");
+  CHECK(ZeroSkipped.rfind("skipped hop cap  : ", 0) == 0 && ZeroSkipped != "skipped hop cap  : 0");
   Cli::PortFromResultsArgs Floor = Args(Hop1, V3, (std::filesystem::path(Dir) / "hop2_floor.sqlite").string(),
                                         Results2);
   Floor.MinRatio = 0.7;
@@ -935,6 +951,39 @@ void TestOriginInheritance(const std::string& Dir) {
   const Cli::CommandOutcome FloorOutcome = Cli::RunPortFromResults(Floor);
   CHECK_TEXT_EQ(Report(FloorOutcome, "skipped ratio"), "skipped ratio    : 0");
   CHECK_TEXT_EQ(NameAt(Floor.Output, U(3)), "GammaRenamed");
+}
+
+// An empty results file is accepted (a genuine diff can find nothing), but when its config names other
+// exports the port warns: it is most likely the empty results file of a failed diff of another pair.
+void TestEmptyResultsOfAnotherPair(const std::string& Dir) {
+  DSig::Test::Suite("port --results: an empty results file of another pair is accepted with a warning");
+  const Scenario S = MakeScenario(Dir);
+  CHECK(S.Ok);
+  const auto WarningsOf = [](const Cli::CommandOutcome& Outcome) {
+    const Diff::JsonValue* Warnings = Outcome.Data.IsObject() ? Outcome.Data.Find("warnings") : nullptr;
+    return Warnings != nullptr && Warnings->IsArray() ? Warnings->Items() : std::vector<Diff::JsonValue>();
+  };
+  const std::string Empty = (std::filesystem::path(Dir) / "empty.diaphora").string();
+  CHECK(CreateResults(Empty, {}));  // config: ref.sqlite / target.sqlite, the scenario's own names
+  const Cli::CommandOutcome Same =
+      Cli::RunPortFromResults(Args(S.Ref, S.Target, (std::filesystem::path(Dir) / "same.sqlite").string(), Empty));
+  CHECK_NUM_EQ(Same.ExitCode, Cli::kExitOk);
+  CHECK_NUM_EQ(WarningsOf(Same).size(), 0);
+
+  sqlite3* Db = nullptr;
+  CHECK(sqlite3_open_v2(Empty.c_str(), &Db, SQLITE_OPEN_READWRITE, nullptr) == SQLITE_OK);
+  CHECK(Exec(Db, "update config set diff_db = 'other.sqlite'"));
+  sqlite3_close(Db);
+  const Cli::CommandOutcome Other =
+      Cli::RunPortFromResults(Args(S.Ref, S.Target, (std::filesystem::path(Dir) / "other.sqlite").string(), Empty));
+  CHECK_NUM_EQ(Other.ExitCode, Cli::kExitOk);
+  const std::vector<Diff::JsonValue> Warnings = WarningsOf(Other);
+  CHECK_NUM_EQ(Warnings.size(), 1);
+  if (Warnings.size() == 1) {
+    CHECK(Warnings[0].IsString() && Warnings[0].AsString().find("has no rows and was made for") != std::string::npos &&
+          Warnings[0].AsString().find("other.sqlite") != std::string::npos);
+  }
+  CHECK_TEXT_EQ(Report(Other, "names applied"), "names applied    : 0 (best 0, partial 0, unreliable 0, multimatch 0)");
 }
 
 void TestBadInputs(const std::string& Dir) {
@@ -1467,6 +1516,7 @@ int main() {
   TestDerivedPathAliases((std::filesystem::path(Dir) / "alias").string());
   TestOriginInheritance((std::filesystem::path(Dir) / "origin").string());
   TestBadInputs((std::filesystem::path(Dir) / "bad").string());
+  TestEmptyResultsOfAnotherPair((std::filesystem::path(Dir) / "empty").string());
   TestWal((std::filesystem::path(Dir) / "wal").string());
   TestPlaceholdersAndStripped((std::filesystem::path(Dir) / "placeholders").string());
   TestPortedTarget((std::filesystem::path(Dir) / "ported-target").string());

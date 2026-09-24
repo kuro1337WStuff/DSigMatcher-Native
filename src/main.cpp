@@ -67,7 +67,7 @@ void PrintGlobalUsage(std::FILE* Out) {
   std::fprintf(Out, "  dsigmatcher update <labelled.sqlite> <new-binary> -o <new-labelled.sqlite>\n");
   std::fprintf(Out, "                                                            ingest + diff + port in one step\n");
   std::fprintf(Out, "  dsigmatcher info <database.sqlite>                        identity, hops and provenance\n");
-  std::fprintf(Out, "  dsigmatcher --version | -V                                version and linked SQLite\n");
+  std::fprintf(Out, "  dsigmatcher --version | -V [--json]                       version and linked SQLite\n");
   std::fprintf(Out, "  dsigmatcher <command> --help                              the options of one command\n");
   std::fprintf(Out, "  dsigmatcher --help-all                                    every option, with developer ones\n");
   std::fprintf(Out, "\n");
@@ -80,11 +80,12 @@ void PrintGlobalUsage(std::FILE* Out) {
   std::fprintf(Out, "   0  ok\n");
   std::fprintf(Out, "   2  usage error, or refused (a path that would overwrite an input; nothing is changed)\n");
   std::fprintf(Out, "   3  Diaphora itself would raise on this input (no output written)\n");
-  std::fprintf(Out, "   4  unsupported input or configuration, or a tool is missing; for diff: db2 is not a\n");
-  std::fprintf(Out, "      Diaphora export (Diaphora's empty results are still written, as Diaphora would)\n");
+  std::fprintf(Out, "   4  unsupported input or configuration, or a tool is missing or cannot be started; for\n");
+  std::fprintf(Out, "      diff: db2 is not a Diaphora export (Diaphora's empty results are still written, as\n");
+  std::fprintf(Out, "      Diaphora would)\n");
   std::fprintf(Out, "   5  SQLite is not the oracle's 3.51.1 and --strict-sqlite was given\n");
   std::fprintf(Out, "   6  I/O or environment failure (missing, unreadable or unwritable file, not SQLite,\n");
-  std::fprintf(Out, "      a tool that cannot be started or fails, a timeout)\n");
+  std::fprintf(Out, "      a tool that fails, a timeout)\n");
   std::fprintf(Out, "  70  internal error (a bug, or out of memory)\n");
   std::fprintf(Out, "\n");
   std::fprintf(Out, "paths: any UTF-8 / Unicode path, including UNC paths (\\\\server\\share\\...).\n");
@@ -110,7 +111,8 @@ void PrintPortOptions(std::FILE* Out, bool InUpdate) {
   std::fprintf(Out, "      --overwrite-stripped         with --overwrite-existing: let \"Same binary with symbols\n");
   std::fprintf(Out, "                                   stripped\" rows (paired by address) replace real names too\n");
   std::fprintf(Out, "      --min-ratio <r>              drop names whose cumulative confidence falls below r (0..1)\n");
-  std::fprintf(Out, "      --max-hops <n>               drop names that have travelled through more than n diffs\n");
+  std::fprintf(Out, "      --max-hops <n>               drop names whose hop count after this port would exceed n\n");
+  std::fprintf(Out, "                                   (1: only names the reference did not inherit; 0: none)\n");
   std::fprintf(Out, "      --store-full-paths           dsig_* tables record absolute input paths (default: file\n");
   std::fprintf(Out, "                                   names only; the sha256 columns identify the files)\n");
   if (!InUpdate) {
@@ -366,6 +368,15 @@ Parsed ParseArguments(int Argc, char** Argv) {
   }
   if (First == "--version" || First == "-V" || First == "version") {
     Result.ShowVersion = true;
+    for (int Index = 2; Index < Argc; ++Index) {
+      const std::string Argument = Argv[Index];
+      if (Argument == "--json") {
+        Result.Json = true;
+      } else if (Result.Valid) {
+        Result.Valid = false;
+        Result.Error = "unknown option '" + Argument + "' for 'version' (it takes only --json)";
+      }
+    }
     return Result;
   }
   Result.Command = First;
@@ -651,7 +662,7 @@ int RunDiffCommand(const Parsed& Arguments) {
   Data.Set("output_written", JsonValue::Bool(Outcome.OutputWritten));
   Data.Set("replay", JsonValue::Bool(!Args.ReplayPath.empty()));
   Data.Set("diff_returned", JsonValue::Bool(Outcome.DiffReturned));
-  Data.Set("mode", JsonValue::String(std::string(1, Outcome.Mode)));
+  Data.Set("mode", Outcome.Mode == '\0' ? JsonValue::Null() : JsonValue::String(std::string(1, Outcome.Mode)));
   Data.Set("best", JsonValue::UInt(Outcome.Best));
   Data.Set("partial", JsonValue::UInt(Outcome.Partial));
   Data.Set("unreliable", JsonValue::UInt(Outcome.Unreliable));
@@ -984,6 +995,15 @@ int RunMain(int Argc, char** Argv) {
     return 0;
   }
   if (Arguments.ShowVersion) {
+    if (!Arguments.Valid) {
+      return UsageError(Arguments, Arguments.Error);
+    }
+    if (Arguments.Json) {
+      JsonValue Data = JsonValue::Object();
+      Data.Set("sqlite_version", JsonValue::String(sqlite3_libversion()));
+      PrintJson("version", Cli::kExitOk, std::string(), Data);
+      return Cli::kExitOk;
+    }
     // The first line is the stable, machine-readable part: "dsigmatcher <major.minor.patch>".
     std::printf("dsigmatcher %s\n", DSIG_VERSION);
     std::printf("SQLite %s\n", sqlite3_libversion());

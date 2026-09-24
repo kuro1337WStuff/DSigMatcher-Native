@@ -244,8 +244,8 @@ struct DiffOutcome {
   std::string Message;          // the error text for non-zero statuses
   std::string OutputPath;       // the .diaphora path (or the replay snapshot)
   bool OutputWritten = false;
-  bool DiffReturned = true;     // diff()'s return value (false: empty-result path)
-  char Mode = 'N';
+  bool DiffReturned = false;    // diff()'s return value (false: empty-result path, or no diff ran)
+  char Mode = '\0';             // 'S', 'P' or 'N' once the diff (or a replay) ran; '\0' when none ran
   size_t Best = 0;              // final chooser item counts (the "Final results" line)
   size_t Partial = 0;
   size_t Unreliable = 0;
@@ -253,7 +253,8 @@ struct DiffOutcome {
   std::vector<std::string> Skipped;  // always empty: no stage is a stub any more (audit F63); kept only
                                      // until the CLI (src/main.cpp) stops printing it
   std::string SqliteVersion;
-  std::string CheckpointDir;             // the checkpoint directory in use ("" without checkpoints)
+  std::string CheckpointDir;             // the checkpoint directory in use ("" without checkpoints, or
+                                         // when it was refused)
   std::string ResumedAfter;              // --resume: the stage the run continued after, e.g.
                                          // "find_related_compilation_unit:1"
   size_t CheckpointsWritten = 0;

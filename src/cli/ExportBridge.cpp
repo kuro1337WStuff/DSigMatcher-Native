@@ -1422,7 +1422,8 @@ CommandOutcome RunExport(std::string_view Command, std::string_view Mode, const 
   }
 
   Data.Set("tool_exit_code", Run.TimedOut ? Diff::JsonValue::Null() : Diff::JsonValue::Int(Run.ExitCode));
-  Data.Set("timed_out", Diff::JsonValue::Bool(Run.TimedOut));
+  // Either timeout: the script's own --timeout (exit kToolTimeout) or the backstop kill of a hung script.
+  Data.Set("timed_out", Diff::JsonValue::Bool(Run.TimedOut || Run.ExitCode == kToolTimeout));
   // The original must be untouched whatever happened; checked here too, not only by the script.
   const std::optional<std::string> InputShaAfter = FileSha256(Input);
   if (!InputShaAfter || *InputShaAfter != *InputSha) {

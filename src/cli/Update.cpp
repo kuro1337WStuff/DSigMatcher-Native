@@ -49,6 +49,19 @@ std::string BesideOutput(const std::string& Output, const std::string& Suffix) {
   return Utf8Of(Native.parent_path() / PathOf(Diff::PathStem(Utf8Of(Native.filename())) + Suffix));
 }
 
+// A path in the --json outcome: absolute and native, the form extract and ingest report.
+JsonValue JsonPath(const std::string& Utf8) {
+  if (Utf8.empty()) {
+    return JsonValue::String(Utf8);
+  }
+  std::error_code Error;
+  std::filesystem::path Absolute = std::filesystem::absolute(PathOf(Utf8), Error);
+  if (Error) {
+    return JsonValue::String(Utf8);
+  }
+  return JsonValue::String(Utf8Of(Absolute.lexically_normal().make_preferred()));
+}
+
 JsonValue StepJson(const CommandOutcome& Step) {
   JsonValue Object = JsonValue::Object();
   Object.Set("exit_code", JsonValue::Int(Step.ExitCode));
@@ -70,12 +83,12 @@ CommandOutcome RunUpdate(const UpdateArgs& Args, const IngestRunner& Ingest) {
   const std::string ResultsPath = Args.Output.empty() ? std::string() : DefaultResultsPath(Args.Output);
 
   JsonValue Data = JsonValue::Object();
-  Data.Set("labelled", JsonValue::String(Args.Labelled));
-  Data.Set("binary", JsonValue::String(Args.Binary));
-  Data.Set("output", JsonValue::String(Args.Output));
-  Data.Set("export", JsonValue::String(ExportPath));
-  Data.Set("export_sidecar", JsonValue::String(SidecarPath));
-  Data.Set("results", JsonValue::String(ResultsPath));
+  Data.Set("labelled", JsonPath(Args.Labelled));
+  Data.Set("binary", JsonPath(Args.Binary));
+  Data.Set("output", JsonPath(Args.Output));
+  Data.Set("export", JsonPath(ExportPath));
+  Data.Set("export_sidecar", JsonPath(SidecarPath));
+  Data.Set("results", JsonPath(ResultsPath));
   const auto Failure = [&](int Code, const std::string& Step, std::string Message) {
     Outcome.ExitCode = Code;
     Outcome.Message = Step.empty() ? std::move(Message) : Step + ": " + Message;

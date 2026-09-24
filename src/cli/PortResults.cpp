@@ -21,6 +21,7 @@
 #include <sqlite3.h>
 
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <filesystem>
 #include <map>
@@ -393,6 +394,35 @@ CommandOutcome RunPortFromResults(const PortFromResultsArgs& Args) {
   }
   const std::string ResultsSha256 = FileSha256Hex(ResultsPath).value_or(std::string());
 
+  // Rows of another pair are refused row by row (PortLabels), which an empty results file never
+  // reaches. An empty file whose config names other exports is most likely the empty results of a
+  // failed diff of another pair (diff exit 4), so the port warns. It does not refuse: the exports of a
+  // genuine empty diff may have been renamed or moved since.
+  std::vector<std::string> Warnings;
+  if (!InProcess && Results.Rows.empty()) {
+    const auto BaseName = [](const std::string& Path) {
+      const size_t Slash = Path.find_last_of("/\\");
+      std::string Name = Slash == std::string::npos ? Path : Path.substr(Slash + 1);
+#ifdef _WIN32
+      for (char& Character : Name) {
+        if (Character >= 'A' && Character <= 'Z') {
+          Character = static_cast<char>(Character - 'A' + 'a');
+        }
+      }
+#endif
+      return Name;
+    };
+    const bool MainDiffers = !Results.MainDb.empty() && BaseName(Results.MainDb) != BaseName(Args.Reference);
+    const bool DiffDiffers = !Results.DiffDb.empty() && BaseName(Results.DiffDb) != BaseName(Args.Target);
+    if (MainDiffers || DiffDiffers) {
+      Warnings.push_back("results file '" + ResultsPath + "' has no rows and was made for '" + Results.MainDb +
+                         "' / '" + Results.DiffDb + "', not for '" + BaseName(Args.Reference) + "' / '" +
+                         BaseName(Args.Target) + "'; the port records a hop with no names");
+      std::fprintf(stderr, "warning: %s\n", Warnings.back().c_str());
+      std::fflush(stderr);
+    }
+  }
+
   for (LabelProposal& Row : Results.Rows) {
     Row.Selected = Row.Category == "best" || Row.Category == "partial" ||
                    (Row.Category == "unreliable" && Args.IncludeUnreliable) ||
@@ -530,6 +560,11 @@ CommandOutcome RunPortFromResults(const PortFromResultsArgs& Args) {
   Data.Set("skipped_not_portable", JsonValue::Int(Port.NamesSkippedNotPortable));
   Data.Set("skipped_conflict", JsonValue::Int(Port.NamesSkippedConflict));
   Data.Set("skipped_duplicate", JsonValue::Int(Port.NamesSkippedDuplicate));
+  JsonValue WarningsJson = JsonValue::Array();
+  for (const std::string& Warning : Warnings) {
+    WarningsJson.Push(JsonValue::String(Warning));
+  }
+  Data.Set("warnings", std::move(WarningsJson));
   Outcome.Data = std::move(Data);
   return Outcome;
 }
