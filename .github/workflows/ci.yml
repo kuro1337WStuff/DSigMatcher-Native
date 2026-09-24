@@ -41,6 +41,25 @@ jobs:
           fi
           echo "no personal paths found"
 
+      # Maintainer notes and binary artefacts (IDA databases, SQLite files, Python bytecode) stay local:
+      # the published repository must not track them. The check needs GitHub's environment
+      # (GITHUB_REPOSITORY), so running this script in a local working copy, where such notes may be
+      # tracked until publication, does not fail.
+      - name: No local-only or binary files tracked
+        shell: bash
+        run: |
+          if [ -z "${GITHUB_REPOSITORY:-}" ]; then
+            echo "not running on GitHub; skipped"
+            exit 0
+          fi
+          tracked=$(git ls-files -- AGENTS.md 'HANDOFF*.md' JOURNAL.md '*.pyc' '*.i64' '*.idb' '*.sqlite' '*.db')
+          if [ -n "$tracked" ]; then
+            printf '%s\n' "$tracked"
+            echo "::error::local-only or binary files are tracked (see the list above)"
+            exit 1
+          fi
+          echo "no local-only or binary files tracked"
+
   build-and-test:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}

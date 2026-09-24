@@ -184,6 +184,10 @@ jobs:
       VERSION: ${{ needs.version.outputs.version }}
       PACKAGE: dsigmatcher-${{ needs.version.outputs.version }}-linux-x64
       ALPINE_IMAGE: alpine:3.22
+      # The musl the binary is linked with: THIRD_PARTY_NOTICES.md names this version, and the archive
+      # carries its COPYRIGHT file (pinned by SHA-256).
+      MUSL_VERSION: 1.2.5
+      MUSL_COPYRIGHT_SHA256: f9bc4423732350eb0b3f7ed7e91d530298476f8fec0c6c427a1c04ade22655af
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -193,6 +197,12 @@ jobs:
           docker run --rm -v "$PWD:/src" -w /src "$ALPINE_IMAGE" sh -euc '
             apk add --no-cache build-base cmake samurai git linux-headers python3 file
             echo "alpine $(cat /etc/alpine-release); $(gcc --version | head -n 1); $(cmake --version | head -n 1)"
+            musl=$(apk info -e -v musl)
+            echo "$musl"
+            case "$musl" in
+              musl-'"$MUSL_VERSION"'-r*) ;;
+              *) echo "::error::$musl is not musl '"$MUSL_VERSION"' (update THIRD_PARTY_NOTICES.md and MUSL_*)"; exit 1 ;;
+            esac
             cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DDSIG_FULLY_STATIC=ON
             cmake --build build
             ctest --test-dir build --output-on-failure
@@ -237,6 +247,11 @@ jobs:
             [ -f "$doc" ] || { echo "::error::$doc is missing at the repository root"; exit 1; }
             cp "$doc" "$dir/"
           done
+          # musl is linked into the binary (MIT): its COPYRIGHT file goes with it.
+          mkdir -p "$dir/licenses"
+          curl -fsSL --retry 5 -o "$dir/licenses/musl-COPYRIGHT" \
+            "https://git.musl-libc.org/cgit/musl/plain/COPYRIGHT?h=v$MUSL_VERSION"
+          echo "$MUSL_COPYRIGHT_SHA256  $dir/licenses/musl-COPYRIGHT" | sha256sum -c -
           tar -C dist -czf "dist/$PACKAGE.tar.gz" "$PACKAGE"
           tar -tzvf "dist/$PACKAGE.tar.gz"
 
@@ -275,8 +290,9 @@ jobs:
       - name: Test (arm64)
         run: ctest --test-dir build --output-on-failure
 
-      # Rosetta 2 runs the x86_64 slice. The whole suite runs when ctest itself is universal (a process
-      # started under Rosetta prefers the x86_64 slice of the universal test executables).
+      # Rosetta 2 runs the x86_64 slice. Homebrew's ctest is arm64-only, so the whole suite runs under a
+      # universal2 ctest from the PyPI cmake wheel: a ctest started under Rosetta runs as x86_64, and so do
+      # the (universal) test executables it starts.
       - name: Test (x86_64 under Rosetta)
         run: |
           if ! arch -x86_64 /usr/bin/true 2>/dev/null; then
@@ -286,13 +302,15 @@ jobs:
           out=$(arch -x86_64 build/dsigmatcher --version)
           echo "$out"
           [ "$(printf '%s\n' "$out" | head -n 1)" = "dsigmatcher $VERSION" ]
-          ctest_bin=$(command -v ctest)
-          if lipo -archs "$ctest_bin" 2>/dev/null | grep -qw x86_64; then
-            arch -x86_64 "$ctest_bin" --test-dir build --output-on-failure
-          else
-            echo "::warning::$ctest_bin has no x86_64 slice; running the unit suite only under x86_64"
-            arch -x86_64 build/dsigmatcher_tests
-          fi
+          venv="$RUNNER_TEMP/cmake-universal2"
+          python3 -m venv "$venv"
+          "$venv/bin/python" -m pip install --quiet --only-binary=:all: "cmake>=3.28,<5"
+          # the real executable, not the pip console-script wrapper (a Python script)
+          ctest_bin=$("$venv/bin/python" -c 'import cmake, os; print(os.path.join(cmake.CMAKE_BIN_DIR, "ctest"))')
+          archs=$(lipo -archs "$ctest_bin")
+          echo "$ctest_bin: $archs"
+          echo " $archs " | grep -q " x86_64 " || { echo "::error::$ctest_bin has no x86_64 slice"; exit 1; }
+          arch -x86_64 "$ctest_bin" --test-dir build --output-on-failure
 
       - name: Architectures, deployment target and dependencies
         run: |
