@@ -16,9 +16,13 @@
 //   * lane F1: reading an input creates no -wal/-shm beside it (immutable=1 when no committed -wal
 //     frame or hot -journal waits), committed -wal frames are still read, a hot -journal is refused;
 //     non-ASCII and UNC paths through the immutable URI.
+//   * lane P1 (ResilienceTests.inc): checkpoints and --resume after a kill at every checkpoint, and the
+//     break-the-app tests (checkpoint directory problems, a full disk, corrupt / truncated / locked
+//     inputs, damaged checkpoints, internal errors).
 
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -29,8 +33,10 @@
 #include <limits>
 #include <map>
 #include <memory>
+#include <random>
 #include <set>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -52,7 +58,9 @@
 
 #include <sqlite3.h>
 
+#include "CheckpointDetail.h"
 #include "FileIo.h"
+#include "ResultsWriterDetail.h"
 #include "diff/CorpusPaths.h"
 #include "diff/FixtureDb.h"
 #include "diff/ResultsCompare.h"
@@ -60,12 +68,14 @@
 #include "dsigmatcher/Sha256.h"
 #include "dsigmatcher/Version.h"
 #include "dsigmatcher/diff/Candidates.h"
+#include "dsigmatcher/diff/Checkpoint.h"
 #include "dsigmatcher/diff/Config.h"
 #include "dsigmatcher/diff/Database.h"
 #include "dsigmatcher/diff/Errors.h"
 #include "dsigmatcher/diff/Interner.h"
 #include "dsigmatcher/diff/Json.h"
 #include "dsigmatcher/diff/Pipeline.h"
+#include "dsigmatcher/diff/PyValue.h"
 #include "dsigmatcher/diff/Registry.h"
 #include "dsigmatcher/diff/Snapshot.h"
 #include "dsigmatcher/diff/StageSql.h"
@@ -947,6 +957,7 @@ void TestFixtureIngest() {
     CHECK(!Rows.Next(Out));
     CHECK_NUM_EQ(Rows.Fetched(), 2);
   }
+  S.Db().Close();  // Windows cannot delete a database file that is still open
   DSig::Test::RemoveScratchDir(Pair.Dir);
 }
 
@@ -1001,6 +1012,7 @@ void TestIngestQuirks() {
   CHECK(!IsValidUtf8("\xed\xa0\x80"));      // surrogate
   CHECK(!IsValidUtf8("\xf4\x90\x80\x80"));  // above U+10FFFF
   CHECK(!IsValidUtf8("abcdefgh\x80"));
+  S.Db().Close();  // Windows cannot delete a database file that is still open
   DSig::Test::RemoveScratchDir(Pair.Dir);
 
   // an export without `functions` columns is recorded, then refused after the version check
@@ -1008,7 +1020,8 @@ void TestIngestQuirks() {
                                               "drop index idx_22;\nalter table functions drop column switches;\n");
   CHECK(Broken.Ok);
   if (Broken.Ok) {
-    DiffSession B;
+    auto Session = std::make_unique<DiffSession>();  // closed before the scratch directory is removed
+    DiffSession& B = *Session;
     B.Open(Broken.Main, Broken.Diff);
     CHECK_NUM_EQ(B.Main().Problems.size(), 1);
     CHECK(B.Diff().Problems.empty());
@@ -1027,6 +1040,7 @@ void TestIngestQuirks() {
     const DiffOutcome Outcome = RunDiff(Args);
     CHECK(Outcome.Status == DiffStatus::Unsupported);
     CHECK(!Outcome.OutputWritten);
+    Session.reset();
     DSig::Test::RemoveScratchDir(Broken.Dir);
   }
 }
@@ -1523,6 +1537,7 @@ void TestMissingSideTables() {
       DiffSession S;
       S.Open(Pair.Main, Pair.Diff);
       CHECK(S.Main().Problems.empty() && S.Diff().Problems.empty());
+      S.Db().Close();  // Windows cannot delete a database file that is still open
       DSig::Test::RemoveScratchDir(Pair.Dir);
     }
   }
@@ -3342,12 +3357,14 @@ void TestErrorContext() {
   if (!Pair.Ok) {
     return;
   }
-  DiffSession S;
-  S.Open(Pair.Main, Pair.Diff);
   bool Named = false;
-  for (const std::string& Problem : S.Main().Problems) {
-    Named = Named || (Problem.find("functions.name row with id ") != std::string::npos &&
-                      Problem.find("holds a number in a TEXT column") != std::string::npos);
+  {
+    DiffSession S;  // closed before the scratch directory is removed
+    S.Open(Pair.Main, Pair.Diff);
+    for (const std::string& Problem : S.Main().Problems) {
+      Named = Named || (Problem.find("functions.name row with id ") != std::string::npos &&
+                        Problem.find("holds a number in a TEXT column") != std::string::npos);
+    }
   }
   CHECK(Named);
   DSig::Test::RemoveScratchDir(Pair.Dir);
@@ -3370,7 +3387,13 @@ void TestReleaseHardening() {
   DSig::Test::RemoveScratchDir(Pair.Dir);
 }
 
-int main() {
+#include "diff/ResilienceTests.inc"
+
+int main(int argc, char** argv) {
+  P1SetSelfPath(argc > 0 ? argv[0] : nullptr);
+  if (argc >= 2 && std::string(argv[1]) == "--p1-checkpoint-child") {
+    return P1CheckpointChildMain(argc, argv);  // a child process of the P1 kill-and-resume tests
+  }
   TestRegistry();
   TestInterner();
   TestJson();
@@ -3391,6 +3414,7 @@ int main() {
   TestCorpusDiffDdl();
   TestOracleConventions();
   TestReleaseHardening();
+  TestP1Resilience();
   TestSqliteInitialize();  // last: it shuts SQLite down and restores it
   return DSig::Test::Finish();
 }

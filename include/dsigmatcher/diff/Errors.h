@@ -9,6 +9,9 @@
 //   UnsupportedInput          -> exit 4 (a configuration or input quirk the port refuses instead of guessing)
 //   IoFailure                 -> exit 6
 //   SqliteEnvironmentFailure  -> exit 6 (an IoFailure: the environment, not the data, made SQLite fail)
+//   std::bad_alloc            -> exit 6 ("out of memory": the environment)
+//   any other exception       -> exit 70 (DiffStatus::Internal, "internal error: ..."): a bug, never an
+//                                input problem
 // Only DiaphoraWouldRaise is ever caught inside the engine (the heuristic workers truncate a heuristic on
 // it, as Python's threads do); every other type always reaches RunDiff.
 

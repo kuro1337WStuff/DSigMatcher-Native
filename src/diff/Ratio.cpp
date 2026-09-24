@@ -936,6 +936,8 @@ std::optional<double> RatioEngine::Cached(AddrId Ea1, AddrId Ea2) const { return
 
 std::vector<RatioEngine::CacheEntry> RatioEngine::CacheSnapshot() const { return Impl_->Entries; }
 
+const std::vector<RatioEngine::CacheEntry>& RatioEngine::CacheEntries() const { return Impl_->Entries; }
+
 double RatioEngine::QuickRatio(std::optional<std::string_view> A, std::optional<std::string_view> B) {
   // D:150-155 check_bufs
   if (!A || !B || A->empty() || B->empty()) {

@@ -41,6 +41,7 @@ public:
     double Ratio = 0.0;
   };
   std::vector<CacheEntry> CacheSnapshot() const;  // insertion order (Python dict order)
+  const std::vector<CacheEntry>& CacheEntries() const;  // the same, without a copy
 
   static double QuickRatio(std::optional<std::string_view> A, std::optional<std::string_view> B);  // D:150-165
   static double Round7(double V);                                                // float("{0:.7f}".format(v))

@@ -2,7 +2,9 @@
 
 #include "FileIo.h"
 
+#include <algorithm>
 #include <cctype>
+#include <cerrno>
 #include <climits>
 #include <cstdint>
 #include <cstring>
@@ -20,6 +22,9 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
+#else
+#include <fcntl.h>
+#include <unistd.h>
 #endif
 
 namespace DSig::Diff::Detail {
@@ -143,6 +148,110 @@ void ReplaceFileBytes(const std::string& Utf8Path, std::string_view Bytes) {
     fs::remove(PathFromUtf8(Temporary), Ignored);
     throw;
   }
+}
+
+namespace {
+
+// Writes Bytes to a new file and flushes it to the disk. Throws IoFailure.
+void WriteFileBytesSynced(const std::string& Utf8Path, std::string_view Bytes) {
+  const fs::path Path = PathFromUtf8(Utf8Path);
+#ifdef _WIN32
+  const HANDLE Handle = CreateFileW(Path.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL,
+                                    nullptr);
+  if (Handle == INVALID_HANDLE_VALUE) {
+    throw IoFailure("cannot write '" + Utf8Path + "': " +
+                    std::system_category().message(static_cast<int>(GetLastError())));
+  }
+  size_t Done = 0;
+  while (Done < Bytes.size()) {
+    const size_t Chunk = std::min<size_t>(Bytes.size() - Done, size_t{1} << 24);
+    DWORD Wrote = 0;
+    if (!WriteFile(Handle, Bytes.data() + Done, static_cast<DWORD>(Chunk), &Wrote, nullptr) || Wrote == 0) {
+      const DWORD Code = GetLastError();
+      CloseHandle(Handle);
+      throw IoFailure("cannot write '" + Utf8Path + "': " + std::system_category().message(static_cast<int>(Code)));
+    }
+    Done += Wrote;
+  }
+  if (!FlushFileBuffers(Handle)) {
+    const DWORD Code = GetLastError();
+    CloseHandle(Handle);
+    throw IoFailure("cannot flush '" + Utf8Path + "': " + std::system_category().message(static_cast<int>(Code)));
+  }
+  if (!CloseHandle(Handle)) {
+    throw IoFailure("cannot close '" + Utf8Path + "': " +
+                    std::system_category().message(static_cast<int>(GetLastError())));
+  }
+#else
+  const int Fd = ::open(Path.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0666);
+  if (Fd < 0) {
+    throw IoFailure("cannot write '" + Utf8Path + "': " + std::generic_category().message(errno));
+  }
+  size_t Done = 0;
+  while (Done < Bytes.size()) {
+    const ssize_t Wrote = ::write(Fd, Bytes.data() + Done, Bytes.size() - Done);
+    if (Wrote < 0 && errno == EINTR) {
+      continue;
+    }
+    if (Wrote <= 0) {
+      const int Code = Wrote < 0 ? errno : ENOSPC;
+      ::close(Fd);
+      throw IoFailure("cannot write '" + Utf8Path + "': " + std::generic_category().message(Code));
+    }
+    Done += static_cast<size_t>(Wrote);
+  }
+  if (::fsync(Fd) != 0) {
+    const int Code = errno;
+    ::close(Fd);
+    throw IoFailure("cannot flush '" + Utf8Path + "': " + std::generic_category().message(Code));
+  }
+  if (::close(Fd) != 0) {
+    throw IoFailure("cannot close '" + Utf8Path + "': " + std::generic_category().message(errno));
+  }
+#endif
+}
+
+// POSIX: a rename is durable only once its directory is synced. Best effort (some file systems refuse
+// to open or sync a directory); Windows has no equivalent and needs none for MoveFileExW.
+void SyncDirectoryOf(const std::string& Utf8Path) {
+#ifndef _WIN32
+  fs::path Parent = PathFromUtf8(Utf8Path).parent_path();
+  if (Parent.empty()) {
+    Parent = ".";
+  }
+  const int Fd = ::open(Parent.c_str(), O_RDONLY | O_CLOEXEC);
+  if (Fd >= 0) {
+    (void)::fsync(Fd);
+    ::close(Fd);
+  }
+#else
+  (void)Utf8Path;
+#endif
+}
+
+}  // namespace
+
+void ReplaceFileBytesDurable(const std::string& Utf8Path, std::string_view Bytes, void (*Fault)(std::string_view),
+                             std::string_view Label) {
+  const std::string Temporary = Utf8Path + ".tmp";
+  const auto Remove = [&] {
+    std::error_code Ignored;
+    fs::remove(PathFromUtf8(Temporary), Ignored);
+  };
+  try {
+    if (Fault != nullptr) {
+      Fault(std::string(Label) + ":write");
+    }
+    WriteFileBytesSynced(Temporary, Bytes);
+    if (Fault != nullptr) {
+      Fault(std::string(Label) + ":rename");
+    }
+    RenameReplacing(Temporary, Utf8Path);
+  } catch (...) {
+    Remove();
+    throw;
+  }
+  SyncDirectoryOf(Utf8Path);
 }
 
 bool PathExists(const std::string& Utf8Path) {

@@ -15,9 +15,10 @@
 //   * repr(float)     Python/pystrtod.c format_float_short with mode 'r' (shortest round trip,
 //                     exponent form when decpt <= -4 or decpt > 16).
 // This file uses no floating-point from_chars/to_chars (older Apple libc++ lacks them, 03a §5): its
-// decimal to double conversion is exact big-integer arithmetic, portable to MSVC, GCC and Clang. (Other
-// files do use them where the CI's standard libraries provide them, for example Json.cpp AsDouble and
-// Trace.cpp FormatPercent2; ResultsWriter.cpp guards its use with __cpp_lib_to_chars.)
+// decimal to double conversion is exact big-integer arithmetic, portable to MSVC, GCC and Clang. Json.cpp
+// AsDouble converts through PyFloat and Trace.cpp FormatPercent2 through the writer's exact formatter for
+// the same reason; ResultsWriter.cpp uses std::to_chars only where __cpp_lib_to_chars says it exists and
+// never on Apple platforms.
 
 #include "dsigmatcher/diff/PyValue.h"
 

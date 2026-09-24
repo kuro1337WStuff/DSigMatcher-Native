@@ -12,11 +12,13 @@
 
 #include "dsigmatcher/diff/Json.h"
 
-#include <charconv>
+#include <charconv>  // integer from_chars only: no floating-point <charconv> (older Apple libc++ lacks it)
 #include <cmath>
 #include <cstdio>
 #include <limits>
 #include <system_error>
+
+#include "dsigmatcher/diff/PyValue.h"
 
 namespace DSig::Diff {
 
@@ -58,6 +60,47 @@ JsonValue JsonValue::Object() {
   JsonValue Result;
   Result.Kind_ = Kind::Object;
   return Result;
+}
+
+bool IsJsonNumberText(std::string_view Text) {
+  // NUMBER_RE -?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][-+]?[0-9]+)?
+  size_t Pos = 0;
+  const auto Digit = [&](size_t At) { return At < Text.size() && Text[At] >= '0' && Text[At] <= '9'; };
+  if (Pos < Text.size() && Text[Pos] == '-') {
+    ++Pos;
+  }
+  if (!Digit(Pos)) {
+    return false;
+  }
+  if (Text[Pos] == '0') {
+    ++Pos;
+  } else {
+    while (Digit(Pos)) {
+      ++Pos;
+    }
+  }
+  if (Pos < Text.size() && Text[Pos] == '.') {
+    ++Pos;
+    if (!Digit(Pos)) {
+      return false;
+    }
+    while (Digit(Pos)) {
+      ++Pos;
+    }
+  }
+  if (Pos < Text.size() && (Text[Pos] == 'e' || Text[Pos] == 'E')) {
+    ++Pos;
+    if (Pos < Text.size() && (Text[Pos] == '+' || Text[Pos] == '-')) {
+      ++Pos;
+    }
+    if (!Digit(Pos)) {
+      return false;
+    }
+    while (Digit(Pos)) {
+      ++Pos;
+    }
+  }
+  return Pos == Text.size();
 }
 
 namespace {
@@ -131,27 +174,19 @@ double JsonValue::AsDouble() const {
   if (Text_ == "-Infinity") {
     return -std::numeric_limits<double>::infinity();
   }
-  double Value = 0.0;
-  const auto Result = std::from_chars(Text_.data(), Text_.data() + Text_.size(), Value);
-  if (Result.ec == std::errc::result_out_of_range) {
-    // Python float() of an overflowing literal gives +-inf and of an underflowing one +-0.0
-    const bool Negative = !Text_.empty() && Text_[0] == '-';
-    bool Huge = false;
-    const size_t E = Text_.find_first_of("eE");
-    if (E != std::string::npos) {
-      Huge = Text_[E + 1] != '-';
-    } else {
-      Huge = true;
-    }
-    if (Huge) {
-      return Negative ? -std::numeric_limits<double>::infinity() : std::numeric_limits<double>::infinity();
-    }
-    return Negative ? -0.0 : 0.0;
-  }
-  if (Result.ec != std::errc() || Result.ptr != Text_.data() + Text_.size()) {
+  // Python's json module converts a number literal with float(text) (Lib/json/scanner.py), which is
+  // correctly rounded (dtoa.c) and gives +-inf for an overflowing literal and +-0.0 for an underflowing
+  // one. PyFloat is that conversion in exact big-integer arithmetic, so no floating-point from_chars is
+  // needed (older Apple libc++ lacks it). Only the JSON number grammar is accepted here: PyFloat alone
+  // would also take "inf", "1_0" or surrounding spaces.
+  if (!IsJsonNumberText(Text_)) {
     throw JsonError("bad number: " + Text_, JsonError::kNoOffset);
   }
-  return Value;
+  const std::optional<double> Value = PyFloat(Text_);
+  if (!Value) {
+    throw JsonError("bad number: " + Text_, JsonError::kNoOffset);
+  }
+  return *Value;
 }
 
 const std::string& JsonValue::AsString() const {

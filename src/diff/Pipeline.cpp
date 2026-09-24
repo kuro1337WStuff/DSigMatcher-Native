@@ -8,6 +8,7 @@
 #include <fstream>
 #include <map>
 #include <new>
+#include <set>
 #include <tuple>
 #include <unordered_map>
 
@@ -17,6 +18,7 @@
 #include "dsigmatcher/diff/Json.h"
 #include "dsigmatcher/diff/StageSql.h"
 #include "dsigmatcher/diff/Stages.h"
+#include "stages/EarlyPasses.h"
 
 namespace DSig::Diff {
 
@@ -310,6 +312,20 @@ void DiffSession::Cleanup(CleanupSite Site) {
 std::optional<int> DiffSession::Iteration() const { return Impl_->Iteration; }
 void DiffSession::SetIteration(std::optional<int> Iteration) { Impl_->Iteration = Iteration; }
 
+int64_t DiffSession::PointSeq() const { return Impl_->PointSeq; }
+void DiffSession::SetPointSeq(int64_t Seq) { Impl_->PointSeq = Seq; }
+
+std::vector<std::pair<int, int64_t>> DiffSession::CleanupCounters() const {
+  return std::vector<std::pair<int, int64_t>>(Impl_->CleanupCounters.begin(), Impl_->CleanupCounters.end());
+}
+
+void DiffSession::SetCleanupCounters(const std::vector<std::pair<int, int64_t>>& Counters) {
+  Impl_->CleanupCounters.clear();
+  for (const auto& [Site, Count] : Counters) {
+    Impl_->CleanupCounters[Site] = Count;
+  }
+}
+
 std::string_view DiffSession::Context() const {
   return Impl_->Contexts.empty() ? std::string_view("diff") : std::string_view(Impl_->Contexts.back());
 }
@@ -563,6 +579,76 @@ void DiffSession::CheckSnapshotMatchesInputs(const StateSnapshot& Before) const 
 
 std::shared_ptr<void>& DiffSession::ExtSlot(std::type_index Type) { return Impl_->Ext[Type]; }
 
+// ---------------------------------------------------------------------------------------------
+// Checkpoints (Checkpoint.h)
+
+EngineCheckpoint CaptureCheckpoint(DiffSession& S, const PipelineCursor& Cursor) {
+  EngineCheckpoint C;
+  C.Cursor = Cursor;
+  // A point name that is none of the dump points, so Snapshot adds neither choosers nor unmatched lists;
+  // they are added below whenever their stage has run.
+  C.State = S.Snapshot("checkpoint:" + std::string(PipelineStepName(Cursor.Done)), false);
+  const Interners& Ids = S.Ids();
+  if (Cursor.Done >= PipelineStep::FinalPass) {
+    SnapChoosers Choosers;
+    Choosers.Best = ToSnapItems(Ids, S.Final().Best);
+    Choosers.Partial = ToSnapItems(Ids, S.Final().Partial);
+    Choosers.Unreliable = ToSnapItems(Ids, S.Final().Unreliable);
+    Choosers.Multimatch = ToSnapItems(Ids, S.Final().Multimatch);
+    C.State.Choosers = std::move(Choosers);
+  }
+  if (Cursor.Done >= PipelineStep::FindUnmatched) {
+    SnapUnmatchedDump Dump;
+    Dump.Primary = ToSnapUnmatched(Ids, S.Final().UnmatchedPrimary);
+    Dump.Secondary = ToSnapUnmatched(Ids, S.Final().UnmatchedSecondary);
+    C.State.Unmatched = std::move(Dump);
+  }
+  const auto AddrText = [&](AddrId Id) -> std::optional<std::string> {
+    if (Id == kNoneAddr) {
+      return std::nullopt;
+    }
+    return std::string(Ids.AddrText(Id));
+  };
+  const std::vector<RatioEngine::CacheEntry>& Cache = S.Engine().CacheEntries();
+  C.RatiosCache.reserve(Cache.size());
+  for (const RatioEngine::CacheEntry& Entry : Cache) {
+    C.RatiosCache.push_back(CheckpointCacheEntry{AddrText(Entry.Ea1), AddrText(Entry.Ea2), RatioBits(Entry.Ratio)});
+  }
+  const auto NameText = [&](NameId Id) -> std::optional<std::string> {
+    if (const auto Name = Ids.NameOrNone(Id)) {
+      return std::string(*Name);
+    }
+    return std::nullopt;
+  };
+  for (const auto& [Name1, Name2] : S.Ext<Early::PatchDiffHookState>().Dones) {
+    C.HookDones.emplace_back(NameText(Name1), NameText(Name2));
+  }
+  C.PointSeq = S.PointSeq();
+  C.CleanupCounters = S.CleanupCounters();
+  return C;
+}
+
+void RestoreCheckpoint(DiffSession& S, const EngineCheckpoint& C) {
+  S.CheckSnapshotMatchesInputs(C.State);
+  S.Restore(C.State);  // flags, totals, iteration, all_matches, matched_*, choosers, unmatched
+  Interners& Ids = S.Ids();
+  const auto Addr = [&](const std::optional<std::string>& Text) { return Text ? Ids.Addr(*Text) : kNoneAddr; };
+  S.Engine().ClearCache();
+  for (const CheckpointCacheEntry& Entry : C.RatiosCache) {
+    S.Engine().SeedCache(Addr(Entry.Ea1), Addr(Entry.Ea2), RatioFromBits(Entry.RatioBits));
+  }
+  const auto Name = [&](const std::optional<std::string>& Text) {
+    return Text ? Ids.Name(*Text) : kNoneName;
+  };
+  std::set<std::pair<NameId, NameId>>& Dones = S.Ext<Early::PatchDiffHookState>().Dones;
+  Dones.clear();
+  for (const auto& [Name1, Name2] : C.HookDones) {
+    Dones.insert({Name(Name1), Name(Name2)});
+  }
+  S.SetPointSeq(C.PointSeq);
+  S.SetCleanupCounters(C.CleanupCounters);
+}
+
 char DiffSession::Mode() const {
   if (Impl_->Flags.IsSymbolsStripped) {
     return 'S';
@@ -591,91 +677,168 @@ void LoopStage(DiffSession& S, const char* Name, int Iteration, void (*Fn)(DiffS
 
 }
 
-bool RunPipeline(DiffSession& S) {
+bool RunPipeline(DiffSession& S) { return RunPipeline(S, nullptr); }
+
+// The pipeline is one code path for fresh and resumed runs: every top-level step runs unless the resumed
+// checkpoint was written after it, and every completed step is offered to Checkpointing->Save. A
+// resumed run starts from the state RestoreCheckpoint put into the session, which is everything a
+// later step reads (matches, matched dicts, totals, flags, ratios cache, choosers, unmatched lists, the
+// patch-diff hook's dones, the iteration and the harness counters), plus the two locals of diff() that
+// outlive a step (skip_others, old_total), which the cursor carries.
+bool RunPipeline(DiffSession& S, PipelineCheckpointing* Checkpointing) {
   ContextScope Root(S, "diff");
-  S.Engine().ClearCache();  // D:3572 self.ratios_cache = {}
-  S.SetIteration(std::nullopt);
-
-  // D:3577-3591: `select value from diff.version`; failure or no row -> diff() returns False and
-  // __main__ still calls save_results (D:3772-3773), which writes empty tables.
-  if (!StageCheckVersion(S)) {
-    return false;
-  }
-  S.RequireIngest();
-
-  // D:3599-3601: do_continue is always True; equal_db only logs.
-  if (StageEqualDb(S)) {
-    S.Log().Info("The databases seems to be 100% equal");
-  }
-  // D:3603-3605 check_callgraph (validation; may raise)
-  StageCheckCallgraph(S);
-  // D:3607-3610: project_script is None in the parity configuration (§1.1), so no load_hooks.
-
-  // D:3613-3614 find_equal_matches (also sets total_functions1/2, D:1411-1422)
-  {
-    ContextScope Scope(S, "find_equal_matches");
-    StageFindEqualMatches(S);
-  }
-  S.Point("after:find_equal_matches");
-
-  bool SkipOthers = false;                              // D:3616
-  S.Flags().IsSameProcessor = StageSameProcessor(S);    // D:3617
-  S.Engine().Prepare();                                 // plan §3.6: after IsSameProcessor
-  if (S.Config().Experimental) {  // D:3618-3621
-    {
-      ContextScope Scope(S, "apply_dirty_heuristics");
-      SkipOthers = StageApplyDirtyHeuristics(S);
+  const std::optional<PipelineCursor> Resume =
+      Checkpointing != nullptr ? Checkpointing->ResumeFrom : std::optional<PipelineCursor>();
+  PipelineCursor Cursor = Resume.value_or(PipelineCursor{});
+  // A pre-loop or post-loop step is done when the checkpoint was written at it or at any later step
+  // (the enumerators are in execution order; every loop step lies between the two groups).
+  const auto Done = [&](PipelineStep Step) { return Resume && Resume->Done >= Step; };
+  const auto Save = [&](PipelineStep Step) {
+    Cursor.Done = Step;
+    if (Checkpointing != nullptr && Checkpointing->Save) {
+      Checkpointing->Save(Cursor);
     }
-    S.Point("after:apply_dirty_heuristics");
+  };
+
+  if (!Resume) {
+    S.Engine().ClearCache();  // D:3572 self.ratios_cache = {}
+    S.SetIteration(std::nullopt);
+
+    // D:3577-3591: `select value from diff.version`; failure or no row -> diff() returns False and
+    // __main__ still calls save_results (D:3772-3773), which writes empty tables.
+    if (!StageCheckVersion(S)) {
+      return false;
+    }
+    S.RequireIngest();
+
+    // D:3599-3601: do_continue is always True; equal_db only logs.
+    if (StageEqualDb(S)) {
+      S.Log().Info("The databases seems to be 100% equal");
+    }
+    // D:3603-3605 check_callgraph (validation; may raise)
+    StageCheckCallgraph(S);
+    // D:3607-3610: project_script is None in the parity configuration (§1.1), so no load_hooks.
+
+    // D:3613-3614 find_equal_matches (also sets total_functions1/2, D:1411-1422)
+    {
+      ContextScope Scope(S, "find_equal_matches");
+      StageFindEqualMatches(S);
+    }
+    S.Point("after:find_equal_matches");
+    Save(PipelineStep::EqualMatches);
+  } else {
+    // The checkpoint was written after the version check and the ingest checks passed on inputs with
+    // the same sha256 (the manifest binding), so they pass again; the ingest check is cheap and repeated
+    // as a guard.
+    S.RequireIngest();
   }
 
-  if (!S.Config().IgnoreAllNames) {  // D:3623-3624
+  bool SkipOthers = Cursor.SkipOthers;  // D:3616
+  if (!Done(PipelineStep::DirtyHeuristics)) {
+    S.Flags().IsSameProcessor = StageSameProcessor(S);  // D:3617
+    S.Engine().Prepare();                               // plan §3.6: after IsSameProcessor
+    if (S.Config().Experimental) {                      // D:3618-3621
+      {
+        ContextScope Scope(S, "apply_dirty_heuristics");
+        SkipOthers = StageApplyDirtyHeuristics(S);
+      }
+      S.Point("after:apply_dirty_heuristics");
+    }
+    Cursor.SkipOthers = SkipOthers;
+    Save(PipelineStep::DirtyHeuristics);
+  } else {
+    S.Engine().Prepare();  // per-function data for the restored IsSameProcessor
+  }
+
+  if (!S.Config().IgnoreAllNames && !Done(PipelineStep::SameName)) {  // D:3623-3624
     S.Point("before:find_same_name");
     {
       ContextScope Scope(S, "find_same_name");
       StageFindSameName(S);
     }
     S.Point("after:find_same_name");
+    Save(PipelineStep::SameName);
   }
 
   if (SkipOthers) {  // D:3626-3627
-    S.Point("before:find_remaining_functions");
-    {
-      ContextScope Scope(S, "find_remaining_functions");
-      StageFindRemainingFunctions(S);
+    if (!Done(PipelineStep::RemainingFunctions)) {
+      S.Point("before:find_remaining_functions");
+      {
+        ContextScope Scope(S, "find_remaining_functions");
+        StageFindRemainingFunctions(S);
+      }
+      S.Point("after:find_remaining_functions");
+      Save(PipelineStep::RemainingFunctions);
     }
-    S.Point("after:find_remaining_functions");
   } else {
     // D:3629-3630 run_heuristics_for_category("Best") (emits its own heuristic and category points).
     // oracle_trace.py WrapStage makes "run_heuristics_for_category:Best" the main-thread ctx.
-    {
-      ContextScope Scope(S, "run_heuristics_for_category:Best");
-      StageRunHeuristicsForCategory(S, HeurCategory::Best);
+    if (!Done(PipelineStep::BestCategory)) {
+      {
+        ContextScope Scope(S, "run_heuristics_for_category:Best");
+        StageRunHeuristicsForCategory(S, HeurCategory::Best);
+      }
+      Save(PipelineStep::BestCategory);
     }
-    // D:3633-3634 find_partial_matches
-    StageFindPartialMatches(S);
+    // D:3633-3634 find_partial_matches (two steps: the Partial category, then search_small_differences)
+    if (!Done(PipelineStep::PartialCategory)) {
+      StageFindPartialMatchesCategory(S);
+      Save(PipelineStep::PartialCategory);
+    }
+    if (!Done(PipelineStep::SmallDifferences)) {
+      StageFindPartialMatchesSmallDifferences(S);
+      Save(PipelineStep::SmallDifferences);
+    }
     // D:3636 apply_machine_learning: use_trained_model is False (§1.1), a no-op.
     // D:3638-3651: unreliable is False (§1.1), so neither unreliable nor experimental matches run.
 
-    int Iteration = 0;  // D:3653
-    while (true) {      // D:3654
-      // oracle_trace.py WrapCleanup: the n-th call at the loop head (D:3655) sets iteration n-1 before
-      // its "before:cleanup:3655:<n>" point, so that point already carries k.
-      S.SetIteration(Iteration);
-      S.Cleanup(CleanupSite::L3655);                                   // D:3655
-      const size_t OldTotal = S.State().TotalMatchedFunctions();       // D:3656
-      LoopStage(S, "find_matches_diffing", Iteration, &StageFindMatchesDiffing);  // D:3660
-      if (S.Config().SlowHeuristics) {                                 // D:3662-3664
-        LoopStage(S, "find_related_matches", Iteration, &StageFindRelatedMatches);
+    if (!Done(PipelineStep::FinalPass)) {
+      int Iteration = 0;                                   // D:3653
+      PipelineStep LoopDone = PipelineStep::None;          // the step of iteration `Iteration` already done
+      int64_t OldTotal = Cursor.OldTotal;
+      if (Resume && IsLoopStep(Resume->Done)) {
+        Iteration = Resume->Iteration;
+        LoopDone = Resume->Done;
       }
-      LoopStage(S, "find_related_compilation_unit", Iteration, &StageFindRelatedCompilationUnit);  // D:3666
-      LoopStage(S, "find_locally_affine_functions", Iteration, &StageFindLocallyAffineFunctions);  // D:3669
-      S.Cleanup(CleanupSite::L3671);                                   // D:3671
-      const size_t NewTotal = S.State().TotalMatchedFunctions();       // D:3672
-      if (NewTotal <= OldTotal) {                                      // D:3673-3674
-        break;
+      const auto Pending = [&](PipelineStep Step) { return LoopDone < Step; };
+      while (true) {  // D:3654
+        Cursor.Iteration = Iteration;
+        // oracle_trace.py WrapCleanup: the n-th call at the loop head (D:3655) sets iteration n-1 before
+        // its "before:cleanup:3655:<n>" point, so that point already carries k.
+        S.SetIteration(Iteration);
+        if (Pending(PipelineStep::LoopCleanupTop)) {
+          S.Cleanup(CleanupSite::L3655);                                          // D:3655
+          OldTotal = static_cast<int64_t>(S.State().TotalMatchedFunctions());     // D:3656
+          Cursor.OldTotal = OldTotal;
+          Save(PipelineStep::LoopCleanupTop);
+        }
+        if (Pending(PipelineStep::MatchesDiffing)) {
+          LoopStage(S, "find_matches_diffing", Iteration, &StageFindMatchesDiffing);  // D:3660
+          Save(PipelineStep::MatchesDiffing);
+        }
+        if (S.Config().SlowHeuristics && Pending(PipelineStep::RelatedMatches)) {  // D:3662-3664
+          LoopStage(S, "find_related_matches", Iteration, &StageFindRelatedMatches);
+          Save(PipelineStep::RelatedMatches);
+        }
+        if (Pending(PipelineStep::RelatedCompilationUnit)) {
+          LoopStage(S, "find_related_compilation_unit", Iteration, &StageFindRelatedCompilationUnit);  // D:3666
+          Save(PipelineStep::RelatedCompilationUnit);
+        }
+        if (Pending(PipelineStep::LocallyAffine)) {
+          LoopStage(S, "find_locally_affine_functions", Iteration, &StageFindLocallyAffineFunctions);  // D:3669
+          Save(PipelineStep::LocallyAffine);
+        }
+        if (Pending(PipelineStep::LoopCleanupBottom)) {
+          S.Cleanup(CleanupSite::L3671);  // D:3671
+          Save(PipelineStep::LoopCleanupBottom);
+        }
+        LoopDone = PipelineStep::None;
+        const auto NewTotal = static_cast<int64_t>(S.State().TotalMatchedFunctions());  // D:3672
+        if (NewTotal <= OldTotal) {                                                      // D:3673-3674
+          break;
+        }
+        ++Iteration;  // D:3675
       }
-      ++Iteration;                                                     // D:3675
     }
   }
 
@@ -683,18 +846,25 @@ bool RunPipeline(DiffSession& S) {
   // its last (D:3671); from before:final_pass on it is null again (tools/parity/README.md "iteration";
   // oracle_trace.py WrapStage sets Iteration = None when final_pass is entered).
   S.SetIteration(std::nullopt);
-  S.Point("before:final_pass");  // D:3677
-  {
-    ContextScope Scope(S, "final_pass");
-    StageFinalPass(S);
+  Cursor.Iteration = 0;
+  if (!Done(PipelineStep::FinalPass)) {
+    S.Point("before:final_pass");  // D:3677
+    {
+      ContextScope Scope(S, "final_pass");
+      StageFinalPass(S);
+    }
+    S.Point("after:final_pass");
+    Save(PipelineStep::FinalPass);
   }
-  S.Point("after:final_pass");
 
-  {
-    ContextScope Scope(S, "find_unmatched");  // D:3680-3681
-    StageFindUnmatched(S);
+  if (!Done(PipelineStep::FindUnmatched)) {
+    {
+      ContextScope Scope(S, "find_unmatched");  // D:3680-3681
+      StageFindUnmatched(S);
+    }
+    S.Point("after:find_unmatched");
+    Save(PipelineStep::FindUnmatched);
   }
-  S.Point("after:find_unmatched");
   // D:3682 call_hook("on_finish"): patch_diff_vulns only shows a chooser, a no-op standalone.
 
   LogFinalResults(S);  // D:3684-3695
@@ -1023,6 +1193,43 @@ void RequireOutputLocation(const std::string& Out, const char* Role) {
   }
 }
 
+// A checkpoint directory's own files (manifest.json, state-NNNNNN.json and their .tmp files) are created,
+// replaced and deleted by every checkpoint, so no input and no other output may be one of them. Other
+// files in that directory are never touched (an -o beside the checkpoint is fine).
+void RefuseCheckpointAliases(const DiffArgs& Args, const std::string& Out, const std::string& Dir) {
+  std::vector<RolePath> Paths;
+  AddDatabaseFiles(Paths, "db1", Args.Db1);
+  AddDatabaseFiles(Paths, "db2", Args.Db2);
+  AddDatabaseFiles(Paths, "-o", Out);
+  for (const std::string& Scratch : ResultsWriterScratchPaths(Out)) {
+    Paths.push_back({"-o's temporary file", Scratch});
+  }
+  if (!Args.TracePath.empty()) {
+    Paths.push_back({"--trace", Args.TracePath});
+  }
+  if (!Args.SnapshotDir.empty()) {
+    Paths.push_back({"--snapshot-dir's index.json", SnapshotIndexPath(Args.SnapshotDir)});
+  }
+  for (const RolePath& Path : Paths) {
+    const fs::path Native = Detail::PathFromUtf8(Path.Path);
+    const fs::path Parent = Native.parent_path().empty() ? fs::path(".") : Native.parent_path();
+    if (CheckpointStore::IsStoreFileName(Detail::PathToUtf8(Native.filename())) &&
+        Detail::SameFilePath(Detail::PathToUtf8(Parent), Dir)) {
+      throw UsageRefused(Path.Role + " '" + Path.Path + "' is a file of the checkpoint directory '" + Dir +
+                         "', which every checkpoint replaces (nothing was changed)");
+    }
+  }
+}
+
+// "find_related_compilation_unit:1" for a loop step, "final_pass" otherwise.
+std::string CursorLabel(const PipelineCursor& Cursor) {
+  std::string Label(PipelineStepName(Cursor.Done));
+  if (IsLoopStep(Cursor.Done)) {
+    Label += ":" + std::to_string(Cursor.Iteration);
+  }
+  return Label;
+}
+
 // FinishHarness on an error path: the error being handled is the one to report, so a second failure
 // while writing index.json or closing the trace is dropped here.
 void FinishHarnessQuietly(DiffSession& S) noexcept {
@@ -1075,8 +1282,34 @@ DiffOutcome RunDiff(const DiffArgs& Args) {
     }
     Outcome.OutputPath = Out;
 
+    // --checkpoint-dir / --resume (Checkpoint.h): the command-line combinations first.
+    const bool Resuming = !Args.ResumeDir.empty();
+    const std::string CheckpointDir = Resuming ? Args.ResumeDir : Args.CheckpointDir;
+    if (!CheckpointDir.empty()) {
+      std::string Refusal;
+      if (Replay) {
+        Refusal = "--checkpoint-dir and --resume do not apply to --replay";
+      } else if (Resuming && !Args.CheckpointDir.empty() && Args.CheckpointDir != Args.ResumeDir &&
+                 !Detail::SameFilePath(Args.CheckpointDir, Args.ResumeDir)) {
+        Refusal = "--checkpoint-dir and --resume name different directories (--resume keeps checkpointing into "
+                  "its own directory)";
+      } else if (Resuming && (!Args.TracePath.empty() || !Args.SnapshotDir.empty())) {
+        Refusal = "--resume cannot be combined with --trace or --snapshot-dir (a resumed run would record only "
+                  "the stages after the checkpoint)";
+      }
+      if (!Refusal.empty()) {
+        Outcome.Status = DiffStatus::Usage;
+        Outcome.Message = Refusal;
+        return Outcome;
+      }
+    }
+
     // Every check on the paths runs before any file is opened or written (audit F01, F25, F29).
     RefusePathAliases(Args, Out, Replay);  // plan §2.1: an output that aliases an input is refused
+    if (!CheckpointDir.empty()) {
+      RefuseCheckpointAliases(Args, Out, CheckpointDir);
+      RefuseOracleCapture(Detail::PathFromUtf8(CheckpointDir), CheckpointDir);
+    }
     RefuseOracleCapture(Detail::PathFromUtf8(Out).parent_path(), Out);
     if (!Args.TracePath.empty()) {
       RefuseOracleCapture(Detail::PathFromUtf8(Args.TracePath).parent_path(), Args.TracePath);
@@ -1085,6 +1318,55 @@ DiffOutcome RunDiff(const DiffArgs& Args) {
       RefuseForeignSnapshotDir(Args.SnapshotDir);
     }
     RequireOutputLocation(Out, Replay ? "--snapshot-out" : "output");
+
+    // The checkpoint directory: --resume reads its checkpoint (exit 4 when there is none or it is
+    // damaged); both check that it can be written (exit 6); a fresh run refuses a directory that already
+    // holds a checkpoint (exit 2), so an earlier run's progress is never replaced by mistake.
+    std::optional<CheckpointStore> Store;
+    std::optional<EngineCheckpoint> Loaded;
+    CheckpointBinding Binding;
+    if (!CheckpointDir.empty()) {
+      Store.emplace(CheckpointDir);
+      Outcome.CheckpointDir = CheckpointDir;
+      if (Resuming) {
+        Loaded = Store->Load();
+        (void)Store->Prepare();
+      } else {
+        if (Store->HasManifest()) {
+          bool Ours = false;
+          try {
+            (void)ParseCheckpointManifest(Detail::ReadFileBytes(Store->ManifestPath()));
+            Ours = true;
+          } catch (const std::exception&) {
+            Ours = false;  // unreadable or not a checkpoint manifest: somebody else's file
+          }
+          if (Ours) {
+            throw UsageRefused("the checkpoint directory '" + CheckpointDir +
+                               "' already holds a checkpoint of an earlier run; continue it with --resume '" +
+                               CheckpointDir + "', or remove its manifest.json and state-*.json files to start "
+                               "again (nothing was changed)");
+          }
+          throw UsageRefused("the checkpoint directory '" + CheckpointDir +
+                             "' holds a manifest.json that is not a dsigmatcher checkpoint, and --checkpoint-dir "
+                             "replaces that file; use an empty or new directory (nothing was changed)");
+        }
+        (void)Store->Prepare();
+      }
+      Binding.ToolVersion = DSIG_VERSION;
+      Binding.SqliteVersion = Outcome.SqliteVersion;
+      BindInput(Args.Db1, Binding.Db1Sha256, Binding.Db1Size, Binding.Db1WalSha256);
+      BindInput(Args.Db2, Binding.Db2Sha256, Binding.Db2Size, Binding.Db2WalSha256);
+      Binding.IgnoreSmallFunctions = Args.Config.IgnoreSmallFunctions;
+      Binding.RelatedCuSource = Args.CuSource == RelatedCuSource::Sql ? "sql" : "native";
+      if (Loaded) {
+        const std::string Mismatch = DescribeBindingMismatch(Loaded->Binding, Binding);
+        if (!Mismatch.empty()) {
+          throw UnsupportedInput("--resume: the checkpoint in '" + CheckpointDir +
+                                 "' was made for other inputs or options: " + Mismatch +
+                                 " (resume with the same inputs and options, or run again without --resume)");
+        }
+      }
+    }
 
     DiffSession S(Args.Config);
     S.Log().SetQuiet(Args.Quiet);
@@ -1130,8 +1412,40 @@ DiffOutcome RunDiff(const DiffArgs& Args) {
       return Outcome;
     }
 
+    PipelineCheckpointing Checkpointing;
+    std::string LastCheckpoint;
+    if (Store) {
+      if (Loaded) {
+        RestoreCheckpoint(S, *Loaded);
+        Checkpointing.ResumeFrom = Loaded->Cursor;
+        Outcome.ResumedAfter = CursorLabel(Loaded->Cursor);
+        LastCheckpoint = Outcome.ResumedAfter;
+        Loaded.reset();  // the restored state now lives in the session
+      }
+      Checkpointing.Save = [&](const PipelineCursor& Cursor) {
+        // A checkpoint that cannot be written does not end the run: the previous checkpoint stays
+        // usable (CheckpointStore::Write), and the run may well finish.
+        try {
+          EngineCheckpoint Checkpoint = CaptureCheckpoint(S, Cursor);
+          Checkpoint.Binding = Binding;
+          Store->Write(Checkpoint, Args.Db1, Args.Db2);
+          ++Outcome.CheckpointsWritten;
+          LastCheckpoint = CursorLabel(Cursor);
+        } catch (const IoFailure& Failure) {
+          const std::string Warning =
+              "WARNING: no checkpoint after " + CursorLabel(Cursor) + ": " + Failure.What + "; the run goes on (" +
+              (LastCheckpoint.empty() ? std::string("no checkpoint has been written yet")
+                                      : "--resume would continue after " + LastCheckpoint) +
+              ")";
+          std::fprintf(stderr, "%s\n", Warning.c_str());
+          std::fflush(stderr);
+          Outcome.Warnings.push_back(Warning);
+        }
+      };
+    }
+
     try {
-      Outcome.DiffReturned = RunPipeline(S);
+      Outcome.DiffReturned = RunPipeline(S, Store ? &Checkpointing : nullptr);
     } catch (...) {
       FinishHarnessQuietly(S);
       throw;
@@ -1145,6 +1459,18 @@ DiffOutcome RunDiff(const DiffArgs& Args) {
     Write.DiffDb = Args.Db2;
     WriteDiaphoraResults(Write, S.Final(), S.Ids());
     Outcome.OutputWritten = true;
+    if (Store) {
+      // The results file is complete: the checkpoint is no longer needed.
+      try {
+        Store->Remove();
+      } catch (const IoFailure& Failure) {
+        const std::string Warning =
+            "WARNING: the results were written, but the checkpoint could not be removed: " + Failure.What;
+        std::fprintf(stderr, "%s\n", Warning.c_str());
+        std::fflush(stderr);
+        Outcome.Warnings.push_back(Warning);
+      }
+    }
     Outcome.Mode = S.Mode();
     Outcome.Best = S.Final().Best.size();
     Outcome.Partial = S.Final().Partial.size();

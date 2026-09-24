@@ -102,6 +102,7 @@ struct StateSnapshot {
 
 // Serialisation. Parse/Read throw JsonError (malformed JSON or schema) or IoFailure (Read/Write).
 StateSnapshot ParseSnapshot(std::string_view Json);
+StateSnapshot SnapshotFromJson(const JsonValue& Root);  // ParseSnapshot on an already parsed value
 StateSnapshot ReadSnapshot(const std::string& Path);
 JsonValue SnapshotToJson(const StateSnapshot& Snapshot);
 std::string SerializeSnapshot(const StateSnapshot& Snapshot, bool Pretty = false);
