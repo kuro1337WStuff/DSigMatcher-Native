@@ -513,6 +513,12 @@ std::string CurrentUtcTimestamp() {
 }
 
 std::optional<std::string> FileSha256Hex(const std::string& Path) {
+  // A directory can be opened for reading on some platforms (macOS returns an empty read
+  // rather than failing), which would hash to the digest of no bytes. Only regular files hash.
+  std::error_code RegularEc;
+  if (!std::filesystem::is_regular_file(PathOf(Path), RegularEc)) {
+    return std::nullopt;
+  }
   std::ifstream Stream(PathOf(Path), std::ios::binary);
   if (!Stream.is_open()) {
     return std::nullopt;

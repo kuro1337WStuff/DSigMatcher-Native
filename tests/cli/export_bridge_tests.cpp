@@ -1303,6 +1303,10 @@ void TestScriptDiscovery(const std::string& Scratch) {
   const fs::path Copy = Bin / Self.filename();
   fs::copy_file(Self, Copy, fs::copy_options::overwrite_existing, Error);
   CHECK(!Error);
+  // The running child resolves its own path via SelfExecutablePath (weakly_canonical), which on macOS
+  // rewrites the /var -> /private/var temp symlink. Compare discovery messages against that same
+  // resolved directory so the expected paths match on every platform (a no-op where there is no symlink).
+  const fs::path RBin = fs::weakly_canonical(Copy, Error).parent_path();
   for (const fs::path& Ancestor : {Deep, Deep / "x", Deep / "x" / "y", Bin}) {
     fs::create_directories(Ancestor / "tools" / "export", Error);
     WriteFile(Ancestor / "tools" / "export" / "dsig_export.py", "print('PLANTED SCRIPT RAN')\n");
@@ -1312,19 +1316,20 @@ void TestScriptDiscovery(const std::string& Scratch) {
   ProcessResult Run = RunProcess({PathToUtf8(Copy)}, Child, 60, nullptr);
   CHECK(Run.Started && Run.ExitCode == 0);
   CHECK(!Contains(Run.Tail, "SCRIPT "));
-  CHECK(Contains(Run.Tail, "ERROR export script not found: no dsig_export.py at '" + PathToUtf8(Bin / "dsig_export.py")));
-  CHECK(Contains(Run.Tail, PathToUtf8(Bin.parent_path() / "share" / "dsigmatcher" / "tools" / "export" / "dsig_export.py")));
+  CHECK(Contains(Run.Tail, "ERROR export script not found: no dsig_export.py at '" + PathToUtf8(RBin / "dsig_export.py")));
+  CHECK(Contains(Run.Tail, PathToUtf8(RBin.parent_path() / "share" / "dsigmatcher" / "tools" / "export" / "dsig_export.py")));
   CHECK(Contains(Run.Tail, "(pass --export-script <path> or set DSIG_EXPORT_SCRIPT)"));
   // The install layout is still found: <prefix>/share/dsigmatcher/tools/export beside bin/.
   const fs::path Shared = Bin.parent_path() / "share" / "dsigmatcher" / "tools" / "export" / "dsig_export.py";
+  const fs::path RShared = RBin.parent_path() / "share" / "dsigmatcher" / "tools" / "export" / "dsig_export.py";
   fs::create_directories(Shared.parent_path(), Error);
   WriteFile(Shared, "# the installed script\n");
   Run = RunProcess({PathToUtf8(Copy)}, Child, 60, nullptr);
-  CHECK(Contains(Run.Tail, "SCRIPT " + Hex(PathToUtf8(Shared))));
+  CHECK(Contains(Run.Tail, "SCRIPT " + Hex(PathToUtf8(RShared))));
   // And beside the executable wins.
   WriteFile(Bin / "dsig_export.py", "# beside\n");
   Run = RunProcess({PathToUtf8(Copy)}, Child, 60, nullptr);
-  CHECK(Contains(Run.Tail, "SCRIPT " + Hex(PathToUtf8(Bin / "dsig_export.py"))));
+  CHECK(Contains(Run.Tail, "SCRIPT " + Hex(PathToUtf8(RBin / "dsig_export.py"))));
 }
 
 // No Windows dialogs, ever: with the error mode cleared to 0 first (what cmd.exe and ctest leave), the
