@@ -531,7 +531,11 @@ std::filesystem::path SelfExecutablePath() {
     return std::filesystem::path();
   }
   Buffer.resize(Length);
-  return std::filesystem::path(Buffer);
+  // Resolve to the real path (as macOS and the /proc symlink already do) so the reported
+  // executable directory is identical however the process was launched (case, 8.3 names, junctions).
+  std::error_code Error;
+  const std::filesystem::path Canonical = std::filesystem::weakly_canonical(std::filesystem::path(Buffer), Error);
+  return Error ? std::filesystem::path(Buffer) : Canonical;
 #elif defined(__APPLE__)
   uint32_t Size = 0;
   _NSGetExecutablePath(nullptr, &Size);
